@@ -54,7 +54,8 @@ async function discordGuild(env){
 }
 export default{async fetch(req,env){
  const u=new URL(req.url),p=u.pathname;
- if(p==="/api/health")return health();\n const um=p.match(/^\\/api\\/desktop\\/update\\/([^/]+)\\/([^/]+)\\/([^/]+)$/);if(um)return desktopUpdate(decodeURIComponent(um[1]),decodeURIComponent(um[2]),decodeURIComponent(um[3]),env);
+ if(p==="/api/health")return health();
+ const um=p.match(/^\/api\/desktop\/update\/([^/]+)\/([^/]+)\/([^/]+)$/);if(um)return desktopUpdate(decodeURIComponent(um[1]),decodeURIComponent(um[2]),decodeURIComponent(um[3]),env);
  if(p==="/api/auth/login")return login(req,env);
  if(p==="/api/auth/callback")return callback(req,env);
  if(p==="/api/auth/logout")return new Response(null,{status:302,headers:{Location:u.origin+"/","Set-Cookie":`${COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`}});
