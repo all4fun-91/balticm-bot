@@ -9,7 +9,18 @@ async function sign(p,secret){const d=b64(enc.encode(JSON.stringify(p))),k=await
 async function verify(t,secret){try{const[d,s]=t.split("."),k=await crypto.subtle.importKey("raw",enc.encode(secret),{name:"HMAC",hash:"SHA-256"},false,["verify"]);if(!await crypto.subtle.verify("HMAC",k,unb64(s),enc.encode(d)))return null;const p=JSON.parse(dec.decode(unb64(d)));return p.exp>Date.now()?p:null}catch{return null}}
 const json=(data,status=200)=>Response.json(data,{status,headers:{"Cache-Control":"no-store"}});
 
-async function health(){
+
+function compareSemver(a,b){
+ const pa=String(a||"").replace(/^v/,"").split(".").map(x=>Number.parseInt(x,10)||0),pb=String(b||"").replace(/^v/,"").split(".").map(x=>Number.parseInt(x,10)||0);
+ for(let i=0;i<3;i++){if((pa[i]||0)!==(pb[i]||0))return (pa[i]||0)-(pb[i]||0)}return 0;
+}
+function desktopUpdate(target,arch,currentVersion,env){
+ const version=env.DESKTOP_UPDATE_VERSION,url=env.DESKTOP_UPDATE_URL,signature=env.DESKTOP_UPDATE_SIGNATURE;
+ if(target!=="windows"||!version||!url||!signature||compareSemver(version,currentVersion)<=0)return new Response(null,{status:204,headers:{"Cache-Control":"no-store"}});
+ if(arch!=="x86_64"&&arch!=="i686"&&arch!=="aarch64")return new Response(null,{status:204,headers:{"Cache-Control":"no-store"}});
+ return json({version,url,signature,notes:env.DESKTOP_UPDATE_NOTES||"BalticM Control Center update",pub_date:env.DESKTOP_UPDATE_PUB_DATE||new Date().toISOString()});
+}
+\nasync function health(){
  const targets=[["Main Bot","https://balticm.eu/discord-bot/"],["Reaction Roles","https://balticm.eu/reactions/"]];
  const services=await Promise.all(targets.map(async([name,url])=>{try{const r=await fetch(url,{headers:{Accept:"application/json,text/plain,*/*"}}),text=await r.text();let data;try{data=JSON.parse(text)}catch{data=text.slice(0,250)}return{name,url,ok:r.ok,status:r.status,data}}catch(e){return{name,url,ok:false,status:0,error:String(e.message||e)}}}));
  return json({ok:services.every(x=>x.ok),checkedAt:new Date().toISOString(),services});
@@ -43,7 +54,7 @@ async function discordGuild(env){
 }
 export default{async fetch(req,env){
  const u=new URL(req.url),p=u.pathname;
- if(p==="/api/health")return health();
+ if(p==="/api/health")return health();\n const um=p.match(/^\\/api\\/desktop\\/update\\/([^/]+)\\/([^/]+)\\/([^/]+)$/);if(um)return desktopUpdate(decodeURIComponent(um[1]),decodeURIComponent(um[2]),decodeURIComponent(um[3]),env);
  if(p==="/api/auth/login")return login(req,env);
  if(p==="/api/auth/callback")return callback(req,env);
  if(p==="/api/auth/logout")return new Response(null,{status:302,headers:{Location:u.origin+"/","Set-Cookie":`${COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`}});
