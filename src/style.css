@@ -10,3 +10,12 @@
 .accountProfile{width:100%;border:0;background:transparent;color:#fff;text-align:left;cursor:pointer}.accountProfile:hover{background:#ffffff05;border-radius:8px}.profilePage{min-height:460px}.profileHero{display:flex;align-items:center;gap:22px;margin-top:28px;padding:26px;border:1px solid #ffffff0c;border-radius:16px;background:linear-gradient(135deg,#0b1120,#080c16)}.profileHero>img,.profileFallback{width:88px;height:88px;border-radius:20px;object-fit:cover;border:1px solid #795aff55}.profileFallback{display:grid;place-items:center;background:linear-gradient(135deg,#6f40ff,#416dff);font:800 28px Orbitron}.profileHero h2{margin:0 0 5px}.profileHero p{margin:0 0 13px;color:#748097;font-size:12px}.profileBadge{display:inline-flex;align-items:center;gap:7px;padding:7px 10px;border-radius:8px;background:#7655ff16;color:#a991ff;font-size:10px;font-weight:700}.profileBadge svg{width:14px}.profileInfo{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}.profileInfo>div{padding:18px;border:1px solid #ffffff0c;border-radius:12px;background:#070b14}.profileInfo span,.profileInfo b{display:block}.profileInfo span{font-size:8px;letter-spacing:1.4px;color:#68738b}.profileInfo b{margin-top:7px;font-size:12px;overflow-wrap:anywhere}@media(max-width:650px){.profileHero{align-items:flex-start}.profileHero>img,.profileFallback{width:64px;height:64px;border-radius:16px}.profileInfo{grid-template-columns:1fr}}
 
 .loginAccountChip{text-decoration:none;min-width:156px;justify-content:flex-start;box-shadow:none}.loginAvatar{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:#7655ff16;color:#a98cff;flex:0 0 30px}.loginAvatar svg{width:15px;height:15px}.loginAccountChip .chev{margin-left:auto}.loginAccountChip:hover{color:#fff}
+
+/* Compact gateway status in the header */
+.gatewayTop{display:flex;align-items:center;gap:7px;padding:0 2px;color:#fff;white-space:nowrap}
+.gatewayTop .gatewayDot{width:7px;height:7px;border-radius:50%;background:#38f59a;box-shadow:0 0 10px #38f59a;flex:0 0 7px}
+.gatewayTop>div{display:flex;flex-direction:column;line-height:1.05}
+.gatewayTop b{font-size:10px;font-weight:700;letter-spacing:.04em}
+.gatewayTop>div>span{font-size:9px;color:#7f8aa3;margin-top:3px}
+.gatewayTop.offline .gatewayDot{background:#ff5d70;box-shadow:0 0 10px #ff5d70}
+@media(max-width:700px){.gatewayTop>div{display:none}.gatewayTop{padding:0}.gatewayTop .gatewayDot{width:6px;height:6px;flex-basis:6px}}
