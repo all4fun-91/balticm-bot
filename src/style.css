@@ -19,3 +19,10 @@
 .gatewayTop>div>span{font-size:9px;color:#7f8aa3;margin-top:3px}
 .gatewayTop.offline .gatewayDot{background:#ff5d70;box-shadow:0 0 10px #ff5d70}
 @media(max-width:700px){.gatewayTop>div{display:none}.gatewayTop{padding:0}.gatewayTop .gatewayDot{width:6px;height:6px;flex-basis:6px}}
+
+/* Gateway uses the same compact visual language as LIVE */
+.gatewayTop{display:flex;align-items:center;gap:7px;padding:0;color:#9ca9c5;white-space:nowrap;font-size:10px;font-weight:700;letter-spacing:.08em;line-height:1}
+.gatewayTop .gatewayDot{width:7px;height:7px;border-radius:50%;background:#38f59a;box-shadow:0 0 10px #38f59a;flex:0 0 7px}
+.gatewayTop.offline{color:#9ca9c5}
+.gatewayTop.offline .gatewayDot{background:#ff5d70;box-shadow:0 0 10px #ff5d70}
+@media(max-width:700px){.gatewayTop span:last-child{display:none}.gatewayTop{gap:0}}
