@@ -20,7 +20,7 @@ function desktopUpdate(target,arch,currentVersion,env){
  if(arch!=="x86_64"&&arch!=="i686"&&arch!=="aarch64")return new Response(null,{status:204,headers:{"Cache-Control":"no-store"}});
  return json({version,url,signature,notes:env.DESKTOP_UPDATE_NOTES||"BalticM Control Center update",pub_date:env.DESKTOP_UPDATE_PUB_DATE||new Date().toISOString()});
 }
-\nasync function health(){
+async function health(){
  const targets=[["Main Bot","https://balticm.eu/discord-bot/"],["Reaction Roles","https://balticm.eu/reactions/"]];
  const services=await Promise.all(targets.map(async([name,url])=>{try{const r=await fetch(url,{headers:{Accept:"application/json,text/plain,*/*"}}),text=await r.text();let data;try{data=JSON.parse(text)}catch{data=text.slice(0,250)}return{name,url,ok:r.ok,status:r.status,data}}catch(e){return{name,url,ok:false,status:0,error:String(e.message||e)}}}));
  return json({ok:services.every(x=>x.ok),checkedAt:new Date().toISOString(),services});
