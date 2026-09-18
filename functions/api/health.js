@@ -1,1 +1,78 @@
-export async function onRequestGet(){const targets=[["Main Bot","https://balticm.eu/discord-bot/"],["Reaction Roles","https://balticm.eu/reactions/"]];const services=await Promise.all(targets.map(async([name,url])=>{try{const r=await fetch(url,{headers:{"User-Agent":"BalticM-Bot-Control-Center"}});let data=null;try{data=await r.json()}catch{}return{name,ok:r.ok,status:r.status,data}}catch(e){return{name,ok:false,error:String(e)}}}));return Response.json({ok:services.every(s=>s.ok),checkedAt:new Date().toISOString(),services},{headers:{"Cache-Control":"no-store"}})}
+const TARGETS = [
+  { name: "Main Bot", urls: ["https://balticm.eu/discord-bot", "https://balticm.eu/discord-bot/"] },
+  { name: "Reaction Roles", urls: ["https://balticm.eu/reactions", "https://balticm.eu/reactions/"] }
+];
+
+async function checkTarget(target) {
+  let lastError = "No response";
+
+  for (const url of target.urls) {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 8000);
+
+      const response = await fetch(url, {
+        method: "GET",
+        redirect: "follow",
+        signal: controller.signal,
+        headers: {
+          "Accept": "application/json,text/plain,*/*",
+          "User-Agent": "BalticM-Bot-Control-Center/1.1"
+        }
+      });
+
+      clearTimeout(timer);
+
+      const text = await response.text();
+      let data = null;
+
+      try {
+        data = text ? JSON.parse(text) : null;
+      } catch {
+        data = text ? { response: text.slice(0, 300) } : null;
+      }
+
+      if (response.ok) {
+        return {
+          name: target.name,
+          ok: true,
+          status: response.status,
+          url,
+          data
+        };
+      }
+
+      lastError = `HTTP ${response.status}`;
+    } catch (error) {
+      lastError =
+        error && error.name === "AbortError"
+          ? "Request timed out"
+          : String(error && error.message ? error.message : error);
+    }
+  }
+
+  return {
+    name: target.name,
+    ok: false,
+    status: 0,
+    error: lastError
+  };
+}
+
+export async function onRequestGet() {
+  const services = await Promise.all(TARGETS.map(checkTarget));
+
+  return Response.json(
+    {
+      ok: services.every((service) => service.ok),
+      checkedAt: new Date().toISOString(),
+      services
+    },
+    {
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate",
+        "Access-Control-Allow-Origin": "*"
+      }
+    }
+  );
+}
