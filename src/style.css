@@ -26,3 +26,20 @@
 .gatewayTop.offline{color:#9ca9c5}
 .gatewayTop.offline .gatewayDot{background:#ff5d70;box-shadow:0 0 10px #ff5d70}
 @media(max-width:700px){.gatewayTop span:last-child{display:none}.gatewayTop{gap:0}}
+
+
+/* Header notifications */
+.notifications{position:relative}
+.notificationBell{position:relative;width:40px;height:40px;border:1px solid #ffffff12;border-radius:11px;background:#0a101d;color:#8995aa;display:grid;place-items:center;cursor:pointer;transition:.18s}
+.notificationBell:hover,.notificationBell[aria-expanded="true"]{color:#fff;background:#0e1626;border-color:#7655ff55}
+.notificationBell>svg{width:18px;height:18px}
+.notificationBadge{position:absolute;right:-4px;top:-5px;min-width:17px;height:17px;padding:0 4px;border-radius:9px;display:grid;place-items:center;background:#825cff;color:#fff;border:2px solid #070b14;box-shadow:0 0 14px #7655ffaa;font-size:8px;font-weight:800;line-height:1}
+.notificationMenu{position:absolute;right:0;top:49px;width:340px;border:1px solid #ffffff12;border-radius:14px;background:#0a101df8;box-shadow:0 22px 60px #000a;overflow:hidden;z-index:40}
+.notificationHead{display:flex;align-items:center;justify-content:space-between;padding:16px 17px;border-bottom:1px solid #ffffff0c}
+.notificationHead>div{display:grid;gap:4px}.notificationHead b{font:700 13px Orbitron}.notificationHead span{font-size:9px;color:#7d899f}.notificationHead>svg{width:17px;color:#9b7dff}
+.notificationList{display:grid}.notificationItem{position:relative;width:100%;display:grid;grid-template-columns:8px 1fr 15px;gap:11px;align-items:start;padding:15px 14px;border:0;border-bottom:1px solid #ffffff09;background:transparent;color:#eaf0fb;text-align:left;cursor:pointer}
+.notificationItem:hover{background:#ffffff06}.notificationItem.unread{background:linear-gradient(90deg,#7655ff0f,transparent)}
+.notificationMark{width:7px;height:7px;margin-top:4px;border-radius:50%;background:#7655ff;box-shadow:0 0 10px #7655ff}
+.notificationItem>span:nth-child(2){display:grid;gap:5px}.notificationItem b{font-size:11px;line-height:1.35}.notificationItem small{color:#748097;font-size:9px;line-height:1.5}.notificationItem>svg{width:14px;color:#59657a;margin-top:3px}
+.notificationFoot{padding:10px 16px;color:#59657a;font-size:8px;letter-spacing:1px;text-align:center}
+@media(max-width:560px){.notificationMenu{position:fixed;left:12px;right:12px;top:82px;width:auto}.notificationBell{width:38px;height:38px}}
