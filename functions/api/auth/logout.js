@@ -1,0 +1,1 @@
+export async function onRequestGet({request}){const origin=new URL(request.url).origin;return new Response(null,{status:302,headers:{Location:origin+"/","Set-Cookie":"balticm_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0","Cache-Control":"no-store"}});}
