@@ -125,3 +125,16 @@
 .activityLogFilters select{position:absolute;inset:0;width:100%;height:100%;padding:0 34px 0 32px;cursor:pointer;z-index:2}
 .activityLogFilters label>div>svg{position:relative;z-index:1;pointer-events:none}
 .activityLogFilters label>div>svg:last-child{margin-left:auto}
+
+/* Readability pass 2 — slightly larger secondary text */
+.workspace .eyebrow{font-size:9px}
+.ticketTopbar small,.ticketStats small,.ticketToolbar small,.ticketEmpty>span,.ticketEmpty>small,
+.modTopbar small,.modStats small,.modActionsHead small,.modActionGrid small,.modHistoryHead small,.modEmpty>span,.modEmpty>small,
+.botStatusSummary small,.botStatusStats small,.botServiceHead small,.botServiceInfo>small,.botStatusNote span,
+.activityLogTop small,.activityLogHead small,.activityLogEmpty>span,.activityLogEmpty>small,
+.premiumServer small,.planPicker small,.planDetail p,.premiumNote span,
+.selectedServerIdentity small,.selectedServerMeta span,.serverSectionHead small,.servercard small{font-size:10px}
+.ticketStats span,.modStats span,.botStatusStats span,
+.modProtected,.botAutoRefresh,.botServiceState,.activityLogCount,
+.activityLogFilters label>span{font-size:9px}
+.activityLogFilters select{font-size:10px}
