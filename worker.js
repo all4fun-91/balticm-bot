@@ -77,6 +77,31 @@ async function discordGuild(env,id){
  if(!g.ok){if(g.status===404)return json({error:"Bot is not installed in this server",notInstalled:true},404);return json({error:"Discord guild request failed",status:g.status},502);}
  const gd=await g.json();return json({guild:{id:gd.id,name:gd.name,icon:gd.icon,memberCount:gd.approximate_member_count,onlineCount:gd.approximate_presence_count},channels:c.ok?await c.json():[],roles:r.ok?await r.json():[]});
 }
+
+function botHeaders(env,jsonBody=false){return{Authorization:`Bot ${env.DISCORD_BOT_TOKEN}`,...(jsonBody?{"Content-Type":"application/json"}:{})}}
+function canManageGuild(user,guildId){return(user.guilds||[]).some(g=>g.id===guildId)}
+async function discordMembers(env,guildId){
+ if(!env.DISCORD_BOT_TOKEN)return json({error:"DISCORD_BOT_TOKEN is not configured"},503);
+ const r=await fetch(`https://discord.com/api/v10/guilds/${guildId}/members?limit=1000`,{headers:botHeaders(env)});
+ if(!r.ok)return json({error:"Discord members request failed",status:r.status},r.status===403?403:502);
+ const members=await r.json();
+ return json({members:members.map(m=>({id:m.user?.id,username:m.user?.username||"Unknown",globalName:m.user?.global_name||m.nick||m.user?.username||"Unknown",nick:m.nick||null,avatar:m.user?.avatar||null,roles:m.roles||[],bot:!!m.user?.bot,joinedAt:m.joined_at||null}))});
+}
+async function createDiscordRole(req,env,guildId){
+ let body;try{body=await req.json()}catch{return json({error:"Invalid JSON"},400)}
+ const name=String(body?.name||"").trim().slice(0,100);if(!name)return json({error:"Role name is required"},400);
+ const payload={name,hoist:!!body.hoist,mentionable:!!body.mentionable};
+ if(/^#[0-9a-fA-F]{6}$/.test(body.color||""))payload.color=parseInt(body.color.slice(1),16);
+ const r=await fetch(`https://discord.com/api/v10/guilds/${guildId}/roles`,{method:"POST",headers:botHeaders(env,true),body:JSON.stringify(payload)});
+ const data=await r.json().catch(()=>({}));if(!r.ok)return json({error:data.message||"Role creation failed",status:r.status},r.status===403?403:502);
+ return json({role:data},201);
+}
+async function changeMemberRole(req,env,guildId,memberId,roleId,remove=false){
+ if(!memberId||!roleId)return json({error:"memberId and roleId are required"},400);
+ const r=await fetch(`https://discord.com/api/v10/guilds/${guildId}/members/${memberId}/roles/${roleId}`,{method:remove?"DELETE":"PUT",headers:botHeaders(env)});
+ if(!r.ok){const data=await r.json().catch(()=>({}));return json({error:data.message||"Role update failed",status:r.status},r.status===403?403:502)}
+ return new Response(null,{status:204});
+}
 export default{async fetch(req,env){
  const u=new URL(req.url),p=u.pathname;
  if(p==="/api/health")return health();
@@ -86,6 +111,10 @@ export default{async fetch(req,env){
  if(p==="/api/auth/callback")return callback(req,env);
  if(p==="/api/auth/logout")return new Response(null,{status:302,headers:{Location:u.origin+"/","Set-Cookie":`${COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`}});
  if(p==="/api/auth/me"){const user=await session(req,env);return user?json({authenticated:true,user}):json({authenticated:false},401)}
- if(p.startsWith("/api/")){const user=await session(req,env);if(!user)return json({error:"Unauthorized"},401);if(p==="/api/notifications")return json({notifications:await publicNotifications(env)});if(p==="/api/status")return json({ok:true,user:{id:user.id,username:user.username},configured:{discordClientSecret:!!env.DISCORD_CLIENT_SECRET,sessionSecret:!!env.SESSION_SECRET,discordBotToken:!!env.DISCORD_BOT_TOKEN}});if(p==="/api/discord/guild"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!(user.guilds||[]).some(g=>g.id===guildId))return json({error:"Forbidden"},403);return discordGuild(env,guildId);}return json({error:"Not found"},404)}
+ if(p.startsWith("/api/")){const user=await session(req,env);if(!user)return json({error:"Unauthorized"},401);if(p==="/api/notifications")return json({notifications:await publicNotifications(env)});if(p==="/api/status")return json({ok:true,user:{id:user.id,username:user.username},configured:{discordClientSecret:!!env.DISCORD_CLIENT_SECRET,sessionSecret:!!env.SESSION_SECRET,discordBotToken:!!env.DISCORD_BOT_TOKEN}});if(p==="/api/discord/guild"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return discordGuild(env,guildId);}
+if(p==="/api/discord/members"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return discordMembers(env,guildId);}
+if(p==="/api/discord/roles"&&req.method==="POST"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return createDiscordRole(req,env,guildId);}
+const rm=p.match(/^\/api\/discord\/members\/([^/]+)\/roles\/([^/]+)$/);if(rm&&(req.method==="PUT"||req.method==="DELETE")){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return changeMemberRole(req,env,guildId,decodeURIComponent(rm[1]),decodeURIComponent(rm[2]),req.method==="DELETE");}
+return json({error:"Not found"},404)}
  return env.ASSETS.fetch(req);
 }};
