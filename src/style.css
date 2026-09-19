@@ -103,3 +103,19 @@
 
 /* BalticM Activity Logs */
 .activityLogsPage{margin-top:24px;display:grid;gap:12px}.activityLogTop,.activityLogFilters,.activityLogHead,.activityLogEmpty{border:1px solid #ffffff0d;border-radius:13px;background:#070d18}.activityLogTop{min-height:56px;padding:11px 14px;display:flex;align-items:center;justify-content:space-between}.activityLogTop>div{display:flex;align-items:center;gap:10px}.activityLogTop svg{width:17px;color:#8c69ff}.activityLogTop b,.activityLogTop small{display:block}.activityLogTop b{font-size:11px}.activityLogTop small{margin-top:3px;color:#65728d;font-size:8px}.activityLogServer{padding:6px 9px;border:1px solid #795aff33;border-radius:7px;background:#795aff0c;color:#a98fff;font-size:8px;font-weight:800}.activityLogFilters{padding:13px;display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.activityLogFilters label>span{display:block;margin:0 0 6px 2px;color:#68748d;font-size:7px;font-weight:900;letter-spacing:.8px}.activityLogFilters label>div{height:39px;padding:0 10px;border:1px solid #ffffff10;border-radius:9px;background:#0a101c;display:flex;align-items:center;gap:8px}.activityLogFilters svg{width:14px;color:#8166dc}.activityLogFilters label>div>svg:last-child{width:12px;color:#526079}.activityLogFilters select{min-width:0;flex:1;border:0;outline:0;appearance:none;background:transparent;color:#dce4f3;font-size:9px}.activityLogFilters option{background:#0a101c}.activityLogHead{padding:14px 15px;display:flex;align-items:center;justify-content:space-between}.activityLogHead h3{margin:3px 0 2px;font-size:13px}.activityLogHead small{color:#65718a;font-size:8px}.activityLogCount{padding:6px 8px;border:1px solid #795aff2b;border-radius:7px;background:#795aff0b;color:#a68dff;font-size:7px;font-weight:900;letter-spacing:.7px}.activityLogEmpty{min-height:215px;padding:28px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}.activityLogEmptyIcon{width:43px;height:43px;margin-bottom:10px;border:1px solid #795aff35;border-radius:11px;background:#795aff10;display:grid;place-items:center}.activityLogEmptyIcon svg{width:19px;color:#987aff}.activityLogEmpty>b{font-size:11px}.activityLogEmpty>span{margin-top:6px;color:#75819a;font-size:8px}.activityLogEmpty>span strong{color:#a58aff}.activityLogEmpty>small{margin-top:8px;color:#4e5a70;font-size:7px}.activityLogEmpty>small i{padding:2px 4px;border:1px solid #795aff22;border-radius:4px;color:#9077e8;font-style:normal;font-weight:800}@media(max-width:850px){.activityLogFilters{grid-template-columns:1fr}}@media(max-width:620px){.activityLogTop,.activityLogHead{align-items:flex-start;gap:10px;flex-direction:column}}
+
+/* Readability pass — increase small UI copy without changing layout */
+.workspace p{font-size:13px}
+.workspace .eyebrow{font-size:8px}
+.ticketTopbar small,.ticketStats small,.ticketToolbar small,.ticketEmpty>span,.ticketEmpty>small,
+.modTopbar small,.modStats small,.modActionsHead small,.modActionGrid small,.modHistoryHead small,.modEmpty>span,.modEmpty>small,
+.botStatusSummary small,.botStatusStats small,.botServiceHead small,.botServiceInfo>small,.botStatusNote span,
+.activityLogTop small,.activityLogHead small,.activityLogEmpty>span,.activityLogEmpty>small,
+.premiumServer small,.planPicker small,.planDetail p,.premiumNote span,
+.selectedServerIdentity small,.selectedServerMeta span,.serverSectionHead small,.servercard small{font-size:9px}
+.ticketStats span,.modStats span,.botStatusStats span,
+.modProtected,.botAutoRefresh,.botServiceState,.activityLogCount,
+.activityLogFilters label>span{font-size:8px}
+.ticketTopbar b,.modTopbar b,.botStatusSummary b,.activityLogTop b{font-size:12px}
+.ticketToolbar h3,.modActionsHead h3,.modHistoryHead h3,.botServiceHead h3,.activityLogHead h3{font-size:14px}
+.botServiceInfo>b,.modActionGrid b,.activityLogEmpty>b,.modEmpty>b,.ticketEmpty>b{font-size:11px}
