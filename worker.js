@@ -42,7 +42,7 @@ async function publicNotifications(env){
  return items.slice(0,20);
 }
 async function desktopLatest(){
- try{const r=await latestDesktopRelease();return r?json({available:true,version:r.version,notes:r.notes,pub_date:r.pub_date}):json({available:false})}catch(e){return json({available:false,error:String(e.message||e)},502)}
+ try{const r=await latestDesktopRelease();return r?json({available:true,version:r.version,url:r.url,notes:r.notes,pub_date:r.pub_date}):json({available:false})}catch(e){return json({available:false,error:String(e.message||e)},502)}
 }
 async function health(){
  const targets=[["Main Bot","https://balticm.eu/discord-bot/"],["Reaction Roles","https://balticm.eu/reactions/"]];
