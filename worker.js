@@ -69,9 +69,10 @@ async function callback(req,env){
  return new Response(null,{status:302,headers:{Location:u.origin+"/","Set-Cookie":`${COOKIE}=${session}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=86400`,"Set-Cookie-2":`${STATE}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`,"Cache-Control":"no-store"}});
 }
 async function session(req,env){const t=parseCookies(req)[COOKIE];return t&&env.SESSION_SECRET?verify(t,env.SESSION_SECRET):null}
-async function discordGuild(env){
+async function discordGuild(env,id){
  if(!env.DISCORD_BOT_TOKEN)return json({error:"DISCORD_BOT_TOKEN is not configured"},503);
- const h={Authorization:`Bot ${env.DISCORD_BOT_TOKEN}`},id="884027552174317569";
+ if(!id)return json({error:"guildId is required"},400);
+ const h={Authorization:`Bot ${env.DISCORD_BOT_TOKEN}`};
  const [g,c,r]=await Promise.all([fetch(`https://discord.com/api/v10/guilds/${id}?with_counts=true`,{headers:h}),fetch(`https://discord.com/api/v10/guilds/${id}/channels`,{headers:h}),fetch(`https://discord.com/api/v10/guilds/${id}/roles`,{headers:h})]);
  if(!g.ok)return json({error:"Discord guild request failed",status:g.status},502);
  const gd=await g.json();return json({guild:{id:gd.id,name:gd.name,icon:gd.icon,memberCount:gd.approximate_member_count,onlineCount:gd.approximate_presence_count},channels:c.ok?await c.json():[],roles:r.ok?await r.json():[]});
@@ -85,6 +86,6 @@ export default{async fetch(req,env){
  if(p==="/api/auth/callback")return callback(req,env);
  if(p==="/api/auth/logout")return new Response(null,{status:302,headers:{Location:u.origin+"/","Set-Cookie":`${COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`}});
  if(p==="/api/auth/me"){const user=await session(req,env);return user?json({authenticated:true,user}):json({authenticated:false},401)}
- if(p.startsWith("/api/")){const user=await session(req,env);if(!user)return json({error:"Unauthorized"},401);if(p==="/api/notifications")return json({notifications:await publicNotifications(env)});if(p==="/api/status")return json({ok:true,user:{id:user.id,username:user.username},configured:{discordClientSecret:!!env.DISCORD_CLIENT_SECRET,sessionSecret:!!env.SESSION_SECRET,discordBotToken:!!env.DISCORD_BOT_TOKEN}});if(p==="/api/discord/guild")return discordGuild(env);return json({error:"Not found"},404)}
+ if(p.startsWith("/api/")){const user=await session(req,env);if(!user)return json({error:"Unauthorized"},401);if(p==="/api/notifications")return json({notifications:await publicNotifications(env)});if(p==="/api/status")return json({ok:true,user:{id:user.id,username:user.username},configured:{discordClientSecret:!!env.DISCORD_CLIENT_SECRET,sessionSecret:!!env.SESSION_SECRET,discordBotToken:!!env.DISCORD_BOT_TOKEN}});if(p==="/api/discord/guild"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!(user.guilds||[]).some(g=>g.id===guildId))return json({error:"Forbidden"},403);return discordGuild(env,guildId);}return json({error:"Not found"},404)}
  return env.ASSETS.fetch(req);
 }};
