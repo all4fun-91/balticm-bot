@@ -79,3 +79,5 @@
 /* Servers action icons */
 .miniStats>div{position:relative;padding-left:46px}.miniStats>div>svg{position:absolute;left:17px;top:50%;width:17px;height:17px;transform:translateY(-50%);color:#8d70ff;opacity:.9}.serverAction{display:inline-flex;align-items:center;justify-content:flex-end;gap:6px}.serverAction svg{width:13px;height:13px}.servercard.selected .serverAction svg{color:#9d86ff}.invite{display:inline-flex;align-items:center;gap:8px}.invite svg:last-child{width:13px;height:13px;margin-left:2px;opacity:.7}.serverManaged{font-weight:600}
 @media(max-width:650px){.miniStats>div{padding-left:43px}}
+
+.selectedServerMeta>div{position:relative;padding-left:42px}.selectedServerMeta>div>svg{position:absolute;left:14px;top:50%;width:16px;height:16px;transform:translateY(-50%);color:#8d70ff;opacity:.9}
