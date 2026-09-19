@@ -14,21 +14,31 @@ function compareSemver(a,b){
  const pa=String(a||"").replace(/^v/,"").split(".").map(x=>Number.parseInt(x,10)||0),pb=String(b||"").replace(/^v/,"").split(".").map(x=>Number.parseInt(x,10)||0);
  for(let i=0;i<3;i++){if((pa[i]||0)!==(pb[i]||0))return (pa[i]||0)-(pb[i]||0)}return 0;
 }
-function desktopUpdate(target,arch,currentVersion,env){
- const version=env.DESKTOP_UPDATE_VERSION,url=env.DESKTOP_UPDATE_URL,signature=env.DESKTOP_UPDATE_SIGNATURE;
- if(target!=="windows"||!version||!url||!signature||compareSemver(version,currentVersion)<=0)return new Response(null,{status:204,headers:{"Cache-Control":"no-store"}});
- if(arch!=="x86_64"&&arch!=="i686"&&arch!=="aarch64")return new Response(null,{status:204,headers:{"Cache-Control":"no-store"}});
- return json({version,url,signature,notes:env.DESKTOP_UPDATE_NOTES||"BalticM Control Center update",pub_date:env.DESKTOP_UPDATE_PUB_DATE||new Date().toISOString()});
+const RELEASES_API="https://api.github.com/repos/all4fun-91/balticm-bot/releases/latest";
+async function latestDesktopRelease(){
+ const r=await fetch(RELEASES_API,{headers:{"Accept":"application/vnd.github+json","User-Agent":"BalticM-Control-Center-Updater"}});
+ if(!r.ok)throw new Error("GitHub latest release request failed: "+r.status);
+ const release=await r.json(),version=String(release.tag_name||"").replace(/^v/,"");
+ const assets=Array.isArray(release.assets)?release.assets:[];
+ const exe=assets.find(a=>/^BalticM[ .]Control[ .]Center[_ .-].*_x64-setup\.exe$/i.test(a.name||""));
+ const sig=assets.find(a=>exe&&a.name===exe.name+".sig");
+ if(!version||!exe||!sig)return null;
+ const sr=await fetch(sig.browser_download_url,{headers:{"User-Agent":"BalticM-Control-Center-Updater"}});
+ if(!sr.ok)throw new Error("GitHub signature request failed: "+sr.status);
+ return {version,url:exe.browser_download_url,signature:(await sr.text()).trim(),notes:release.body||"BalticM Control Center update",pub_date:release.published_at||new Date().toISOString()};
 }
-function publicNotifications(env){
+async function desktopUpdate(target,arch,currentVersion){
+ if(target!=="windows"||(arch!=="x86_64"&&arch!=="i686"&&arch!=="aarch64"))return new Response(null,{status:204,headers:{"Cache-Control":"no-store"}});
+ try{const r=await latestDesktopRelease();if(!r||compareSemver(r.version,currentVersion)<=0)return new Response(null,{status:204,headers:{"Cache-Control":"no-store"}});return json(r)}catch(e){return json({error:"Desktop update lookup failed",detail:String(e.message||e)},502)}
+}
+async function publicNotifications(env){
  let items=[];
  try{const parsed=JSON.parse(env.BALTICM_NOTIFICATIONS||"[]");if(Array.isArray(parsed))items=parsed}catch{}
- if(env.DESKTOP_UPDATE_VERSION)items.unshift({id:"desktop-"+env.DESKTOP_UPDATE_VERSION,type:"desktop_release",title:"BalticM Control Center v"+env.DESKTOP_UPDATE_VERSION+" available",text:env.DESKTOP_UPDATE_NOTES||"A new signed desktop release is available.",version:env.DESKTOP_UPDATE_VERSION,publishedAt:env.DESKTOP_UPDATE_PUB_DATE||null});
+ try{const r=await latestDesktopRelease();if(r)items.unshift({id:"desktop-"+r.version,type:"desktop_release",title:"BalticM Control Center v"+r.version+" available",text:r.notes,version:r.version,publishedAt:r.pub_date})}catch{}
  return items.slice(0,20);
 }
-function desktopLatest(env){
- if(!env.DESKTOP_UPDATE_VERSION)return json({available:false},200);
- return json({available:true,version:env.DESKTOP_UPDATE_VERSION,notes:env.DESKTOP_UPDATE_NOTES||"BalticM Control Center update",pub_date:env.DESKTOP_UPDATE_PUB_DATE||null});
+async function desktopLatest(){
+ try{const r=await latestDesktopRelease();return r?json({available:true,version:r.version,notes:r.notes,pub_date:r.pub_date}):json({available:false})}catch(e){return json({available:false,error:String(e.message||e)},502)}
 }
 async function health(){
  const targets=[["Main Bot","https://balticm.eu/discord-bot/"],["Reaction Roles","https://balticm.eu/reactions/"]];
@@ -65,12 +75,12 @@ async function discordGuild(env){
 export default{async fetch(req,env){
  const u=new URL(req.url),p=u.pathname;
  if(p==="/api/health")return health();
- if(p==="/api/desktop/latest")return desktopLatest(env);
- const um=p.match(/^\/api\/desktop\/update\/([^/]+)\/([^/]+)\/([^/]+)$/);if(um)return desktopUpdate(decodeURIComponent(um[1]),decodeURIComponent(um[2]),decodeURIComponent(um[3]),env);
+ if(p==="/api/desktop/latest")return desktopLatest();
+ const um=p.match(/^\/api\/desktop\/update\/([^/]+)\/([^/]+)\/([^/]+)$/);if(um)return desktopUpdate(decodeURIComponent(um[1]),decodeURIComponent(um[2]),decodeURIComponent(um[3]));
  if(p==="/api/auth/login")return login(req,env);
  if(p==="/api/auth/callback")return callback(req,env);
  if(p==="/api/auth/logout")return new Response(null,{status:302,headers:{Location:u.origin+"/","Set-Cookie":`${COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`}});
  if(p==="/api/auth/me"){const user=await session(req,env);return user?json({authenticated:true,user}):json({authenticated:false},401)}
- if(p.startsWith("/api/")){const user=await session(req,env);if(!user)return json({error:"Unauthorized"},401);if(p==="/api/notifications")return json({notifications:publicNotifications(env)});if(p==="/api/status")return json({ok:true,user:{id:user.id,username:user.username},configured:{discordClientSecret:!!env.DISCORD_CLIENT_SECRET,sessionSecret:!!env.SESSION_SECRET,discordBotToken:!!env.DISCORD_BOT_TOKEN}});if(p==="/api/discord/guild")return discordGuild(env);return json({error:"Not found"},404)}
+ if(p.startsWith("/api/")){const user=await session(req,env);if(!user)return json({error:"Unauthorized"},401);if(p==="/api/notifications")return json({notifications:await publicNotifications(env)});if(p==="/api/status")return json({ok:true,user:{id:user.id,username:user.username},configured:{discordClientSecret:!!env.DISCORD_CLIENT_SECRET,sessionSecret:!!env.SESSION_SECRET,discordBotToken:!!env.DISCORD_BOT_TOKEN}});if(p==="/api/discord/guild")return discordGuild(env);return json({error:"Not found"},404)}
  return env.ASSETS.fetch(req);
 }};
