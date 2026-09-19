@@ -14,18 +14,22 @@ function compareSemver(a,b){
  const pa=String(a||"").replace(/^v/,"").split(".").map(x=>Number.parseInt(x,10)||0),pb=String(b||"").replace(/^v/,"").split(".").map(x=>Number.parseInt(x,10)||0);
  for(let i=0;i<3;i++){if((pa[i]||0)!==(pb[i]||0))return (pa[i]||0)-(pb[i]||0)}return 0;
 }
-const RELEASES_API="https://api.github.com/repos/all4fun-91/balticm-bot/releases/latest";
+const RELEASES_LATEST="https://github.com/all4fun-91/balticm-bot/releases/latest";
 async function latestDesktopRelease(){
- const r=await fetch(RELEASES_API,{headers:{"Accept":"application/vnd.github+json","User-Agent":"BalticM-Control-Center-Updater"}});
- if(!r.ok)throw new Error("GitHub latest release request failed: "+r.status);
- const release=await r.json(),version=String(release.tag_name||"").replace(/^v/,"");
- const assets=Array.isArray(release.assets)?release.assets:[];
- const exe=assets.find(a=>/^BalticM[ .]Control[ .]Center[_ .-].*_x64-setup\.exe$/i.test(a.name||""));
- const sig=assets.find(a=>exe&&a.name===exe.name+".sig");
- if(!version||!exe||!sig)return null;
- const sr=await fetch(sig.browser_download_url,{headers:{"User-Agent":"BalticM-Control-Center-Updater"}});
- if(!sr.ok)throw new Error("GitHub signature request failed: "+sr.status);
- return {version,url:exe.browser_download_url,signature:(await sr.text()).trim(),notes:release.body||"BalticM Control Center update",pub_date:release.published_at||new Date().toISOString()};
+ const r=await fetch(RELEASES_LATEST,{redirect:"manual",headers:{"User-Agent":"BalticM-Control-Center-Updater"}});
+ const location=r.headers.get("Location")||"";
+ const m=location.match(/\/releases\/tag\/v?([^/?#]+)/i);
+ if(!m)throw new Error("GitHub latest release redirect failed: "+r.status);
+ const version=decodeURIComponent(m[1]);
+ const base="https://github.com/all4fun-91/balticm-bot/releases/download/v"+version;
+ const file="BalticM.Control.Center_"+version+"_x64-setup.exe";
+ const url=base+"/"+file;
+ const sigUrl=url+".sig";
+ const sr=await fetch(sigUrl,{headers:{"User-Agent":"BalticM-Control-Center-Updater"}});
+ if(!sr.ok)throw new Error("GitHub signature download failed: "+sr.status);
+ const signature=(await sr.text()).trim();
+ if(!signature)throw new Error("GitHub signature is empty");
+ return {version,url,signature,notes:"BalticM Control Center v"+version+" is available.",pub_date:new Date().toISOString()};
 }
 async function desktopUpdate(target,arch,currentVersion){
  if(target!=="windows"||(arch!=="x86_64"&&arch!=="i686"&&arch!=="aarch64"))return new Response(null,{status:204,headers:{"Cache-Control":"no-store"}});
