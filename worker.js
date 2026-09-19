@@ -115,7 +115,7 @@ async function editDiscordRole(req,env,guildId,roleId){
  if(/^#[0-9a-fA-F]{6}$/.test(body.color||""))payload.color=parseInt(body.color.slice(1),16);
  if(typeof body.hoist==="boolean")payload.hoist=body.hoist;
  if(typeof body.mentionable==="boolean")payload.mentionable=body.mentionable;
- if(body.permissions!==undefined){const permissions=String(body.permissions);if(!/^\\d+$/.test(permissions))return json({error:"Invalid permissions bitfield"},400);try{BigInt(permissions)}catch{return json({error:"Invalid permissions bitfield"},400)}payload.permissions=permissions;}
+ if(body.permissions!==undefined){const permissions=String(body.permissions);if(!/^\d+$/.test(permissions))return json({error:"Invalid permissions bitfield"},400);try{BigInt(permissions)}catch{return json({error:"Invalid permissions bitfield"},400)}payload.permissions=permissions;}
  if(!Object.keys(payload).length)return json({error:"No role changes supplied"},400);
  const r=await fetch(`https://discord.com/api/v10/guilds/${guildId}/roles/${roleId}`,{method:"PATCH",headers:botHeaders(env,true),body:JSON.stringify(payload)});
  const data=await r.json().catch(()=>({}));if(!r.ok)return json({error:data.message||"Role update failed",status:r.status},r.status===403?403:502);
