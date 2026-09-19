@@ -20,6 +20,16 @@ function desktopUpdate(target,arch,currentVersion,env){
  if(arch!=="x86_64"&&arch!=="i686"&&arch!=="aarch64")return new Response(null,{status:204,headers:{"Cache-Control":"no-store"}});
  return json({version,url,signature,notes:env.DESKTOP_UPDATE_NOTES||"BalticM Control Center update",pub_date:env.DESKTOP_UPDATE_PUB_DATE||new Date().toISOString()});
 }
+function publicNotifications(env){
+ let items=[];
+ try{const parsed=JSON.parse(env.BALTICM_NOTIFICATIONS||"[]");if(Array.isArray(parsed))items=parsed}catch{}
+ if(env.DESKTOP_UPDATE_VERSION)items.unshift({id:"desktop-"+env.DESKTOP_UPDATE_VERSION,type:"desktop_release",title:"BalticM Control Center v"+env.DESKTOP_UPDATE_VERSION+" available",text:env.DESKTOP_UPDATE_NOTES||"A new signed desktop release is available.",version:env.DESKTOP_UPDATE_VERSION,publishedAt:env.DESKTOP_UPDATE_PUB_DATE||null});
+ return items.slice(0,20);
+}
+function desktopLatest(env){
+ if(!env.DESKTOP_UPDATE_VERSION)return json({available:false},200);
+ return json({available:true,version:env.DESKTOP_UPDATE_VERSION,notes:env.DESKTOP_UPDATE_NOTES||"BalticM Control Center update",pub_date:env.DESKTOP_UPDATE_PUB_DATE||null});
+}
 async function health(){
  const targets=[["Main Bot","https://balticm.eu/discord-bot/"],["Reaction Roles","https://balticm.eu/reactions/"]];
  const services=await Promise.all(targets.map(async([name,url])=>{try{const r=await fetch(url,{headers:{Accept:"application/json,text/plain,*/*"}}),text=await r.text();let data;try{data=JSON.parse(text)}catch{data=text.slice(0,250)}return{name,url,ok:r.ok,status:r.status,data}}catch(e){return{name,url,ok:false,status:0,error:String(e.message||e)}}}));
@@ -55,11 +65,12 @@ async function discordGuild(env){
 export default{async fetch(req,env){
  const u=new URL(req.url),p=u.pathname;
  if(p==="/api/health")return health();
+ if(p==="/api/desktop/latest")return desktopLatest(env);
  const um=p.match(/^\/api\/desktop\/update\/([^/]+)\/([^/]+)\/([^/]+)$/);if(um)return desktopUpdate(decodeURIComponent(um[1]),decodeURIComponent(um[2]),decodeURIComponent(um[3]),env);
  if(p==="/api/auth/login")return login(req,env);
  if(p==="/api/auth/callback")return callback(req,env);
  if(p==="/api/auth/logout")return new Response(null,{status:302,headers:{Location:u.origin+"/","Set-Cookie":`${COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`}});
  if(p==="/api/auth/me"){const user=await session(req,env);return user?json({authenticated:true,user}):json({authenticated:false},401)}
- if(p.startsWith("/api/")){const user=await session(req,env);if(!user)return json({error:"Unauthorized"},401);if(p==="/api/status")return json({ok:true,user:{id:user.id,username:user.username},configured:{discordClientSecret:!!env.DISCORD_CLIENT_SECRET,sessionSecret:!!env.SESSION_SECRET,discordBotToken:!!env.DISCORD_BOT_TOKEN}});if(p==="/api/discord/guild")return discordGuild(env);return json({error:"Not found"},404)}
+ if(p.startsWith("/api/")){const user=await session(req,env);if(!user)return json({error:"Unauthorized"},401);if(p==="/api/notifications")return json({notifications:publicNotifications(env)});if(p==="/api/status")return json({ok:true,user:{id:user.id,username:user.username},configured:{discordClientSecret:!!env.DISCORD_CLIENT_SECRET,sessionSecret:!!env.SESSION_SECRET,discordBotToken:!!env.DISCORD_BOT_TOKEN}});if(p==="/api/discord/guild")return discordGuild(env);return json({error:"Not found"},404)}
  return env.ASSETS.fetch(req);
 }};
