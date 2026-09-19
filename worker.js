@@ -74,7 +74,7 @@ async function discordGuild(env,id){
  if(!id)return json({error:"guildId is required"},400);
  const h={Authorization:`Bot ${env.DISCORD_BOT_TOKEN}`};
  const [g,c,r]=await Promise.all([fetch(`https://discord.com/api/v10/guilds/${id}?with_counts=true`,{headers:h}),fetch(`https://discord.com/api/v10/guilds/${id}/channels`,{headers:h}),fetch(`https://discord.com/api/v10/guilds/${id}/roles`,{headers:h})]);
- if(!g.ok)return json({error:"Discord guild request failed",status:g.status},502);
+ if(!g.ok){if(g.status===404)return json({error:"Bot is not installed in this server",notInstalled:true},404);return json({error:"Discord guild request failed",status:g.status},502);}
  const gd=await g.json();return json({guild:{id:gd.id,name:gd.name,icon:gd.icon,memberCount:gd.approximate_member_count,onlineCount:gd.approximate_presence_count},channels:c.ok?await c.json():[],roles:r.ok?await r.json():[]});
 }
 export default{async fetch(req,env){
