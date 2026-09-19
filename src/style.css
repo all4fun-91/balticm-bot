@@ -119,3 +119,9 @@
 .ticketTopbar b,.modTopbar b,.botStatusSummary b,.activityLogTop b{font-size:12px}
 .ticketToolbar h3,.modActionsHead h3,.modHistoryHead h3,.botServiceHead h3,.activityLogHead h3{font-size:14px}
 .botServiceInfo>b,.modActionGrid b,.activityLogEmpty>b,.modEmpty>b,.ticketEmpty>b{font-size:11px}
+
+/* Make the full Activity Logs filter field clickable */
+.activityLogFilters label>div{position:relative;cursor:pointer}
+.activityLogFilters select{position:absolute;inset:0;width:100%;height:100%;padding:0 34px 0 32px;cursor:pointer;z-index:2}
+.activityLogFilters label>div>svg{position:relative;z-index:1;pointer-events:none}
+.activityLogFilters label>div>svg:last-child{margin-left:auto}
