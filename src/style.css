@@ -55,3 +55,13 @@
 .notificationItem.unread{background:linear-gradient(90deg,#7655ff0f,transparent)!important}
 .notificationItem b{color:#f6f8ff!important;font-weight:700!important}
 .notificationItem small{display:block;color:#748097!important;font-weight:400!important}
+
+
+/* Desktop updater settings */
+.desktopUpdate{margin-top:18px;padding:22px;border:1px solid #7655ff35;border-radius:15px;background:linear-gradient(135deg,#0d1120,#090d18);display:flex;gap:17px;align-items:flex-start}
+.updateIcon{width:44px;height:44px;flex:0 0 44px;border-radius:12px;background:#7655ff18;color:#9b7dff;display:grid;place-items:center}.updateIcon svg{width:20px}
+.updateBody{flex:1}.updateBody h3{font:700 16px Orbitron;margin:6px 0 8px}.updateBody p{margin:0;color:#8290a7;font-size:11px;line-height:1.6}.updateBody p b{color:#b49fff}
+.updateActions{display:flex;align-items:center;gap:14px;margin-top:16px}.checkUpdate{display:flex;align-items:center;gap:8px;padding:10px 13px;border:1px solid #7655ff55;border-radius:9px;background:#7655ff14;color:#e9e4ff;font-size:10px;font-weight:700;cursor:pointer}.checkUpdate:hover{background:#7655ff24}.checkUpdate:disabled{opacity:.55;cursor:default}.checkUpdate svg{width:14px}
+.updateReady{display:flex;align-items:center;gap:7px;color:#9ca9c5;font-size:9px;font-weight:800;letter-spacing:.8px}.updateReady>span{width:7px;height:7px;border-radius:50%;background:#38f59a;box-shadow:0 0 10px #38f59a}
+.updateBody>small{display:block;margin-top:13px;color:#566177;font-size:9px}
+@media(max-width:560px){.desktopUpdate{padding:17px}.updateActions{align-items:flex-start;flex-direction:column}}
