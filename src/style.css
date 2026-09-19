@@ -159,3 +159,20 @@ button.roleRow{width:100%;text-align:left;color:inherit;font:inherit;cursor:poin
 /* Active Discord roles in member directory */
 .memberIdentity>div{min-width:0}.memberActiveRoles{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px;max-width:720px}.memberActiveRoles span{display:inline-flex;align-items:center;gap:5px;max-width:160px;height:20px;padding:0 7px;border:1px solid #ffffff0d;border-radius:6px;background:#ffffff05;color:#8f9bb0;font-size:9px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.memberActiveRoles span i{width:6px;height:6px;border-radius:50%;flex:0 0 auto}.memberActiveRoles .moreRoles{color:#a98cff;border-color:#795aff28;background:#795aff0d}
 .memberRow{align-items:center}.memberIdentity{align-items:flex-start}
+
+/* Members & Roles readability — match the agreed Control Center text scale */
+.memberPanelHead .eyebrow,.createRoleForm label>span,.roleEditHead .eyebrow,.roleEditGrid>label>span{font-size:9px}
+.memberPanelHead h3,.roleEditHead h3{font-size:15px}
+.memberPanelHead small,.memberPanelEmpty span,.roleHierarchyHint{font-size:10px;line-height:1.45}
+.memberPanelHead>button,.createRoleForm>button,.saveRole{font-size:10px}
+.memberSearch input,.memberRow select{font-size:10px}
+.memberIdentity b{font-size:12px}
+.memberIdentity small{font-size:10px}
+.memberIdentity b em{font-size:8px}
+.memberActiveRoles span{font-size:10px;height:22px}
+.roleRow b{font-size:11px}
+.roleRow small{font-size:9px}
+.roleRow>span{font-size:9px}
+.roleToggle>span{font-size:10px!important}
+.createRoleForm input,.roleEditGrid input[type=text],.roleEditGrid input:not([type]){font-size:11px}
+.memberNotice{font-size:10px}
