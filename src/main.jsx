@@ -71,6 +71,68 @@ function Section({page,user,health,guild,selectedGuild,setSelectedGuild}){const[
 <div className="botServiceGrid">{services.length?services.map((s,i)=><div className={s.ok?"botServiceCard online":"botServiceCard"} key={s.name}><div className="botServiceIcon">{i===0?<Bot/>:<Zap/>}</div><div className="botServiceInfo"><span className="eyebrow">{i===0?"CORE SERVICE":"MODULE"}</span><b>{s.name}</b><small>{s.url||"BalticM.eu service"}</small></div><span className="botServiceState"><i/>{s.ok?"ONLINE":"OFFLINE"}</span></div>):<div className="botStatusEmpty"><Activity/><b>Checking services…</b><span>Waiting for the latest BalticM.eu health response.</span></div>}</div>
 <div className="botStatusNote"><Shield/><div><b>Live monitoring</b><span>Service health refreshes automatically. Detailed diagnostics and incident history can be connected later without changing this layout.</span></div></div>
 </div>})()}</section>}
+const ROLE_PERMISSION_GROUPS=[
+ {name:"General Server",items:[
+  ["Administrator",3,"Grants every permission and bypasses channel restrictions.",true],
+  ["View Audit Log",7,"View the server audit log."],
+  ["Manage Server",5,"Change server settings and configuration.",true],
+  ["Manage Roles",28,"Create, edit and reorder roles below this role.",true],
+  ["Manage Channels",4,"Create, edit and delete channels.",true],
+  ["Manage Webhooks",29,"Create, edit and delete webhooks.",true],
+  ["Manage Expressions",30,"Manage server emoji, stickers and sounds.",true],
+  ["View Server Insights",19,"View server insights and analytics."]
+ ]},
+ {name:"Membership",items:[
+  ["Create Invite",0,"Create invite links for the server."],
+  ["Kick Members",1,"Remove members from the server.",true],
+  ["Ban Members",2,"Ban members from the server.",true],
+  ["Timeout Members",40,"Timeout members and restrict their interactions.",true],
+  ["Change Nickname",26,"Change your own nickname."],
+  ["Manage Nicknames",27,"Change other members' nicknames.",true]
+ ]},
+ {name:"Text Channels",items:[
+  ["View Channels",10,"See channels the role has access to."],
+  ["Send Messages",11,"Send messages in text channels."],
+  ["Send TTS Messages",12,"Send text-to-speech messages."],
+  ["Manage Messages",13,"Delete and manage other members' messages.",true],
+  ["Embed Links",14,"Show embedded previews for links."],
+  ["Attach Files",15,"Upload files and images."],
+  ["Read Message History",16,"Read messages sent before opening a channel."],
+  ["Mention Everyone",17,"Mention @everyone, @here and all roles.",true],
+  ["Use External Emojis",18,"Use emoji from other servers."],
+  ["Use Application Commands",31,"Use slash commands and application commands."],
+  ["Manage Threads",34,"Rename, archive, delete and manage threads.",true],
+  ["Create Public Threads",35,"Create public threads."],
+  ["Create Private Threads",36,"Create private threads."],
+  ["Use External Stickers",37,"Use stickers from other servers."],
+  ["Send in Threads",38,"Send messages inside threads."],
+  ["Send Voice Messages",46,"Send voice messages in supported channels."],
+  ["Send Polls",49,"Create polls in channels."],
+  ["Use External Apps",50,"Allow external user-installed apps to post publicly."]
+ ]},
+ {name:"Voice Channels",items:[
+  ["Connect",20,"Connect to voice channels."],
+  ["Speak",21,"Speak in voice channels."],
+  ["Video",9,"Stream video or share screen."],
+  ["Use Voice Activity",25,"Speak without push-to-talk."],
+  ["Priority Speaker",8,"Be heard more clearly while priority speaking."],
+  ["Mute Members",22,"Server-mute other members.",true],
+  ["Deafen Members",23,"Server-deafen other members.",true],
+  ["Move Members",24,"Move members between voice channels.",true],
+  ["Request to Speak",32,"Request to speak in Stage channels."],
+  ["Use Activities",39,"Launch Discord Activities in voice channels."],
+  ["Use Soundboard",42,"Use the server soundboard."],
+  ["Use External Sounds",45,"Use soundboard sounds from other servers."]
+ ]},
+ {name:"Events & Advanced",items:[
+  ["Manage Events",33,"Edit and cancel server events.",true],
+  ["Create Events",44,"Create server events."],
+  ["Create Expressions",43,"Create server emoji, stickers and other expressions."]
+ ]}
+];
+const hasRolePermission=(permissions,bit)=>{try{return(BigInt(permissions||"0")&(1n<<BigInt(bit)))!==0n}catch{return false}};
+const toggleRolePermission=(permissions,bit,enabled)=>{let value;try{value=BigInt(permissions||"0")}catch{value=0n}const flag=1n<<BigInt(bit);return(enabled?(value|flag):(value&~flag)).toString()};
+
 function MembersRoles({user,guild,selectedGuild}){
  const[members,setMembers]=useState([]),[loading,setLoading]=useState(false),[mode,setMode]=useState("members"),[query,setQuery]=useState(""),[roleName,setRoleName]=useState(""),[roleColor,setRoleColor]=useState("#7c5cff"),[busy,setBusy]=useState(""),[notice,setNotice]=useState(""),[editingRole,setEditingRole]=useState(null);
  const g=(user.guilds||[]).find(x=>x.id===selectedGuild),roles=(guild?.roles||[]).filter(r=>r.name!=="@everyone");
@@ -78,7 +140,7 @@ function MembersRoles({user,guild,selectedGuild}){
  useEffect(()=>{setMembers([]);setQuery("");setMode("members");setNotice("")},[selectedGuild]);
  const createRole=async()=>{if(!roleName.trim())return;setBusy("create");setNotice("");try{const r=await fetch("/api/discord/roles?guildId="+encodeURIComponent(selectedGuild),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:roleName,color:roleColor})}),x=await r.json();if(!r.ok)throw new Error(x.error||"Could not create role");setRoleName("");setNotice("Role created: "+x.role.name);window.location.reload()}catch(e){setNotice(e.message)}finally{setBusy("")}};
  const deleteRole=async()=>{if(!editingRole)return;if(!window.confirm('Delete role "'+editingRole.name+'"? This cannot be undone.'))return;setBusy("delete-"+editingRole.id);setNotice("");try{const r=await fetch("/api/discord/roles/"+encodeURIComponent(editingRole.id)+"?guildId="+encodeURIComponent(selectedGuild),{method:"DELETE"});if(!r.ok){const x=await r.json().catch(()=>({}));throw new Error(x.error||"Role deletion failed")}setNotice("Role deleted: "+editingRole.name);setEditingRole(null);window.location.reload()}catch(e){setNotice(e.message)}finally{setBusy("")}};
- const saveRole=async()=>{if(!editingRole)return;setBusy("edit-"+editingRole.id);setNotice("");try{const r=await fetch("/api/discord/roles/"+encodeURIComponent(editingRole.id)+"?guildId="+encodeURIComponent(selectedGuild),{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:editingRole.name,color:editingRole.color,hoist:editingRole.hoist,mentionable:editingRole.mentionable})}),x=await r.json();if(!r.ok)throw new Error(x.error||"Role update failed");setNotice("Role updated: "+x.role.name);setEditingRole(null);window.location.reload()}catch(e){setNotice(e.message)}finally{setBusy("")}};
+ const saveRole=async()=>{if(!editingRole)return;setBusy("edit-"+editingRole.id);setNotice("");try{const r=await fetch("/api/discord/roles/"+encodeURIComponent(editingRole.id)+"?guildId="+encodeURIComponent(selectedGuild),{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:editingRole.name,color:editingRole.color,hoist:editingRole.hoist,mentionable:editingRole.mentionable,permissions:editingRole.permissions})}),x=await r.json();if(!r.ok)throw new Error(x.error||"Role update failed");setNotice("Role updated: "+x.role.name);setEditingRole(null);window.location.reload()}catch(e){setNotice(e.message)}finally{setBusy("")}};
  const changeRole=async(memberId,roleId,remove)=>{setBusy(memberId+roleId);setNotice("");try{const r=await fetch("/api/discord/members/"+encodeURIComponent(memberId)+"/roles/"+encodeURIComponent(roleId)+"?guildId="+encodeURIComponent(selectedGuild),{method:remove?"DELETE":"PUT"});if(!r.ok){const x=await r.json().catch(()=>({}));throw new Error(x.error||"Role update failed")}setMembers(ms=>ms.map(m=>m.id===memberId?{...m,roles:remove?m.roles.filter(x=>x!==roleId):[...new Set([...m.roles,roleId])]}:m))}catch(e){setNotice(e.message)}finally{setBusy("")}};
  const filtered=members.filter(m=>(m.globalName+" "+m.username).toLowerCase().includes(query.toLowerCase()));
  return <div className="featurePage membersFunctional">
@@ -87,7 +149,7 @@ function MembersRoles({user,guild,selectedGuild}){
  <div className="featureToolbar"><div><span className="eyebrow">SERVER ACCESS</span><h3>Member & role management</h3><small>Search members, create roles and change permitted role assignments.</small></div><div className="featureActions"><button onClick={()=>{setMode("members");if(!members.length)loadMembers()}}><Search/>Search Members</button><button onClick={()=>setMode("roles")}><Layers3/>Manage Roles</button><button onClick={()=>setMode("create")}><Plus/>Create Role</button></div></div>
  {notice&&<div className="memberNotice">{notice}</div>}
  {mode==="create"?<div className="memberPanel"><div className="memberPanelHead"><div><span className="eyebrow">CREATE ROLE</span><h3>New Discord role</h3><small>The bot must have Manage Roles and be above the new role in Discord hierarchy.</small></div></div><div className="createRoleForm"><label><span>ROLE NAME</span><input value={roleName} onChange={e=>setRoleName(e.target.value)} placeholder="e.g. Event Team"/></label><label><span>COLOR</span><input type="color" value={roleColor} onChange={e=>setRoleColor(e.target.value)}/></label><button onClick={createRole} disabled={busy==="create"||!roleName.trim()}><Plus/>{busy==="create"?"Creating…":"Create Role"}</button></div></div>:
- mode==="roles"?<div className="memberPanel"><div className="memberPanelHead"><div><span className="eyebrow">DISCORD ROLES</span><h3>{roles.length} roles</h3><small>Role assignment controls become available after loading members.</small></div><button onClick={()=>{setMode("members");if(!members.length)loadMembers()}}><Users/>Open Members</button></div><div className="roleDirectory">{roles.map(r=><button className={"roleRow "+(r.managed?"managed":"editable")} key={r.id} disabled={r.managed} onClick={()=>!r.managed&&setEditingRole({id:r.id,name:r.name,color:r.color?("#"+Number(r.color).toString(16).padStart(6,"0")):"#68748d",hoist:!!r.hoist,mentionable:!!r.mentionable})}><i style={{background:r.color?("#"+Number(r.color).toString(16).padStart(6,"0")):"#68748d"}}/><div><b>{r.name}</b><small>ID {r.id}</small></div><span>{r.managed?"MANAGED":"EDIT"}</span></button>)}</div>{editingRole&&<div className="roleEdit"><div className="roleEditHead"><div><span className="eyebrow">EDIT ROLE</span><h3>{editingRole.name}</h3></div><button onClick={()=>setEditingRole(null)}><X/></button></div><div className="roleEditGrid"><label><span>ROLE NAME</span><input value={editingRole.name} onChange={e=>setEditingRole({...editingRole,name:e.target.value})}/></label><label><span>COLOR</span><input type="color" value={editingRole.color} onChange={e=>setEditingRole({...editingRole,color:e.target.value})}/></label><label className="roleToggle"><input type="checkbox" checked={editingRole.hoist} onChange={e=>setEditingRole({...editingRole,hoist:e.target.checked})}/><span>Display separately in member list</span></label><label className="roleToggle"><input type="checkbox" checked={editingRole.mentionable} onChange={e=>setEditingRole({...editingRole,mentionable:e.target.checked})}/><span>Allow @role mentions</span></label><button className="deleteRole" onClick={deleteRole} disabled={busy==="delete-"+editingRole.id}>{busy==="delete-"+editingRole.id?"Deleting…":"Delete Role"}</button><button className="saveRole" onClick={saveRole} disabled={busy==="edit-"+editingRole.id}>{busy==="edit-"+editingRole.id?"Saving…":"Save Changes"}</button></div><small className="roleHierarchyHint">Discord role hierarchy still applies. Managed integration/bot roles cannot be edited here.</small></div>}</div>:
+ mode==="roles"?<div className="memberPanel"><div className="memberPanelHead"><div><span className="eyebrow">DISCORD ROLES</span><h3>{roles.length} roles</h3><small>Role assignment controls become available after loading members.</small></div><button onClick={()=>{setMode("members");if(!members.length)loadMembers()}}><Users/>Open Members</button></div><div className="roleDirectory">{roles.map(r=><button className={"roleRow "+(r.managed?"managed":"editable")} key={r.id} disabled={r.managed} onClick={()=>!r.managed&&setEditingRole({id:r.id,name:r.name,color:r.color?("#"+Number(r.color).toString(16).padStart(6,"0")):"#68748d",hoist:!!r.hoist,mentionable:!!r.mentionable,permissions:String(r.permissions||"0")})}><i style={{background:r.color?("#"+Number(r.color).toString(16).padStart(6,"0")):"#68748d"}}/><div><b>{r.name}</b><small>ID {r.id}</small></div><span>{r.managed?"MANAGED":"EDIT"}</span></button>)}</div>{editingRole&&<div className="roleEdit"><div className="roleEditHead"><div><span className="eyebrow">EDIT ROLE</span><h3>{editingRole.name}</h3></div><button onClick={()=>setEditingRole(null)}><X/></button></div><div className="roleEditGrid"><label><span>ROLE NAME</span><input value={editingRole.name} onChange={e=>setEditingRole({...editingRole,name:e.target.value})}/></label><label><span>COLOR</span><input type="color" value={editingRole.color} onChange={e=>setEditingRole({...editingRole,color:e.target.value})}/></label><label className="roleToggle"><input type="checkbox" checked={editingRole.hoist} onChange={e=>setEditingRole({...editingRole,hoist:e.target.checked})}/><span>Show in member list</span></label><label className="roleToggle"><input type="checkbox" checked={editingRole.mentionable} onChange={e=>setEditingRole({...editingRole,mentionable:e.target.checked})}/><span>Allow mentions</span></label><button className="deleteRole" onClick={deleteRole} disabled={busy==="delete-"+editingRole.id}>{busy==="delete-"+editingRole.id?"Deleting…":"Delete Role"}</button><button className="saveRole" onClick={saveRole} disabled={busy==="edit-"+editingRole.id}>{busy==="edit-"+editingRole.id?"Saving…":"Save Changes"}</button></div><div className="rolePermissions"><div className="rolePermissionsHead"><div><span className="eyebrow">ROLE PERMISSIONS</span><h3>Permissions</h3><small>Hover the ? icon for a quick explanation.</small></div>{hasRolePermission(editingRole.permissions,3)&&<span className="adminWarning"><Shield/>ADMINISTRATOR ENABLED</span>}</div>{ROLE_PERMISSION_GROUPS.map(group=><section className="permissionGroup" key={group.name}><h4>{group.name}</h4><div className="permissionGrid">{group.items.map(([name,bit,help,danger])=><label className={"permissionItem "+(danger?"danger":"")} key={name}><input type="checkbox" checked={hasRolePermission(editingRole.permissions,bit)} onChange={e=>setEditingRole({...editingRole,permissions:toggleRolePermission(editingRole.permissions,bit,e.target.checked)})}/><span className="permissionSwitch"/><b>{name}</b><span className="permissionHelp" tabIndex="0" aria-label={help}>?<span className="permissionTooltip">{help}</span></span></label>)}</div></section>)}</div><small className="roleHierarchyHint">Discord role hierarchy still applies. Managed integration/bot roles cannot be edited here.</small></div>}</div>:
  <div className="memberPanel"><div className="memberPanelHead"><div><span className="eyebrow">MEMBER DIRECTORY</span><h3>{loading?"Loading members…":members.length?members.length+" loaded":"Search server members"}</h3><small>Assign or remove roles directly from the Control Center.</small></div>{members.length?<div className="memberSearch"><Search/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search member…"/></div>:<button onClick={loadMembers} disabled={loading}><Users/>{loading?"Loading…":"Load Members"}</button>}</div>{members.length?<div className="memberDirectory">{filtered.map(m=><div className="memberRow" key={m.id}><div className="memberIdentity">{m.avatar?<img src={`https://cdn.discordapp.com/avatars/${m.id}/${m.avatar}.png?size=64`} alt=""/>:<span>{m.globalName.slice(0,1).toUpperCase()}</span>}<div><b>{m.globalName}{m.bot&&<em>BOT</em>}</b><small>@{m.username}</small><div className="memberActiveRoles">{m.roles.map(roleId=>roles.find(r=>r.id===roleId)).filter(r=>r&&r.name!=="@everyone").slice(0,6).map(r=><span key={r.id} title={r.name}><i style={{background:r.color?("#"+Number(r.color).toString(16).padStart(6,"0")):"#68748d"}}/>{r.name}</span>)}{m.roles.map(roleId=>roles.find(r=>r.id===roleId)).filter(r=>r&&r.name!=="@everyone").length>6&&<span className="moreRoles">+{m.roles.map(roleId=>roles.find(r=>r.id===roleId)).filter(r=>r&&r.name!=="@everyone").length-6}</span>}</div></div></div><select value="" onChange={e=>{const roleId=e.target.value;if(roleId)changeRole(m.id,roleId,m.roles.includes(roleId));e.target.value=""}} disabled={busy.startsWith(m.id)}><option value="">Manage role…</option>{roles.filter(r=>!r.managed).map(r=><option value={r.id} key={r.id}>{m.roles.includes(r.id)?"Remove ":"Add "}{r.name}</option>)}</select></div>)}</div>:<div className="memberPanelEmpty"><Users/><b>No members loaded yet</b><span>Click Load Members to retrieve the active server directory from Discord.</span></div>}</div>}
  </div>
 }
