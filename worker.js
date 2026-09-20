@@ -186,7 +186,7 @@ export default{async fetch(req,env){
  if(p==="/api/health")return health();
  if(p==="/api/desktop/latest")return desktopLatest();
  const um=p.match(/^\/api\/desktop\/update\/([^/]+)\/([^/]+)\/([^/]+)$/);if(um)return desktopUpdate(decodeURIComponent(um[1]),decodeURIComponent(um[2]),decodeURIComponent(um[3]));
- if(p==="/api/voice-create/service/config"){const guildId=u.searchParams.get("guildId"),secret=req.headers.get("X-BalticM-Service-Secret")||"";if(!env.BALTICM_VOICE_SERVICE_SECRET||secret!==env.BALTICM_VOICE_SERVICE_SECRET)return json({error:"Unauthorized"},401);if(!guildId)return json({error:"guildId is required"},400);const config=await getVoiceConfig(env,guildId);return json({config});}
+ if(p==="/api/music/service/config"){const guildId=u.searchParams.get("guildId"),secret=req.headers.get("X-BalticM-Service-Secret")||"";if(!env.BALTICM_MUSIC_SERVICE_SECRET||secret!==env.BALTICM_MUSIC_SERVICE_SECRET)return json({error:"Unauthorized"},401);if(!guildId)return json({error:"guildId is required"},400);const config=await getMusicConfig(env,guildId);return json({config});}\n if(p==="/api/voice-create/service/config"){const guildId=u.searchParams.get("guildId"),secret=req.headers.get("X-BalticM-Service-Secret")||"";if(!env.BALTICM_VOICE_SERVICE_SECRET||secret!==env.BALTICM_VOICE_SERVICE_SECRET)return json({error:"Unauthorized"},401);if(!guildId)return json({error:"guildId is required"},400);const config=await getVoiceConfig(env,guildId);return json({config});}
  if(p==="/api/auth/login")return login(req,env);
  if(p==="/api/auth/callback")return callback(req,env);
  if(p==="/api/auth/logout")return new Response(null,{status:302,headers:{Location:u.origin+"/","Set-Cookie":`${COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`}});
