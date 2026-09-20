@@ -1,0 +1,16 @@
+{
+  "name": "balticm-music-service",
+  "version": "1.4.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "@discordjs/voice": "^0.19.0",
+    "@iamtraction/play-dl": "^2.0.1",
+    "discord.js": "^14.22.1",
+    "ffmpeg-static": "^5.2.0",
+    "youtubei.js": "^18.0.0"
+  }
+}
