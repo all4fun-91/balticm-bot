@@ -13,6 +13,7 @@ async function config(guildId){
  const hit=cache.get(guildId);if(hit&&Date.now()-hit.at<15000)return hit.value;
  try{const r=await fetch(`${CONTROL_URL}/api/voice-create/service/config?guildId=${encodeURIComponent(guildId)}`,{headers:{"X-BalticM-Service-Secret":SERVICE_SECRET}});if(!r.ok)return null;const x=await r.json(),v=x.config||null;cache.set(guildId,{at:Date.now(),value:v});return v}catch(e){console.error("config",e);return null}
 }
+const profilesOf=cfg=>Array.isArray(cfg?.profiles)?cfg.profiles:(cfg?.categoryId&&cfg?.createChannelId?[cfg]:[]);
 const managed=c=>c?.type===ChannelType.GuildVoice&&String(c.topic||"").startsWith("balticm-voice:");
 async function deleteIfEmpty(channel){if(managed(channel)&&channel.members.size===0){try{await channel.delete("BalticM Voice Create: empty temporary room")}catch(e){console.error("delete room",e)}}}
 async function createRoom(member,cfg){
@@ -35,12 +36,13 @@ client.on("voiceStateUpdate",async(oldState,newState)=>{
  try{
   if(oldState.channelId&&oldState.channelId!==newState.channelId)await deleteIfEmpty(oldState.channel);
   if(!newState.channelId||oldState.channelId===newState.channelId)return;
-  const cfg=await config(newState.guild.id);if(!cfg?.enabled||newState.channelId!==cfg.createChannelId)return;
+  const cfg=await config(newState.guild.id);if(!cfg?.enabled)return;
+  const profile=profilesOf(cfg).find(p=>p.createChannelId===newState.channelId);if(!profile)return;
   if(newState.member?.user?.bot)return;
-  await createRoom(newState.member,cfg);
+  await createRoom(newState.member,profile);
  }catch(e){console.error("voiceStateUpdate",e)}
 });
 client.once("clientReady",()=>console.log(`BalticM Voice Create online as ${client.user.tag}`));
-const server=http.createServer((req,res)=>{res.setHeader("content-type","application/json");if(req.url==="/health"||req.url==="/"||req.url==="/voice"||req.url==="/voice/"||req.url==="/voice/health"){res.end(JSON.stringify({ok:true,service:"BalticM Voice Create",status:client.isReady()?"online":"connecting",version:"1.0.4"}));return}res.statusCode=404;res.end(JSON.stringify({error:"Not found"}))});
+const server=http.createServer((req,res)=>{res.setHeader("content-type","application/json");if(req.url==="/health"||req.url==="/"||req.url==="/voice"||req.url==="/voice/"||req.url==="/voice/health"){res.end(JSON.stringify({ok:true,service:"BalticM Voice Create",status:client.isReady()?"online":"connecting",version:"1.1.0"}));return}res.statusCode=404;res.end(JSON.stringify({error:"Not found"}))});
 server.listen(PORT,()=>console.log("Health server listening on",PORT));
 client.login(TOKEN);
