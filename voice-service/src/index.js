@@ -18,10 +18,10 @@ async function deleteIfEmpty(channel){if(managed(channel)&&channel.members.size=
 async function createRoom(member,cfg){
  const guild=member.guild,category=guild.channels.cache.get(cfg.categoryId);if(!category||category.type!==ChannelType.GuildCategory)return;
  const username=(member.displayName||member.user.username).slice(0,40);
- const name=String(cfg.nameTemplate||"{username}'s Room").replaceAll("{username}",username).slice(0,100);
+ const name=String(cfg.nameTemplate||"{username} Room").replaceAll("{username}",username).slice(0,100);
  const overwrites=[];
  if(cfg.privateByDefault)overwrites.push({id:guild.id,deny:[PermissionFlagsBits.Connect]});
- overwrites.push({id:member.id,allow:[PermissionFlagsBits.ViewChannel,PermissionFlagsBits.Connect,PermissionFlagsBits.Speak,PermissionFlagsBits.Stream,PermissionFlagsBits.MoveMembers,PermissionFlagsBits.ManageChannels]});
+ overwrites.push({id:member.id,allow:[PermissionFlagsBits.ViewChannel,PermissionFlagsBits.Connect,PermissionFlagsBits.Speak,PermissionFlagsBits.UseVAD,PermissionFlagsBits.Stream,PermissionFlagsBits.MoveMembers,PermissionFlagsBits.ManageChannels]});
  try{
   const room=await guild.channels.create({name,type:ChannelType.GuildVoice,parent:cfg.categoryId,userLimit:Math.max(0,Math.min(99,Number(cfg.userLimit)||0)),topic:`balticm-voice:${member.id}:${username}`,permissionOverwrites:overwrites,reason:"BalticM Voice Create"});
   await member.voice.setChannel(room,"BalticM Voice Create");
@@ -36,7 +36,7 @@ client.on("voiceStateUpdate",async(oldState,newState)=>{
   await createRoom(newState.member,cfg);
  }catch(e){console.error("voiceStateUpdate",e)}
 });
-client.once("ready",()=>console.log(`BalticM Voice Create online as ${client.user.tag}`));
-const server=http.createServer((req,res)=>{res.setHeader("content-type","application/json");if(req.url==="/health"||req.url==="/"||req.url==="/voice"||req.url==="/voice/"||req.url==="/voice/health"){res.end(JSON.stringify({ok:true,service:"BalticM Voice Create",status:client.isReady()?"online":"connecting",version:"1.0.0"}));return}res.statusCode=404;res.end(JSON.stringify({error:"Not found"}))});
+client.once("clientReady",()=>console.log(`BalticM Voice Create online as ${client.user.tag}`));
+const server=http.createServer((req,res)=>{res.setHeader("content-type","application/json");if(req.url==="/health"||req.url==="/"||req.url==="/voice"||req.url==="/voice/"||req.url==="/voice/health"){res.end(JSON.stringify({ok:true,service:"BalticM Voice Create",status:client.isReady()?"online":"connecting",version:"1.0.3"}));return}res.statusCode=404;res.end(JSON.stringify({error:"Not found"}))});
 server.listen(PORT,()=>console.log("Health server listening on",PORT));
 client.login(TOKEN);
