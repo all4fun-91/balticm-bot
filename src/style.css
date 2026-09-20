@@ -398,3 +398,18 @@ button.voiceSetupCard.active{
   button.voiceSetupCard{padding:14px}
   .voiceSetupHead{align-items:flex-start}
 }
+
+.voiceSetupCard .voiceSetupLive{
+  grid-column:1/-1;
+  display:block;
+  margin-top:7px;
+  padding-top:8px;
+  border-top:1px solid #ffffff0a;
+  color:#66738c;
+  font:700 9px Orbitron;
+  letter-spacing:.35px;
+}
+.voiceSetupCard .voiceSetupLive.isLive{
+  color:#54e69a;
+  text-shadow:0 0 12px #35d98a55;
+}
