@@ -437,3 +437,9 @@ button.voiceSetupCard.active{
 .musicConnected b i{display:inline-block;width:6px;height:6px;border-radius:50%;background:#4ee49a;box-shadow:0 0 10px #4ee49aaa;margin-right:4px}
 @media(max-width:900px){.musicToolbar{align-items:stretch;flex-direction:column}.musicConnect{min-width:0;justify-content:flex-start}.musicConnect label{flex:1;min-width:0}}
 @media(max-width:560px){.musicConnect{align-items:stretch;flex-direction:column}.musicConnect label,.musicConnected{width:100%;box-sizing:border-box}.musicConnectBtn,.musicDisconnectBtn{width:100%}}
+
+.musicCommandPanel{margin-top:14px;padding:16px 18px;border:1px solid #18233a;border-radius:12px;background:rgba(8,14,27,.52);display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:14px 24px}
+.musicCommandPanel h3{margin:4px 0 5px;font-size:14px}.musicCommandPanel small{color:#74819a;font-size:10px;line-height:1.5}
+.musicCommandControls{display:flex;align-items:center;gap:9px}.musicCommandControls .musicSelect{width:250px}.musicChannelSaved{grid-column:1/-1;padding-top:10px;border-top:1px solid #ffffff0a;color:#8793aa;font-size:10px}.musicChannelSaved i{display:inline-block;width:6px;height:6px;border-radius:50%;background:#4ee49a;box-shadow:0 0 10px #4ee49aaa;margin-right:6px}.musicChannelSaved b{color:#cfc8ff}
+@media(max-width:800px){.musicCommandPanel{grid-template-columns:1fr}.musicCommandControls{justify-content:flex-start}.musicCommandControls .musicSelect{flex:1;width:auto}}
+@media(max-width:560px){.musicCommandControls{align-items:stretch;flex-direction:column}.musicCommandControls .musicSelect{width:100%}}
