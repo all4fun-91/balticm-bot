@@ -313,3 +313,88 @@ button.roleRow{width:100%;text-align:left;color:inherit;font:inherit;cursor:poin
   .voiceConfigPanel .roleFormGrid{grid-template-columns:1fr}
   .voiceRoomCard{align-items:flex-start;flex-direction:column}
 }
+
+
+/* Voice Create setup cards — BalticM dark selectable design */
+.voiceSetupList{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(320px,1fr));
+  gap:10px;
+  margin-top:12px;
+}
+button.voiceSetupCard{
+  -webkit-appearance:none;
+  appearance:none;
+  width:100%;
+  min-width:0;
+  padding:15px 16px;
+  border:1px solid #ffffff0d;
+  border-radius:12px;
+  background:linear-gradient(135deg,#080e19,#070c16);
+  color:#e9edff;
+  text-align:left;
+  cursor:pointer;
+  box-shadow:none;
+  transition:border-color .16s ease,background .16s ease,box-shadow .16s ease,transform .16s ease;
+}
+button.voiceSetupCard:hover{
+  border-color:#795aff45;
+  background:linear-gradient(135deg,#0b1120,#090e1a);
+  transform:translateY(-1px);
+}
+button.voiceSetupCard.active{
+  border-color:#795aff88;
+  background:linear-gradient(135deg,#100f25,#090e1a);
+  box-shadow:0 0 0 1px #795aff18,0 10px 32px #5d3cff16,inset 3px 0 #795aff;
+}
+.voiceSetupCard>div{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:5px 12px;
+  align-items:center;
+}
+.voiceSetupCard .eyebrow{
+  grid-column:1;
+  color:#8f79e8;
+  font-size:8px;
+  letter-spacing:1.5px;
+}
+.voiceSetupCard b{
+  grid-column:1;
+  display:block;
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font:700 13px Orbitron;
+  color:#f4f1ff;
+}
+.voiceSetupCard small{
+  grid-column:1/-1;
+  display:block;
+  margin-top:4px;
+  padding-top:9px;
+  border-top:1px solid #ffffff0a;
+  color:#77849d;
+  font-size:10px;
+  line-height:1.55;
+  white-space:normal;
+}
+.voiceSetupCard.active small{color:#8d98ad}
+.voiceSetupCard>svg{display:none}
+.voiceSetupHead{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  margin-bottom:16px;
+  padding-bottom:14px;
+  border-bottom:1px solid #ffffff0b;
+}
+.voiceSetupHead>div{display:grid;gap:5px}
+.voiceSetupHead b{font:700 14px Orbitron;color:#f1edff}
+@media(max-width:620px){
+  .voiceSetupList{grid-template-columns:1fr}
+  button.voiceSetupCard{padding:14px}
+  .voiceSetupHead{align-items:flex-start}
+}
