@@ -180,3 +180,136 @@ button.roleRow{width:100%;text-align:left;color:inherit;font:inherit;cursor:poin
 
 /* Role permission editor */
 .rolePermissions{margin-top:14px;padding-top:14px;border-top:1px solid #ffffff0d}.rolePermissionsHead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}.rolePermissionsHead h3{margin:3px 0 0;font-size:15px}.rolePermissionsHead small{display:block;margin-top:4px;color:#65718a;font-size:10px}.adminWarning{display:inline-flex;align-items:center;gap:6px;padding:7px 9px;border:1px solid #ff667744;border-radius:8px;background:#ff44550d;color:#ff8793;font-size:9px;font-weight:900;letter-spacing:.5px}.adminWarning svg{width:13px;height:13px}.permissionGroup{margin-top:12px}.permissionGroup h4{margin:0 0 7px;color:#8e9ab0;font-size:10px;font-weight:900;letter-spacing:.6px;text-transform:uppercase}.permissionGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.permissionItem{position:relative;min-height:40px;padding:8px 10px;border:1px solid #ffffff0b;border-radius:8px;background:#070d18;display:grid;grid-template-columns:auto auto 1fr auto;align-items:center;gap:8px;cursor:pointer}.permissionItem:hover{border-color:#795aff35;background:#795aff08}.permissionItem.danger{border-color:#ff667714}.permissionItem input{position:absolute;opacity:0;pointer-events:none}.permissionSwitch{width:28px;height:16px;border-radius:999px;background:#273043;position:relative;transition:.15s}.permissionSwitch:after{content:"";position:absolute;width:12px;height:12px;left:2px;top:2px;border-radius:50%;background:#7c879b;transition:.15s}.permissionItem input:checked+.permissionSwitch{background:#795aff}.permissionItem input:checked+.permissionSwitch:after{left:14px;background:#fff}.permissionItem b{font-size:10px;color:#b9c3d4}.permissionHelp{position:relative;width:20px;height:20px;border:1px solid #ffffff14;border-radius:50%;display:grid;place-items:center;color:#77849a;font-size:9px;font-weight:900;cursor:help;outline:0}.permissionTooltip{pointer-events:none;position:absolute;z-index:40;left:50%;bottom:calc(100% + 10px);width:230px;padding:9px 10px;border:1px solid #795aff38;border-radius:8px;background:#111827;color:#d4dbea;font-size:10px;font-weight:600;line-height:1.45;box-shadow:0 10px 28px #0008;opacity:0;visibility:hidden;transform:translate(-50%,4px);transition:.12s}.permissionTooltip:after{content:"";position:absolute;left:50%;top:100%;transform:translateX(-50%);border:5px solid transparent;border-top-color:#111827}.permissionHelp:hover .permissionTooltip,.permissionHelp:focus .permissionTooltip{opacity:1;visibility:visible;transform:translate(-50%,0)}.deleteRole{height:36px;padding:0 12px;border:1px solid #ff667744;border-radius:8px;background:#ff44550d;color:#ff8793;font-size:10px;font-weight:900;white-space:nowrap}.deleteRole:hover{background:#ff44551a}.roleEditGrid{grid-template-columns:minmax(220px,1fr) 100px auto auto auto auto}@media(max-width:1000px){.roleEditGrid{grid-template-columns:1fr 100px}.deleteRole,.saveRole{grid-column:auto}.permissionGrid{grid-template-columns:1fr}}@media(max-width:560px){.rolePermissionsHead{align-items:flex-start;flex-direction:column}.permissionTooltip{width:200px}}
+
+
+/* Voice Create */
+.voiceConfigPanel{
+  margin-top:16px;
+  padding:20px;
+  border:1px solid rgba(124,92,255,.18);
+  border-radius:14px;
+  background:rgba(8,14,27,.62);
+}
+.voiceConfigPanel .roleFormGrid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:16px;
+}
+.voiceConfigPanel .roleFormGrid label{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  min-width:0;
+}
+.voiceConfigPanel .roleFormGrid label>span{
+  color:#8190ad;
+  font-size:10px;
+  font-weight:800;
+  letter-spacing:.14em;
+}
+.voiceConfigPanel select,
+.voiceConfigPanel input[type="text"],
+.voiceConfigPanel input[type="number"],
+.voiceConfigPanel input:not([type]){
+  width:100%;
+  min-height:42px;
+  box-sizing:border-box;
+  padding:0 12px;
+  color:#e9edff;
+  background:#080e1b;
+  border:1px solid #202b42;
+  border-radius:9px;
+  outline:none;
+}
+.voiceConfigPanel select:focus,
+.voiceConfigPanel input:focus{
+  border-color:#7457ff;
+  box-shadow:0 0 0 3px rgba(116,87,255,.1);
+}
+.voiceConfigPanel select option{
+  background:#080e1b;
+  color:#e9edff;
+}
+.voiceConfigPanel .roleToggle{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-top:16px;
+  color:#a8b3cb;
+  font-size:12px;
+}
+.voiceConfigPanel .roleToggle input{
+  width:16px;
+  height:16px;
+  accent-color:#7457ff;
+}
+.voiceConfigPanel .featureActions{
+  display:flex;
+  justify-content:flex-end;
+  gap:10px;
+  margin-top:18px;
+}
+.voiceConfigPanel .featureActions button,
+.voiceRoomCard .featureActions button{
+  min-height:38px;
+  padding:0 14px;
+  border:1px solid #28334b;
+  border-radius:9px;
+  background:#0c1424;
+  color:#cbd4e9;
+  font-weight:700;
+  cursor:pointer;
+}
+.voiceConfigPanel .featureActions button[type="submit"]{
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  border-color:rgba(124,92,255,.55);
+  background:linear-gradient(135deg,rgba(124,92,255,.22),rgba(78,54,180,.18));
+  color:#f2efff;
+}
+.voiceConfigPanel .featureActions svg{
+  width:15px;
+  height:15px;
+}
+.voiceRoomList{
+  display:grid;
+  gap:10px;
+  margin-top:16px;
+}
+.voiceRoomCard{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  padding:15px 16px;
+  border:1px solid #18233a;
+  border-radius:12px;
+  background:rgba(8,14,27,.52);
+}
+.voiceRoomCard>div:first-child{
+  display:flex;
+  align-items:center;
+  gap:11px;
+}
+.voiceRoomCard>div:first-child>svg{
+  width:18px;
+  color:#8c6cff;
+}
+.voiceRoomCard b,
+.voiceRoomCard small{
+  display:block;
+}
+.voiceRoomCard small{
+  margin-top:3px;
+  color:#72809c;
+}
+.voiceRoomCard .featureActions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:7px;
+}
+@media(max-width:850px){
+  .voiceConfigPanel .roleFormGrid{grid-template-columns:1fr}
+  .voiceRoomCard{align-items:flex-start;flex-direction:column}
+}
