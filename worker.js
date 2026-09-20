@@ -122,6 +122,18 @@ async function editDiscordRole(req,env,guildId,roleId){
  return json({role:data});
 }
 
+async function cachedGuildChannels(env,guildId){
+ const key=new Request("https://balticm.internal/discord-channels/"+encodeURIComponent(guildId));
+ const cache=caches.default;
+ const hit=await cache.match(key);
+ if(hit)return hit.json();
+ const r=await fetch(`https://discord.com/api/v10/guilds/${guildId}/channels`,{headers:botHeaders(env)});
+ if(!r.ok){const e=new Error("Discord channels request failed");e.status=r.status;throw e}
+ const channels=await r.json();
+ await cache.put(key,new Response(JSON.stringify(channels),{headers:{"Content-Type":"application/json","Cache-Control":"public, max-age=30"}}));
+ return channels;
+}
+
 const voiceConfigKey=guildId=>"voice-create:"+guildId;
 const normalizeVoiceProfiles=config=>{
  if(!config)return[];
@@ -141,13 +153,11 @@ async function saveMusicConfig(req,env,guildId){
  const config={commandChannelId,commandChannelName:ch.name,updatedAt:new Date().toISOString()};await env.BALTICM_DB.prepare("CREATE TABLE IF NOT EXISTS bot_config (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL)").run();await env.BALTICM_DB.prepare("INSERT INTO bot_config (key,value,updated_at) VALUES (?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at").bind(musicConfigKey(guildId),JSON.stringify(config),config.updatedAt).run();return json({config});
 }
 async function musicConfigState(env,guildId){
- const [config,cr]=await Promise.all([getMusicConfig(env,guildId),fetch(`https://discord.com/api/v10/guilds/${guildId}/channels`,{headers:botHeaders(env)})]);if(!cr.ok)return json({error:"Discord channels request failed"},502);const textChannels=(await cr.json()).filter(c=>c.type===0||c.type===5).map(c=>({id:c.id,name:c.name,parentId:c.parent_id||null}));return json({config,textChannels});
+ try{const [config,allChannels]=await Promise.all([getMusicConfig(env,guildId),cachedGuildChannels(env,guildId)]);const textChannels=allChannels.filter(c=>c.type===0||c.type===5).map(c=>({id:c.id,name:c.name,parentId:c.parent_id||null}));return json({config,textChannels})}catch(e){return json({error:e.message||"Discord channels request failed",status:e.status||null},502)}
 }
 async function musicProxy(req,env,guildId,action){
  if(!env.BALTICM_MUSIC_SERVICE_SECRET)return json({error:"Music service secret is not configured"},503);
- const cr=await fetch(`https://discord.com/api/v10/guilds/${guildId}/channels`,{headers:botHeaders(env)});
- if(!cr.ok)return json({error:"Discord channels request failed",status:cr.status},502);
- const channels=(await cr.json()).filter(c=>c.type===2||c.type===13).map(c=>({id:c.id,name:c.name,type:c.type,parentId:c.parent_id||null}));
+ let channels;try{channels=(await cachedGuildChannels(env,guildId)).filter(c=>c.type===2||c.type===13).map(c=>({id:c.id,name:c.name,type:c.type,parentId:c.parent_id||null}))}catch(e){return json({error:e.message||"Discord channels request failed",status:e.status||null},502)}
  const path=action==="state"?"state":action;
  const init={method:action==="state"?"GET":"POST",headers:{"X-BalticM-Service-Secret":env.BALTICM_MUSIC_SERVICE_SECRET,"Accept":"application/json"}};
  if(action!=="state"){let body;try{body=await req.json()}catch{return json({error:"Invalid JSON"},400)};if(action==="connect"&&!channels.some(c=>c.id===String(body.channelId||"")))return json({error:"Select a valid voice channel"},400);init.headers["Content-Type"]="application/json";init.body=JSON.stringify({guildId,...body});}
@@ -156,7 +166,7 @@ async function musicProxy(req,env,guildId,action){
 }
 async function voiceCreateState(env,guildId){
  const stored=await getVoiceConfig(env,guildId),profiles=normalizeVoiceProfiles(stored);if(!profiles.length)return json({config:{enabled:false,profiles:[]},rooms:[],live:{activeRooms:0,owners:0}});
- const cr=await fetch(`https://discord.com/api/v10/guilds/${guildId}/channels`,{headers:botHeaders(env)});if(!cr.ok)return json({error:"Discord channels request failed",status:cr.status},502);const channels=await cr.json();
+ let channels;try{channels=await cachedGuildChannels(env,guildId)}catch(e){return json({error:e.message||"Discord channels request failed",status:e.status||null},502)}
  const hydrated=profiles.map(p=>({...p,createChannelName:channels.find(c=>c.id===p.createChannelId)?.name||"Create Voice",categoryName:channels.find(c=>c.id===p.categoryId)?.name||"Category"}));
  let rooms=[],live={activeRooms:0,owners:0,status:"offline"};
  try{
