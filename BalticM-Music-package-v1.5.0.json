@@ -1,0 +1,14 @@
+{
+  "name": "balticm-music-service",
+  "version": "1.5.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "@iamtraction/play-dl": "^2.0.1",
+    "discord.js": "^14.22.1",
+    "shoukaku": "^4.3.0"
+  }
+}
