@@ -77,7 +77,8 @@ function VoiceCreate({user,guild,selectedGuild}){
  const blank=()=>({id:crypto.randomUUID(),categoryId:"",createChannelId:"",nameTemplate:"{username} Room",userLimit:0,privateByDefault:false});
  const profiles=config?.profiles||[],active=profiles.find(p=>p.id===activeId)||profiles[0]||null;
  const load=async()=>{if(!selectedGuild)return;try{const r=await fetch("/api/voice-create?guildId="+encodeURIComponent(selectedGuild),{cache:"no-store"}),x=await r.json();if(r.ok){const next=x.config||{enabled:false,profiles:[]};setConfig(next);setRooms(x.rooms||[]);setActiveId(id=>next.profiles?.some(p=>p.id===id)?id:(next.profiles?.[0]?.id||null))}}catch{}};
- useEffect(()=>{setNotice("");setOpen(false);setActiveId(null);load()},[selectedGuild]);\n useEffect(()=>{if(open)return;const t=setInterval(load,10000);return()=>clearInterval(t)},[selectedGuild,open]);
+ useEffect(()=>{setNotice("");setOpen(false);setActiveId(null);load()},[selectedGuild]);
+ useEffect(()=>{if(open)return;const t=setInterval(load,10000);return()=>clearInterval(t)},[selectedGuild,open]);
  const setProfiles=next=>setConfig(c=>({...c,enabled:c?.enabled!==false,profiles:next}));
  const addProfile=()=>{const p=blank();setProfiles([...profiles,p]);setActiveId(p.id);setOpen(true);setNotice("")};
  const removeProfile=id=>{const next=profiles.filter(p=>p.id!==id);setProfiles(next);setActiveId(next[0]?.id||null);setOpen(!!next.length)};
