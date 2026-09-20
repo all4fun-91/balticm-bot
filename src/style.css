@@ -413,3 +413,27 @@ button.voiceSetupCard.active{
   color:#54e69a;
   text-shadow:0 0 12px #35d98a55;
 }
+
+
+/* Music Bot — connection controls */
+.musicToolbar{align-items:flex-end;gap:28px}
+.musicConnect{display:flex;align-items:flex-end;justify-content:flex-end;gap:10px;min-width:390px}
+.musicConnect label{display:grid;gap:7px;min-width:260px}
+.musicConnect label>span,.musicConnected>span{color:#7786a4;font-size:8px;font-weight:900;letter-spacing:.16em}
+.musicSelect{position:relative;display:flex;align-items:center;height:40px;border:1px solid #202b42;border-radius:9px;background:#080e1b;transition:.15s}
+.musicSelect:focus-within{border-color:#7457ff;box-shadow:0 0 0 3px rgba(116,87,255,.1)}
+.musicSelect>svg:first-child{width:15px;height:15px;margin-left:12px;color:#8267f5;flex:0 0 auto}
+.musicSelect>svg:last-child{position:absolute;right:11px;width:14px;height:14px;color:#65728c;pointer-events:none}
+.musicSelect select{-webkit-appearance:none;appearance:none;width:100%;height:100%;padding:0 34px 0 9px;border:0;outline:0;background:transparent;color:#dce3f3;font-size:11px;font-weight:700;cursor:pointer}
+.musicSelect select option{background:#080e1b;color:#e8ecf8}
+.musicConnectBtn,.musicDisconnectBtn{height:40px;padding:0 15px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;gap:7px;white-space:nowrap;font-size:10px;font-weight:900;cursor:pointer}
+.musicConnectBtn{border:1px solid #7457ff88;background:linear-gradient(135deg,#6f50ff26,#4f38c526);color:#eeeaff;box-shadow:inset 0 0 18px #7256ff0b}
+.musicConnectBtn:hover:not(:disabled){border-color:#856cff;background:linear-gradient(135deg,#765aff36,#553dce30)}
+.musicConnectBtn:disabled{opacity:.45;cursor:not-allowed}
+.musicConnectBtn svg,.musicDisconnectBtn svg{width:14px;height:14px}
+.musicDisconnectBtn{border:1px solid #ff667744;background:#ff44550d;color:#ff8793}
+.musicConnected{height:40px;min-width:220px;padding:0 13px;border:1px solid #233047;border-radius:9px;background:#080e1b;display:flex;flex-direction:column;justify-content:center;gap:3px}
+.musicConnected b{color:#dce5f6;font-size:11px}
+.musicConnected b i{display:inline-block;width:6px;height:6px;border-radius:50%;background:#4ee49a;box-shadow:0 0 10px #4ee49aaa;margin-right:4px}
+@media(max-width:900px){.musicToolbar{align-items:stretch;flex-direction:column}.musicConnect{min-width:0;justify-content:flex-start}.musicConnect label{flex:1;min-width:0}}
+@media(max-width:560px){.musicConnect{align-items:stretch;flex-direction:column}.musicConnect label,.musicConnected{width:100%;box-sizing:border-box}.musicConnectBtn,.musicDisconnectBtn{width:100%}}
