@@ -1,1 +1,20 @@
-{"name":"balticm-bot","main":"worker.js","compatibility_date":"2026-09-18","assets":{"directory":"./dist","binding":"ASSETS","not_found_handling":"single-page-application","run_worker_first":["/api/*"]}}
+{
+  "name": "balticm-bot",
+  "main": "worker.js",
+  "compatibility_date": "2026-09-18",
+  "d1_databases": [
+    {
+      "binding": "BALTICM_DB",
+      "database_name": "baltic-servers-db",
+      "database_id": "5e931203-de82-4a16-9446-d5ec8ab872c2"
+    }
+  ],
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": [
+      "/api/*"
+    ]
+  }
+}
