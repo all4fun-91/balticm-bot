@@ -132,12 +132,15 @@ const normalizeVoiceProfiles=config=>{
 async function getVoiceConfig(env,guildId){if(!env.BALTICM_DB)return null;const row=await env.BALTICM_DB.prepare("SELECT value FROM bot_config WHERE key = ?").bind(voiceConfigKey(guildId)).first();if(!row?.value)return null;try{return JSON.parse(row.value)}catch{return null}}
 async function setVoiceConfig(env,guildId,config){if(!env.BALTICM_DB)throw new Error("BALTICM_DB binding is not configured");await env.BALTICM_DB.prepare("CREATE TABLE IF NOT EXISTS bot_config (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL)").run();await env.BALTICM_DB.prepare("INSERT INTO bot_config (key,value,updated_at) VALUES (?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at").bind(voiceConfigKey(guildId),JSON.stringify(config),new Date().toISOString()).run()}
 async function voiceCreateState(env,guildId){
- const stored=await getVoiceConfig(env,guildId),profiles=normalizeVoiceProfiles(stored);if(!profiles.length)return json({config:{enabled:false,profiles:[]},rooms:[]});
+ const stored=await getVoiceConfig(env,guildId),profiles=normalizeVoiceProfiles(stored);if(!profiles.length)return json({config:{enabled:false,profiles:[]},rooms:[],live:{activeRooms:0,owners:0}});
  const cr=await fetch(`https://discord.com/api/v10/guilds/${guildId}/channels`,{headers:botHeaders(env)});if(!cr.ok)return json({error:"Discord channels request failed",status:cr.status},502);const channels=await cr.json();
  const hydrated=profiles.map(p=>({...p,createChannelName:channels.find(c=>c.id===p.createChannelId)?.name||"Create Voice",categoryName:channels.find(c=>c.id===p.categoryId)?.name||"Category"}));
- const managedCats=new Set(profiles.map(p=>p.categoryId)),createIds=new Set(profiles.map(p=>p.createChannelId));
- const rooms=channels.filter(c=>c.type===2&&managedCats.has(c.parent_id)&&!createIds.has(c.id)&&String(c.topic||"").startsWith("balticm-voice:"));
- return json({config:{enabled:stored?.enabled!==false,profiles:hydrated},rooms:rooms.map(c=>{const m=String(c.topic||"").match(/^balticm-voice:([^:]+):?(.*)$/);return{id:c.id,name:c.name,ownerId:m?.[1]||null,ownerName:m?.[2]||null,memberCount:0,locked:false,userLimit:c.user_limit||0}})});
+ let rooms=[],live={activeRooms:0,owners:0,status:"offline"};
+ try{
+  const vr=await fetch(`https://balticm.eu/voice/state?guildId=${encodeURIComponent(guildId)}`,{headers:{"X-BalticM-Service-Secret":env.BALTICM_VOICE_SERVICE_SECRET||"","Accept":"application/json"},cf:{cacheTtl:0}});
+  if(vr.ok){const v=await vr.json();rooms=Array.isArray(v.rooms)?v.rooms:[];live={activeRooms:Number(v.activeRooms)||rooms.length,owners:Number(v.owners)||0,status:v.status||"online"}}
+ }catch{}
+ return json({config:{enabled:stored?.enabled!==false,profiles:hydrated},rooms,live});
 }
 async function saveVoiceCreate(req,env,guildId){
  let body;try{body=await req.json()}catch{return json({error:"Invalid JSON"},400)}
