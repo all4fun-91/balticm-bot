@@ -191,9 +191,49 @@ async function voiceRoomAction(req,env,guildId,roomId){
  const pr=await fetch(`https://discord.com/api/v10/channels/${roomId}`,{method:"PATCH",headers:botHeaders(env,true),body:JSON.stringify(patch)});const data=await pr.json().catch(()=>({}));return pr.ok?json({ok:true,room:data}):json({error:data.message||"Room update failed",status:pr.status},502);
 }
 
-export default{async fetch(req,env){
+
+let discordInteractionVerifyKey=null;
+let discordInteractionVerifyKeyAt=0;
+async function getDiscordInteractionVerifyKey(env){
+ if(discordInteractionVerifyKey&&Date.now()-discordInteractionVerifyKeyAt<3600000)return discordInteractionVerifyKey;
+ const token=env.DISCORD_BOT_TOKEN;
+ if(!token)throw new Error("DISCORD_BOT_TOKEN missing");
+ const r=await fetch("https://discord.com/api/v10/oauth2/applications/@me",{headers:{Authorization:"Bot "+token,"User-Agent":"BalticM.eu Interaction Gateway"}});
+ if(!r.ok)throw new Error("Discord application lookup failed: "+r.status);
+ const app=await r.json(),hex=String(app.verify_key||"");
+ if(!/^[0-9a-f]{64}$/i.test(hex))throw new Error("Discord verify_key missing");
+ const raw=new Uint8Array(hex.match(/../g).map(x=>parseInt(x,16)));
+ discordInteractionVerifyKey=await crypto.subtle.importKey("raw",raw,{name:"Ed25519"},false,["verify"]);
+ discordInteractionVerifyKeyAt=Date.now();
+ return discordInteractionVerifyKey;
+}
+async function verifyDiscordInteraction(req,raw,env){
+ const sig=req.headers.get("x-signature-ed25519")||"",ts=req.headers.get("x-signature-timestamp")||"";
+ if(!/^[0-9a-f]{128}$/i.test(sig)||!/^\d{10,12}$/.test(ts))return false;
+ const key=await getDiscordInteractionVerifyKey(env);
+ const signature=new Uint8Array(sig.match(/../g).map(x=>parseInt(x,16)));
+ const message=new Uint8Array(enc.encode(ts).length+raw.length);
+ message.set(enc.encode(ts),0);message.set(raw,enc.encode(ts).length);
+ return crypto.subtle.verify("Ed25519",key,signature,message);
+}
+async function discordInteractionGateway(req,env,ctx){
+ if(req.method!=="POST")return json({ok:true,service:"BalticM Discord Interaction Gateway",version:"1.0.0"});
+ const raw=new Uint8Array(await req.arrayBuffer());
+ let valid=false;try{valid=await verifyDiscordInteraction(req,raw,env)}catch(e){return json({error:"Verification unavailable"},503)}
+ if(!valid)return json({error:"Invalid request signature"},401);
+ let interaction;try{interaction=JSON.parse(dec.decode(raw))}catch{return json({error:"Invalid JSON"},400)}
+ if(interaction?.type===1)return json({type:1});
+ const headers=new Headers(req.headers);headers.set("content-type","application/json");headers.delete("host");
+ ctx.waitUntil(fetch("https://balticm.eu/discord-bot",{method:"POST",headers,body:raw}).catch(()=>{}));
+ if(interaction?.type===3)return json({type:6});
+ if(interaction?.type===2&&interaction?.data?.name==="play")return json({type:5,data:{flags:64}});
+ return json({type:4,data:{content:"BalticM.eu interaction server is online.",flags:64}});
+}
+
+export default{async fetch(req,env,ctx){
  const u=new URL(req.url),p=u.pathname;
  if(p==="/api/health")return health();
+ if(p==="/api/discord-interactions")return discordInteractionGateway(req,env,ctx);
  if(p==="/api/desktop/latest")return desktopLatest();
  const um=p.match(/^\/api\/desktop\/update\/([^/]+)\/([^/]+)\/([^/]+)$/);if(um)return desktopUpdate(decodeURIComponent(um[1]),decodeURIComponent(um[2]),decodeURIComponent(um[3]));
  if(p==="/api/music/service/config"){const guildId=u.searchParams.get("guildId"),secret=req.headers.get("X-BalticM-Service-Secret")||"";if(!env.BALTICM_MUSIC_SERVICE_SECRET||secret!==env.BALTICM_MUSIC_SERVICE_SECRET)return json({error:"Unauthorized"},401);if(!guildId)return json({error:"guildId is required"},400);const config=await getMusicConfig(env,guildId);return json({config});}
