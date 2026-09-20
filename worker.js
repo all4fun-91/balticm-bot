@@ -131,6 +131,17 @@ const normalizeVoiceProfiles=config=>{
 };
 async function getVoiceConfig(env,guildId){if(!env.BALTICM_DB)return null;const row=await env.BALTICM_DB.prepare("SELECT value FROM bot_config WHERE key = ?").bind(voiceConfigKey(guildId)).first();if(!row?.value)return null;try{return JSON.parse(row.value)}catch{return null}}
 async function setVoiceConfig(env,guildId,config){if(!env.BALTICM_DB)throw new Error("BALTICM_DB binding is not configured");await env.BALTICM_DB.prepare("CREATE TABLE IF NOT EXISTS bot_config (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL)").run();await env.BALTICM_DB.prepare("INSERT INTO bot_config (key,value,updated_at) VALUES (?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at").bind(voiceConfigKey(guildId),JSON.stringify(config),new Date().toISOString()).run()}
+async function musicProxy(req,env,guildId,action){
+ if(!env.BALTICM_MUSIC_SERVICE_SECRET)return json({error:"Music service secret is not configured"},503);
+ const cr=await fetch(`https://discord.com/api/v10/guilds/${guildId}/channels`,{headers:botHeaders(env)});
+ if(!cr.ok)return json({error:"Discord channels request failed",status:cr.status},502);
+ const channels=(await cr.json()).filter(c=>c.type===2||c.type===13).map(c=>({id:c.id,name:c.name,type:c.type,parentId:c.parent_id||null}));
+ const path=action==="state"?"state":action;
+ const init={method:action==="state"?"GET":"POST",headers:{"X-BalticM-Service-Secret":env.BALTICM_MUSIC_SERVICE_SECRET,"Accept":"application/json"}};
+ if(action!=="state"){let body;try{body=await req.json()}catch{return json({error:"Invalid JSON"},400)};if(action==="connect"&&!channels.some(c=>c.id===String(body.channelId||"")))return json({error:"Select a valid voice channel"},400);init.headers["Content-Type"]="application/json";init.body=JSON.stringify({guildId,...body});}
+ const target=`https://balticm.eu/music/${path}${action==="state"?`?guildId=${encodeURIComponent(guildId)}`:""}`;
+ try{const r=await fetch(target,{...init,cf:{cacheTtl:0}}),data=await r.json().catch(()=>({}));if(!r.ok)return json({error:data.error||"Music service request failed",status:r.status},r.status===400?400:502);return json(action==="state"?{...data,channels}:{...data,channels});}catch{return json({error:"Music service is unavailable"},502)}
+}
 async function voiceCreateState(env,guildId){
  const stored=await getVoiceConfig(env,guildId),profiles=normalizeVoiceProfiles(stored);if(!profiles.length)return json({config:{enabled:false,profiles:[]},rooms:[],live:{activeRooms:0,owners:0}});
  const cr=await fetch(`https://discord.com/api/v10/guilds/${guildId}/channels`,{headers:botHeaders(env)});if(!cr.ok)return json({error:"Discord channels request failed",status:cr.status},502);const channels=await cr.json();
@@ -169,6 +180,9 @@ export default{async fetch(req,env){
  if(p==="/api/auth/logout")return new Response(null,{status:302,headers:{Location:u.origin+"/","Set-Cookie":`${COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`}});
  if(p==="/api/auth/me"){const user=await session(req,env);return user?json({authenticated:true,user}):json({authenticated:false},401)}
  if(p.startsWith("/api/")){const user=await session(req,env);if(!user)return json({error:"Unauthorized"},401);if(p==="/api/notifications")return json({notifications:await publicNotifications(env)});if(p==="/api/status")return json({ok:true,user:{id:user.id,username:user.username},configured:{discordClientSecret:!!env.DISCORD_CLIENT_SECRET,sessionSecret:!!env.SESSION_SECRET,discordBotToken:!!env.DISCORD_BOT_TOKEN}});if(p==="/api/discord/guild"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return discordGuild(env,guildId);}
+if(p==="/api/music"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);if(req.method!=="GET")return json({error:"Method not allowed"},405);return musicProxy(req,env,guildId,"state");}
+if(p==="/api/music/connect"&&req.method==="POST"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return musicProxy(req,env,guildId,"connect");}
+if(p==="/api/music/disconnect"&&req.method==="POST"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return musicProxy(req,env,guildId,"disconnect");}
 if(p==="/api/voice-create"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return req.method==="POST"?saveVoiceCreate(req,env,guildId):voiceCreateState(env,guildId);}
 const vr=p.match(/^\/api\/voice-create\/rooms\/([^/]+)$/);if(vr&&req.method==="POST"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return voiceRoomAction(req,env,guildId,decodeURIComponent(vr[1]));}
 if(p==="/api/discord/members"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return discordMembers(env,guildId);}
