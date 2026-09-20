@@ -9,6 +9,7 @@ RUN python -m pip install --no-cache-dir -U yt-dlp bgutil-ytdlp-pot-provider
 WORKDIR /app
 
 COPY start.sh /app/start.sh
+COPY server.py /app/server.py
 RUN chmod +x /app/start.sh
 
 ENV PORT=10000
