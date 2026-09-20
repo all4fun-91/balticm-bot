@@ -37,6 +37,6 @@ client.on("voiceStateUpdate",async(oldState,newState)=>{
  }catch(e){console.error("voiceStateUpdate",e)}
 });
 client.once("ready",()=>console.log(`BalticM Voice Create online as ${client.user.tag}`));
-const server=http.createServer((req,res)=>{res.setHeader("content-type","application/json");if(req.url==="/health"||req.url==="/"){res.end(JSON.stringify({ok:true,service:"BalticM Voice Create",status:client.isReady()?"online":"connecting",version:"1.0.0"}));return}res.statusCode=404;res.end(JSON.stringify({error:"Not found"}))});
+const server=http.createServer((req,res)=>{res.setHeader("content-type","application/json");if(req.url==="/health"||req.url==="/"||req.url==="/voice"||req.url==="/voice/"||req.url==="/voice/health"){res.end(JSON.stringify({ok:true,service:"BalticM Voice Create",status:client.isReady()?"online":"connecting",version:"1.0.0"}));return}res.statusCode=404;res.end(JSON.stringify({error:"Not found"}))});
 server.listen(PORT,()=>console.log("Health server listening on",PORT));
 client.login(TOKEN);
