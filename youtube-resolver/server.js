@@ -30,29 +30,39 @@ async function readBody(req){
   for await(const chunk of req){ body+=chunk; if(body.length>65536) throw new Error("Body too large"); }
   return body ? JSON.parse(body) : {};
 }
+async function testYouTube(value){
+  const id=videoId(String(value||""));
+  if(!id) return {status:400,data:{ok:false,error:"Valid YouTube URL or videoId required"}};
+
+  const yt=await youtube();
+  const info=await yt.getInfo(id);
+  const title=info?.basic_info?.title||null;
+
+  try{
+    const stream=await yt.download(id,{type:"audio",quality:"best",format:"webm",codec:"opus"});
+    const reader=stream.getReader();
+    const first=await reader.read();
+    try{await reader.cancel();}catch{}
+    return {status:200,data:{ok:true,videoId:id,title,streamReadable:!first.done,firstChunkBytes:first.value?.byteLength||0}};
+  }catch(error){
+    return {status:502,data:{ok:false,videoId:id,title,error:String(error?.message||error)}};
+  }
+}
 const server=http.createServer(async(req,res)=>{
   try{
     const u=new URL(req.url,"http://localhost");
     if(req.method==="GET" && (u.pathname==="/"||u.pathname==="/health")){
-      return json(res,200,{ok:true,service:"BalticM YouTube Resolver",version:"1.0.0",youtube:"youtubei.js"});
+      return json(res,200,{ok:true,service:"BalticM YouTube Resolver",version:"1.0.1",youtube:"youtubei.js"});
+    }
+    if(req.method==="GET" && u.pathname==="/test"){
+      const result=await testYouTube(u.searchParams.get("url")||u.searchParams.get("videoId")||"");
+      return json(res,result.status,result.data);
     }
     if(req.method==="POST" && u.pathname==="/test"){
       if(SERVICE_SECRET && req.headers["x-balticm-resolver-secret"]!==SERVICE_SECRET) return json(res,401,{ok:false,error:"Unauthorized"});
       const body=await readBody(req);
-      const id=videoId(String(body.url||body.videoId||""));
-      if(!id) return json(res,400,{ok:false,error:"Valid YouTube URL or videoId required"});
-      const yt=await youtube();
-      const info=await yt.getInfo(id);
-      const title=info?.basic_info?.title||null;
-      try{
-        const stream=await yt.download(id,{type:"audio",quality:"best",format:"webm",codec:"opus"});
-        const reader=stream.getReader();
-        const first=await reader.read();
-        try{await reader.cancel();}catch{}
-        return json(res,200,{ok:true,videoId:id,title,streamReadable:!first.done,firstChunkBytes:first.value?.byteLength||0});
-      }catch(error){
-        return json(res,502,{ok:false,videoId:id,title,error:String(error?.message||error)});
-      }
+      const result=await testYouTube(body.url||body.videoId||"");
+      return json(res,result.status,result.data);
     }
     return json(res,404,{ok:false,error:"Not found"});
   }catch(error){ return json(res,500,{ok:false,error:String(error?.message||error)}); }
