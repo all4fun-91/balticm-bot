@@ -504,3 +504,32 @@ button.voiceSetupCard.active{
 .moderationPage .modRemoveAction:hover:not(:disabled){border-color:#ff7180;background:#ff44551b;color:#ffb0b8}
 .moderationPage .modRemoveAction:disabled{opacity:.45;cursor:not-allowed}
 @media(max-width:620px){.moderationPage .memberActiveRoles{flex-wrap:wrap}.moderationPage .modRemoveAction{margin-left:0}}
+
+
+/* Moderation final readability / visible row actions */
+.moderationPage .modTopbar b{font-size:13px;color:#f2f5ff}
+.moderationPage .modTopbar small{font-size:10px;color:#93a2bd}
+.moderationPage .modStats span{font-size:9px;color:#8796b2}
+.moderationPage .modStats small{font-size:10px;color:#8493ad}
+.moderationPage .modActionsHead h3,.moderationPage .modHistoryHead h3{font-size:15px;color:#f2f5ff}
+.moderationPage .modActionsHead small,.moderationPage .modHistoryHead small{font-size:10px;color:#93a2bd;line-height:1.45}
+.moderationPage .createRoleForm label>span{font-size:9px;color:#91a0bb}
+.moderationPage .memberDirectory{max-height:none;overflow:visible}
+.moderationPage .memberRow{position:relative;padding:16px 118px 16px 16px;min-height:76px}
+.moderationPage .memberIdentity>div>b{font-size:13px!important;color:#f5f7ff!important}
+.moderationPage .memberIdentity>div>small{font-size:11px!important;color:#b3bfd3!important}
+.moderationPage .memberActiveRoles>span{font-size:10px!important;color:#a5b2c8!important}
+.moderationPage .modRemoveAction{
+ position:absolute;right:16px;top:50%;transform:translateY(-50%);
+ display:inline-flex!important;align-items:center;justify-content:center;
+ min-width:78px;height:32px!important;margin:0!important;padding:0 12px!important;
+ border:1px solid #ff667755!important;border-radius:8px!important;
+ background:#ff445512!important;color:#ff98a2!important;font-size:9px!important;font-weight:900!important;
+}
+.moderationPage .modHistoryHead>button:disabled{opacity:.65;cursor:wait}
+@keyframes modSpin{to{transform:rotate(360deg)}}
+.moderationPage .modSpin{animation:modSpin .7s linear infinite}
+@media(max-width:620px){
+ .moderationPage .memberRow{padding:14px 14px 56px}
+ .moderationPage .modRemoveAction{left:14px;right:auto;top:auto;bottom:12px;transform:none}
+}
