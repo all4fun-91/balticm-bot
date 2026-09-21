@@ -269,19 +269,24 @@ async function moderateMember(req,env,user,guildId){
  const mr=await fetch(`https://discord.com/api/v10/guilds/${guildId}/members/${memberId}`,{headers:botHeaders(env)});
  if(!mr.ok)return json({error:"Discord member was not found",status:mr.status},mr.status===404?404:502);
  const member=await mr.json(),memberName=member.nick||member.user?.global_name||member.user?.username||memberId;
+ const moderatorName=user.global_name||user.username||user.id;
+ const guildName=(await fetch(`https://discord.com/api/v10/guilds/${guildId}`,{headers:botHeaders(env)}).then(x=>x.ok?x.json():null).catch(()=>null))?.name||"Baltic | Mayhem";
+ const actionText=action==="warn"?"a warning":action==="timeout"?`a timeout for ${durationMinutes} minutes`:action==="kick"?"a kick":"a ban";
+ const dmText=`⚠️ **BalticM Moderation**\nYou received **${actionText}** in **${guildName}**.\n**Reason:** ${reason}\n**Moderator:** ${moderatorName}`;
+ // Kick/ban remove the shared guild relationship, so notify before the destructive action.
+ let dm=false;
+ if(action==="kick"||action==="ban")dm=await discordDm(env,memberId,dmText).catch(()=>false);
  let r=null;
  if(action==="timeout"){const until=new Date(Date.now()+durationMinutes*60000).toISOString();r=await fetch(`https://discord.com/api/v10/guilds/${guildId}/members/${memberId}`,{method:"PATCH",headers:h,body:JSON.stringify({communication_disabled_until:until})});}
  else if(action==="kick")r=await fetch(`https://discord.com/api/v10/guilds/${guildId}/members/${memberId}`,{method:"DELETE",headers:{...botHeaders(env),"X-Audit-Log-Reason":encodeURIComponent(reason)}});
  else if(action==="ban")r=await fetch(`https://discord.com/api/v10/guilds/${guildId}/bans/${memberId}`,{method:"PUT",headers:{...h,"X-Audit-Log-Reason":encodeURIComponent(reason)},body:JSON.stringify({delete_message_seconds:0})});
  if(r&&!r.ok){const data=await r.json().catch(()=>({}));return json({error:data.message||("Discord "+action+" failed"),status:r.status},r.status===403?403:502)}
+ if(action==="warn"||action==="timeout")dm=await discordDm(env,memberId,dmText).catch(()=>false);
  try{
   await ensureModerationTable(env);
-  const id=crypto.randomUUID(),createdAt=new Date().toISOString(),moderatorName=user.global_name||user.username||user.id;
+  const id=crypto.randomUUID(),createdAt=new Date().toISOString();
   const entry={id,memberId,memberName,moderatorId:user.id,moderatorName,action,reason,durationMinutes,createdAt};
   await env.BALTICM_DB.prepare("INSERT INTO moderation_actions (id,guild_id,member_id,member_name,moderator_id,moderator_name,action,reason,duration_minutes,created_at) VALUES (?,?,?,?,?,?,?,?,?,?)").bind(id,guildId,memberId,memberName,user.id,moderatorName,action,reason,durationMinutes,createdAt).run();
-  const guildName=(await fetch(`https://discord.com/api/v10/guilds/${guildId}`,{headers:botHeaders(env)}).then(x=>x.ok?x.json():null).catch(()=>null))?.name||"Baltic | Mayhem";
-  const actionText=action==="warn"?"a warning":action==="timeout"?`a timeout for ${durationMinutes} minutes`:action==="kick"?"a kick":"a ban";
-  const dm=await discordDm(env,memberId,`⚠️ **BalticM Moderation**\nYou received **${actionText}** in **${guildName}**.\n**Reason:** ${reason}\n**Moderator:** ${moderatorName}`).catch(()=>false);
   const modLog=await sendModLog(env,guildId,entry).catch(()=>false);
   return json({ok:true,entry,dmSent:dm,modLogSent:modLog});
  }catch(e){return json({error:"Discord action succeeded, but audit log could not be saved",detail:String(e.message||e)},500)}
