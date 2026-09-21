@@ -443,3 +443,52 @@ button.voiceSetupCard.active{
 .musicCommandControls{display:flex;align-items:center;gap:9px}.musicCommandControls .musicSelect{width:250px}.musicChannelSaved{grid-column:1/-1;padding-top:10px;border-top:1px solid #ffffff0a;color:#8793aa;font-size:10px}.musicChannelSaved i{display:inline-block;width:6px;height:6px;border-radius:50%;background:#4ee49a;box-shadow:0 0 10px #4ee49aaa;margin-right:6px}.musicChannelSaved b{color:#cfc8ff}
 @media(max-width:800px){.musicCommandPanel{grid-template-columns:1fr}.musicCommandControls{justify-content:flex-start}.musicCommandControls .musicSelect{flex:1;width:auto}}
 @media(max-width:560px){.musicCommandControls{align-items:stretch;flex-direction:column}.musicCommandControls .musicSelect{width:100%}}
+
+
+/* Moderation — functional controls */
+.moderationPage .createRoleForm{
+  margin-top:22px;
+  display:grid;
+  grid-template-columns:minmax(240px,1.5fr) minmax(150px,.65fr) minmax(240px,1.2fr) auto;
+  gap:14px;
+  align-items:end;
+}
+.moderationPage .createRoleForm label{display:grid;gap:7px;min-width:0}
+.moderationPage .createRoleForm label>span{color:#7786a4;font-size:8px;font-weight:900;letter-spacing:.16em}
+.moderationPage .createRoleForm select,
+.moderationPage .createRoleForm input{
+  width:100%;height:40px;box-sizing:border-box;
+  border:1px solid #202b42;border-radius:9px;outline:0;
+  background:#080e1b;color:#dce3f3;
+  padding:0 12px;font-size:11px;font-weight:700;
+  transition:.15s;
+}
+.moderationPage .createRoleForm select{cursor:pointer;color-scheme:dark}
+.moderationPage .createRoleForm select option{background:#080e1b;color:#e8ecf8}
+.moderationPage .createRoleForm select:focus,
+.moderationPage .createRoleForm input:focus{border-color:#7457ff;box-shadow:0 0 0 3px rgba(116,87,255,.1)}
+.moderationPage .createRoleForm button{
+  width:auto;min-width:130px;height:40px;margin:0;padding:0 16px;
+  border-radius:9px;display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  white-space:nowrap;font-size:10px;font-weight:900;cursor:pointer;
+}
+.moderationPage .createRoleForm button svg{width:14px;height:14px}
+.moderationPage .createRoleForm .saveRole{border:1px solid #7457ff88;background:linear-gradient(135deg,#6f50ff26,#4f38c526);color:#eeeaff}
+.moderationPage .createRoleForm .deleteRole{border:1px solid #ff667744;background:#ff44550d;color:#ff8793}
+.moderationPage .createRoleForm button:disabled{opacity:.42;cursor:not-allowed}
+.moderationPage .modHistoryHead>button{
+  height:36px;padding:0 13px;border:1px solid #26324a;border-radius:8px;
+  background:#080e1b;color:#aeb9cd;display:inline-flex;align-items:center;gap:7px;
+  font-size:9px;font-weight:900;cursor:pointer;
+}
+.moderationPage .modHistoryHead>button:hover{border-color:#7457ff;color:#eeeaff}
+.moderationPage .modHistoryHead>button svg{width:13px;height:13px;color:#8267f5}
+@media(max-width:1050px){
+ .moderationPage .createRoleForm{grid-template-columns:1fr 1fr}
+ .moderationPage .createRoleForm button{width:100%}
+}
+@media(max-width:620px){
+ .moderationPage .createRoleForm{grid-template-columns:1fr}
+ .moderationPage .modHistoryHead{align-items:flex-start;gap:12px}
+ .moderationPage .modHistoryHead>button{width:100%;justify-content:center}
+}
