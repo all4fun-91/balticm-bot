@@ -2186,3 +2186,734 @@ const server =
                   "guildId is required"
               }
             );
+          }
+
+          const state =
+            disconnectPlayer(
+              guildId
+            );
+
+          return json(
+            res,
+            200,
+            {
+              ok: true,
+              state
+            }
+          );
+        }
+
+        /*
+         * PLAY FROM HTTP INTERACTION SERVICE
+         */
+
+        if (
+          req.method ===
+            "POST" &&
+          (
+            url.pathname ===
+              "/command/play" ||
+
+            url.pathname ===
+              "/music/command/play"
+          )
+        ) {
+          const body =
+            await readBody(
+              req
+            );
+
+          const guildId =
+            String(
+              body.guildId ||
+              ""
+            );
+
+          const userId =
+            String(
+              body.userId ||
+              ""
+            );
+
+          const commandChannelId =
+            String(
+              body.commandChannelId ||
+              ""
+            );
+
+          const query =
+            String(
+              body.query ||
+              ""
+            ).trim();
+
+          const source =
+            String(
+              body.source ||
+              "auto"
+            ).trim().toLowerCase();
+
+          voiceLog(
+            "HTTP PLAY RECEIVED",
+            {
+              pid: process.pid,
+              guildId,
+              userId,
+              commandChannelId,
+              hasQuery: Boolean(query)
+            }
+          );
+
+          if (
+            !guildId ||
+            !userId ||
+            !commandChannelId
+          ) {
+            return json(
+              res,
+              400,
+              {
+                ok: false,
+
+                error:
+                  "guildId, userId and commandChannelId are required"
+              }
+            );
+          }
+
+          if (!query) {
+            return json(
+              res,
+              400,
+              {
+                ok: false,
+
+                error:
+                  "Enter a song name or music URL."
+              }
+            );
+          }
+
+          if (
+            !client.isReady()
+          ) {
+            return json(
+              res,
+              503,
+              {
+                ok: false,
+
+                error:
+                  "Discord client is not ready"
+              }
+            );
+          }
+
+          const guild =
+            client.guilds.cache.get(
+              guildId
+            );
+
+          if (!guild) {
+            return json(
+              res,
+              404,
+              {
+                ok: false,
+
+                error:
+                  "Guild not found"
+              }
+            );
+          }
+
+          /*
+           * Validate configured Music text channel.
+           */
+
+          const config =
+            await getMusicCommandConfig(
+              guildId
+            );
+
+          if (
+            !config?.commandChannelId
+          ) {
+            return json(
+              res,
+              400,
+              {
+                ok: false,
+
+                error:
+                  "Music command channel is not configured yet. Set it in BalticM Control Center."
+              }
+            );
+          }
+
+          if (
+            commandChannelId !==
+            String(
+              config.commandChannelId
+            )
+          ) {
+            return json(
+              res,
+              400,
+              {
+                ok: false,
+
+                error:
+                  `Music commands are only allowed in <#${config.commandChannelId}>.`
+              }
+            );
+          }
+
+          /*
+           * Fetch member.
+           */
+
+          const member =
+            await guild.members.fetch(
+              userId
+            );
+
+          const voiceChannel =
+            member.voice?.channel;
+
+          if (!voiceChannel) {
+            return json(
+              res,
+              400,
+              {
+                ok: false,
+
+                error:
+                  "Join a voice channel first, then use /play in the Music channel."
+              }
+            );
+          }
+
+          if (
+            voiceChannel.type !==
+              ChannelType.GuildVoice &&
+            voiceChannel.type !==
+              ChannelType.GuildStageVoice
+          ) {
+            return json(
+              res,
+              400,
+              {
+                ok: false,
+
+                error:
+                  "Your current channel is not a supported voice channel."
+              }
+            );
+          }
+
+          /*
+           * Connect/reuse voice connection.
+           */
+
+          await connectPlayer(
+            guildId,
+            voiceChannel.id
+          );
+
+          /*
+           * Resolve + queue + play.
+           */
+
+          const result =
+            await addTrack(
+              guildId,
+              query,
+              userId,
+              source
+            );
+
+          const track =
+            result.track;
+
+          return json(
+            res,
+            200,
+            {
+              ok: true,
+
+              channelId:
+                voiceChannel.id,
+
+              channelName:
+                voiceChannel.name,
+
+              query,
+
+              queued:
+                result.queued,
+
+              queuePosition:
+                result.position,
+
+              track:
+                publicTrack(
+                  track
+                ),
+
+              message:
+                result.queued
+                  ? `Added to queue: ${track.title}`
+                  : `Now playing: ${track.title}`
+            }
+          );
+        }
+
+        /*
+         * SKIP
+         */
+
+        if (
+          req.method ===
+            "POST" &&
+          (
+            url.pathname ===
+              "/skip" ||
+
+            url.pathname ===
+              "/music/skip"
+          )
+        ) {
+          const body =
+            await readBody(
+              req
+            );
+
+          const guildId =
+            String(
+              body.guildId ||
+              ""
+            );
+
+          const player =
+            players.get(
+              guildId
+            );
+
+          if (!player) {
+            return json(
+              res,
+              404,
+              {
+                ok: false,
+                error:
+                  "Player not connected"
+              }
+            );
+          }
+
+          player.currentTrack =
+            null;
+
+          await player.lavalinkPlayer?.stopTrack();
+
+          return json(
+            res,
+            200,
+            {
+              ok: true,
+              state:
+                getGuildState(
+                  guildId
+                )
+            }
+          );
+        }
+
+        /*
+         * PAUSE
+         */
+
+        if (
+          req.method ===
+            "POST" &&
+          (
+            url.pathname ===
+              "/pause" ||
+
+            url.pathname ===
+              "/music/pause"
+          )
+        ) {
+          const body =
+            await readBody(
+              req
+            );
+
+          const guildId =
+            String(
+              body.guildId ||
+              ""
+            );
+
+          const player =
+            players.get(
+              guildId
+            );
+
+          if (!player) {
+            return json(
+              res,
+              404,
+              {
+                ok: false,
+                error:
+                  "Player not connected"
+              }
+            );
+          }
+
+          await player.lavalinkPlayer?.setPaused(true);
+          player.paused = true;
+
+          return json(
+            res,
+            200,
+            {
+              ok: true,
+              state:
+                getGuildState(
+                  guildId
+                )
+            }
+          );
+        }
+
+        /*
+         * RESUME
+         */
+
+        if (
+          req.method ===
+            "POST" &&
+          (
+            url.pathname ===
+              "/resume" ||
+
+            url.pathname ===
+              "/music/resume"
+          )
+        ) {
+          const body =
+            await readBody(
+              req
+            );
+
+          const guildId =
+            String(
+              body.guildId ||
+              ""
+            );
+
+          const player =
+            players.get(
+              guildId
+            );
+
+          if (!player) {
+            return json(
+              res,
+              404,
+              {
+                ok: false,
+                error:
+                  "Player not connected"
+              }
+            );
+          }
+
+          await player.lavalinkPlayer?.setPaused(false);
+          player.paused = false;
+
+          return json(
+            res,
+            200,
+            {
+              ok: true,
+              state:
+                getGuildState(
+                  guildId
+                )
+            }
+          );
+        }
+
+        /*
+         * VOLUME
+         */
+
+        if (
+          req.method ===
+            "POST" &&
+          (
+            url.pathname ===
+              "/volume" ||
+
+            url.pathname ===
+              "/music/volume"
+          )
+        ) {
+          const body =
+            await readBody(
+              req
+            );
+
+          const guildId =
+            String(
+              body.guildId ||
+              ""
+            );
+
+          const volume =
+            Math.max(
+              0,
+              Math.min(
+                200,
+                Number(
+                  body.volume
+                )
+              )
+            );
+
+          if (
+            !Number.isFinite(
+              volume
+            )
+          ) {
+            return json(
+              res,
+              400,
+              {
+                ok: false,
+                error:
+                  "Invalid volume"
+              }
+            );
+          }
+
+          const player =
+            players.get(
+              guildId
+            );
+
+          if (!player) {
+            return json(
+              res,
+              404,
+              {
+                ok: false,
+                error:
+                  "Player not connected"
+              }
+            );
+          }
+
+          player.volume =
+            volume;
+
+          await player.lavalinkPlayer?.setGlobalVolume(volume);
+
+          return json(
+            res,
+            200,
+            {
+              ok: true,
+              state:
+                getGuildState(
+                  guildId
+                )
+            }
+          );
+        }
+
+        /*
+         * CLEAR QUEUE
+         */
+
+        if (
+          req.method ===
+            "POST" &&
+          (
+            url.pathname ===
+              "/queue/clear" ||
+
+            url.pathname ===
+              "/music/queue/clear"
+          )
+        ) {
+          const body =
+            await readBody(
+              req
+            );
+
+          const guildId =
+            String(
+              body.guildId ||
+              ""
+            );
+
+          const player =
+            players.get(
+              guildId
+            );
+
+          if (!player) {
+            return json(
+              res,
+              404,
+              {
+                ok: false,
+                error:
+                  "Player not connected"
+              }
+            );
+          }
+
+          player.queue = [];
+
+          return json(
+            res,
+            200,
+            {
+              ok: true,
+              state:
+                getGuildState(
+                  guildId
+                )
+            }
+          );
+        }
+
+        /*
+         * NOT FOUND
+         */
+
+        return json(
+          res,
+          404,
+          {
+            ok: false,
+
+            error:
+              "Not found"
+          }
+        );
+      } catch (error) {
+        setLastError(
+          error
+        );
+
+        return json(
+          res,
+          500,
+          {
+            ok: false,
+
+            error:
+              error?.message ||
+              "Internal server error"
+          }
+        );
+      }
+    }
+  );
+
+/*
+ * ============================================================
+ * START HTTP
+ * ============================================================
+ */
+
+server.listen(
+  PORT,
+  () => {
+    console.log(
+      `[BalticM Music] HTTP service listening on ${PORT}`
+    );
+  }
+);
+
+/*
+ * ============================================================
+ * START DISCORD
+ * ============================================================
+ */
+
+async function startDiscord() {
+  console.log(
+    `[BalticM Music] Token configured: ${Boolean(DISCORD_TOKEN)}`
+  );
+
+  console.log(
+    `[BalticM Music] Token length: ${DISCORD_TOKEN.length}`
+  );
+
+  if (!DISCORD_TOKEN) {
+    setLastError(
+      new Error(
+        "DISCORD_TOKEN is missing"
+      )
+    );
+
+    return;
+  }
+
+  diagnostic.loginStarted =
+    true;
+
+  console.log(
+    "[BalticM Music] Starting Discord login..."
+  );
+
+  try {
+    await client.login(
+      DISCORD_TOKEN
+    );
+
+    diagnostic.loginResolved =
+      true;
+
+    console.log(
+      "[BalticM Music] client.login() resolved"
+    );
+  } catch (error) {
+    diagnostic.loginResolved =
+      false;
+
+    setLastError(
+      error
+    );
+  }
+}
+
+startDiscord();
+
+/*
+ * ============================================================
+ * LOGIN WATCHDOG
+ * ============================================================
+ */
+
+setTimeout(
+  () => {
+    if (
+      !client.isReady()
+    ) {
+      console.warn(
+        "[BalticM Music] Discord is still NOT READY after 15 seconds",
+        getDiscordStatus()
+      );
+    }
+  },
+  15000
+);
