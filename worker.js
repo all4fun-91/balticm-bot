@@ -218,36 +218,57 @@ async function moderationState(env,guildId){
   return json({actions,stats});
  }catch(e){return json({error:String(e.message||e)},503)}
 }
+async function discordDm(env,userId,content){
+ const cr=await fetch("https://discord.com/api/v10/users/@me/channels",{method:"POST",headers:botHeaders(env,true),body:JSON.stringify({recipient_id:userId})});
+ if(!cr.ok)return false;
+ const ch=await cr.json();
+ const mr=await fetch(`https://discord.com/api/v10/channels/${ch.id}/messages`,{method:"POST",headers:botHeaders(env,true),body:JSON.stringify({content})});
+ return mr.ok;
+}
+async function findModLogChannel(env,guildId){
+ const r=await fetch(`https://discord.com/api/v10/guilds/${guildId}/channels`,{headers:botHeaders(env)});
+ if(!r.ok)return null;
+ const channels=await r.json();
+ const names=["mod-logs","moderation-logs","mod-log","logs"];
+ return channels.find(c=>c.type===0&&names.includes(String(c.name||"").toLowerCase()))||null;
+}
+async function sendModLog(env,guildId,entry){
+ const ch=await findModLogChannel(env,guildId);if(!ch)return false;
+ const labels={warn:"WARNING",timeout:"TIMEOUT",kick:"KICK",ban:"BAN"};
+ const lines=[`**BalticM Moderation • ${labels[entry.action]||entry.action.toUpperCase()}**`,`**Member:** <@${entry.memberId}> (${entry.memberName})`,`**Moderator:** <@${entry.moderatorId}> (${entry.moderatorName})`,`**Reason:** ${entry.reason}`];
+ if(entry.durationMinutes)lines.push(`**Duration:** ${entry.durationMinutes} minutes`);
+ lines.push(`**Time:** <t:${Math.floor(new Date(entry.createdAt).getTime()/1000)}:F>`);
+ const r=await fetch(`https://discord.com/api/v10/channels/${ch.id}/messages`,{method:"POST",headers:botHeaders(env,true),body:JSON.stringify({content:lines.join("\n"),allowed_mentions:{parse:[]}})});
+ return r.ok;
+}
 async function moderateMember(req,env,user,guildId){
  let body;try{body=await req.json()}catch{return json({error:"Invalid JSON"},400)}
  const memberId=String(body.memberId||"").trim(),action=String(body.action||"").toLowerCase(),reason=String(body.reason||"").trim().slice(0,500);
  if(!/^\d{16,22}$/.test(memberId))return json({error:"Select a valid Discord member"},400);
  if(!["warn","timeout","kick","ban"].includes(action))return json({error:"Unknown moderation action"},400);
  if(!reason)return json({error:"A reason is required"},400);
- let durationMinutes=null;
- if(action==="timeout"){durationMinutes=Math.max(1,Math.min(40320,Number(body.durationMinutes)||10));}
+ let durationMinutes=null;if(action==="timeout")durationMinutes=Math.max(1,Math.min(40320,Number(body.durationMinutes)||10));
  const h=botHeaders(env,true);
  const mr=await fetch(`https://discord.com/api/v10/guilds/${guildId}/members/${memberId}`,{headers:botHeaders(env)});
  if(!mr.ok)return json({error:"Discord member was not found",status:mr.status},mr.status===404?404:502);
  const member=await mr.json(),memberName=member.nick||member.user?.global_name||member.user?.username||memberId;
  let r=null;
- if(action==="timeout"){
-  const until=new Date(Date.now()+durationMinutes*60000).toISOString();
-  r=await fetch(`https://discord.com/api/v10/guilds/${guildId}/members/${memberId}`,{method:"PATCH",headers:h,body:JSON.stringify({communication_disabled_until:until})});
- }else if(action==="kick"){
-  r=await fetch(`https://discord.com/api/v10/guilds/${guildId}/members/${memberId}`,{method:"DELETE",headers:{...botHeaders(env),"X-Audit-Log-Reason":encodeURIComponent(reason)}});
- }else if(action==="ban"){
-  r=await fetch(`https://discord.com/api/v10/guilds/${guildId}/bans/${memberId}`,{method:"PUT",headers:{...h,"X-Audit-Log-Reason":encodeURIComponent(reason)},body:JSON.stringify({delete_message_seconds:0})});
- }
+ if(action==="timeout"){const until=new Date(Date.now()+durationMinutes*60000).toISOString();r=await fetch(`https://discord.com/api/v10/guilds/${guildId}/members/${memberId}`,{method:"PATCH",headers:h,body:JSON.stringify({communication_disabled_until:until})});}
+ else if(action==="kick")r=await fetch(`https://discord.com/api/v10/guilds/${guildId}/members/${memberId}`,{method:"DELETE",headers:{...botHeaders(env),"X-Audit-Log-Reason":encodeURIComponent(reason)}});
+ else if(action==="ban")r=await fetch(`https://discord.com/api/v10/guilds/${guildId}/bans/${memberId}`,{method:"PUT",headers:{...h,"X-Audit-Log-Reason":encodeURIComponent(reason)},body:JSON.stringify({delete_message_seconds:0})});
  if(r&&!r.ok){const data=await r.json().catch(()=>({}));return json({error:data.message||("Discord "+action+" failed"),status:r.status},r.status===403?403:502)}
  try{
   await ensureModerationTable(env);
   const id=crypto.randomUUID(),createdAt=new Date().toISOString(),moderatorName=user.global_name||user.username||user.id;
+  const entry={id,memberId,memberName,moderatorId:user.id,moderatorName,action,reason,durationMinutes,createdAt};
   await env.BALTICM_DB.prepare("INSERT INTO moderation_actions (id,guild_id,member_id,member_name,moderator_id,moderator_name,action,reason,duration_minutes,created_at) VALUES (?,?,?,?,?,?,?,?,?,?)").bind(id,guildId,memberId,memberName,user.id,moderatorName,action,reason,durationMinutes,createdAt).run();
-  return json({ok:true,entry:{id,memberId,memberName,moderatorId:user.id,moderatorName,action,reason,durationMinutes,createdAt}});
+  const guildName=(await fetch(`https://discord.com/api/v10/guilds/${guildId}`,{headers:botHeaders(env)}).then(x=>x.ok?x.json():null).catch(()=>null))?.name||"Baltic | Mayhem";
+  const actionText=action==="warn"?"a warning":action==="timeout"?`a timeout for ${durationMinutes} minutes`:action==="kick"?"a kick":"a ban";
+  const dm=await discordDm(env,memberId,`⚠️ **BalticM Moderation**\nYou received **${actionText}** in **${guildName}**.\n**Reason:** ${reason}\n**Moderator:** ${moderatorName}`).catch(()=>false);
+  const modLog=await sendModLog(env,guildId,entry).catch(()=>false);
+  return json({ok:true,entry,dmSent:dm,modLogSent:modLog});
  }catch(e){return json({error:"Discord action succeeded, but audit log could not be saved",detail:String(e.message||e)},500)}
 }
-
 
 let discordInteractionVerifyKey=null;
 let discordInteractionVerifyKeyAt=0;
