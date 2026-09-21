@@ -533,3 +533,23 @@ button.voiceSetupCard.active{
  .moderationPage .memberRow{padding:14px 14px 56px}
  .moderationPage .modRemoveAction{left:14px;right:auto;top:auto;bottom:12px;transform:none}
 }
+
+
+/* Global Control Center readability pass */
+body{font-size:14px}
+.content p,.content small,.content .muted,.content .subtle{line-height:1.5}
+.pageHead .eyebrow,.eyebrow{font-size:9px!important;color:#8d9bb6!important}
+.pageHead h1{font-size:23px}
+.pageHead p{font-size:12px!important;color:#91a0bb!important}
+.content h2{font-size:19px}
+.content h3{font-size:15px}
+.content small{font-size:10px;color:#91a0bb}
+.sidebar .navItem,.sidebar button,.sideNav a{font-size:14px}
+.topbar,.topbar button,.topbar span{font-size:10px}
+.card p,.card small,.panel p,.panel small{color:#91a0bb}
+input,select,textarea,button{font-size:11px}
+@media(max-width:700px){
+ body{font-size:13px}
+ .pageHead h1{font-size:21px}
+ .pageHead p{font-size:11px!important}
+}
