@@ -492,3 +492,15 @@ button.voiceSetupCard.active{
  .moderationPage .modHistoryHead{align-items:flex-start;gap:12px}
  .moderationPage .modHistoryHead>button{width:100%;justify-content:center}
 }
+
+
+/* Moderation readability + remove action */
+.moderationPage .memberRow{padding:15px 16px}
+.moderationPage .memberIdentity>div>b{font-size:12px;color:#f3f5ff;letter-spacing:.01em}
+.moderationPage .memberIdentity>div>small{font-size:11px;color:#a9b5cc;line-height:1.55;margin-top:5px}
+.moderationPage .memberActiveRoles{margin-top:8px;gap:7px;align-items:center}
+.moderationPage .memberActiveRoles>span{font-size:9px;color:#8795ae;padding:4px 7px;border:1px solid #202b42;border-radius:6px;background:#080e1b}
+.moderationPage .modRemoveAction{margin-left:auto;height:28px;padding:0 10px;border:1px solid #ff667744;border-radius:7px;background:#ff44550d;color:#ff8793;font-size:9px;font-weight:900;cursor:pointer}
+.moderationPage .modRemoveAction:hover:not(:disabled){border-color:#ff7180;background:#ff44551b;color:#ffb0b8}
+.moderationPage .modRemoveAction:disabled{opacity:.45;cursor:not-allowed}
+@media(max-width:620px){.moderationPage .memberActiveRoles{flex-wrap:wrap}.moderationPage .modRemoveAction{margin-left:0}}
