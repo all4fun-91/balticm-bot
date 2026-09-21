@@ -192,6 +192,63 @@ async function voiceRoomAction(req,env,guildId,roomId){
 }
 
 
+const moderationTableSql=`CREATE TABLE IF NOT EXISTS moderation_actions (
+ id TEXT PRIMARY KEY,
+ guild_id TEXT NOT NULL,
+ member_id TEXT NOT NULL,
+ member_name TEXT NOT NULL,
+ moderator_id TEXT NOT NULL,
+ moderator_name TEXT NOT NULL,
+ action TEXT NOT NULL,
+ reason TEXT NOT NULL,
+ duration_minutes INTEGER,
+ created_at TEXT NOT NULL
+)`;
+async function ensureModerationTable(env){
+ if(!env.BALTICM_DB)throw new Error("BALTICM_DB binding is not configured");
+ await env.BALTICM_DB.prepare(moderationTableSql).run();
+}
+async function moderationState(env,guildId){
+ try{
+  await ensureModerationTable(env);
+  const rows=await env.BALTICM_DB.prepare("SELECT id,member_id AS memberId,member_name AS memberName,moderator_id AS moderatorId,moderator_name AS moderatorName,action,reason,duration_minutes AS durationMinutes,created_at AS createdAt FROM moderation_actions WHERE guild_id = ? ORDER BY created_at DESC LIMIT 100").bind(guildId).all();
+  const actions=rows.results||[];
+  const stats={warnings:0,timeouts:0,kicks:0,bans:0};
+  for(const a of actions){if(a.action==="warn")stats.warnings++;else if(a.action==="timeout")stats.timeouts++;else if(a.action==="kick")stats.kicks++;else if(a.action==="ban")stats.bans++;}
+  return json({actions,stats});
+ }catch(e){return json({error:String(e.message||e)},503)}
+}
+async function moderateMember(req,env,user,guildId){
+ let body;try{body=await req.json()}catch{return json({error:"Invalid JSON"},400)}
+ const memberId=String(body.memberId||"").trim(),action=String(body.action||"").toLowerCase(),reason=String(body.reason||"").trim().slice(0,500);
+ if(!/^\d{16,22}$/.test(memberId))return json({error:"Select a valid Discord member"},400);
+ if(!["warn","timeout","kick","ban"].includes(action))return json({error:"Unknown moderation action"},400);
+ if(!reason)return json({error:"A reason is required"},400);
+ let durationMinutes=null;
+ if(action==="timeout"){durationMinutes=Math.max(1,Math.min(40320,Number(body.durationMinutes)||10));}
+ const h=botHeaders(env,true);
+ const mr=await fetch(`https://discord.com/api/v10/guilds/${guildId}/members/${memberId}`,{headers:botHeaders(env)});
+ if(!mr.ok)return json({error:"Discord member was not found",status:mr.status},mr.status===404?404:502);
+ const member=await mr.json(),memberName=member.nick||member.user?.global_name||member.user?.username||memberId;
+ let r=null;
+ if(action==="timeout"){
+  const until=new Date(Date.now()+durationMinutes*60000).toISOString();
+  r=await fetch(`https://discord.com/api/v10/guilds/${guildId}/members/${memberId}`,{method:"PATCH",headers:h,body:JSON.stringify({communication_disabled_until:until})});
+ }else if(action==="kick"){
+  r=await fetch(`https://discord.com/api/v10/guilds/${guildId}/members/${memberId}`,{method:"DELETE",headers:{...botHeaders(env),"X-Audit-Log-Reason":encodeURIComponent(reason)}});
+ }else if(action==="ban"){
+  r=await fetch(`https://discord.com/api/v10/guilds/${guildId}/bans/${memberId}`,{method:"PUT",headers:{...h,"X-Audit-Log-Reason":encodeURIComponent(reason)},body:JSON.stringify({delete_message_seconds:0})});
+ }
+ if(r&&!r.ok){const data=await r.json().catch(()=>({}));return json({error:data.message||("Discord "+action+" failed"),status:r.status},r.status===403?403:502)}
+ try{
+  await ensureModerationTable(env);
+  const id=crypto.randomUUID(),createdAt=new Date().toISOString(),moderatorName=user.global_name||user.username||user.id;
+  await env.BALTICM_DB.prepare("INSERT INTO moderation_actions (id,guild_id,member_id,member_name,moderator_id,moderator_name,action,reason,duration_minutes,created_at) VALUES (?,?,?,?,?,?,?,?,?,?)").bind(id,guildId,memberId,memberName,user.id,moderatorName,action,reason,durationMinutes,createdAt).run();
+  return json({ok:true,entry:{id,memberId,memberName,moderatorId:user.id,moderatorName,action,reason,durationMinutes,createdAt}});
+ }catch(e){return json({error:"Discord action succeeded, but audit log could not be saved",detail:String(e.message||e)},500)}
+}
+
+
 let discordInteractionVerifyKey=null;
 let discordInteractionVerifyKeyAt=0;
 async function getDiscordInteractionVerifyKey(env){
@@ -249,7 +306,7 @@ if(p==="/api/music/connect"&&req.method==="POST"){const guildId=u.searchParams.g
 if(p==="/api/music/disconnect"&&req.method==="POST"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return musicProxy(req,env,guildId,"disconnect");}
 if(p==="/api/voice-create"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return req.method==="POST"?saveVoiceCreate(req,env,guildId):voiceCreateState(env,guildId);}
 const vr=p.match(/^\/api\/voice-create\/rooms\/([^/]+)$/);if(vr&&req.method==="POST"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return voiceRoomAction(req,env,guildId,decodeURIComponent(vr[1]));}
-if(p==="/api/discord/members"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return discordMembers(env,guildId);}
+if(p==="/api/moderation"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return req.method==="POST"?moderateMember(req,env,user,guildId):moderationState(env,guildId);}\nif(p==="/api/discord/members"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return discordMembers(env,guildId);}
 if(p==="/api/discord/roles"&&req.method==="POST"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return createDiscordRole(req,env,guildId);}const er=p.match(/^\/api\/discord\/roles\/([^/]+)$/);if(er&&(req.method==="PATCH"||req.method==="DELETE")){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return req.method==="DELETE"?deleteDiscordRole(env,guildId,decodeURIComponent(er[1])):editDiscordRole(req,env,guildId,decodeURIComponent(er[1]));}
 const rm=p.match(/^\/api\/discord\/members\/([^/]+)\/roles\/([^/]+)$/);if(rm&&(req.method==="PUT"||req.method==="DELETE")){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return changeMemberRole(req,env,guildId,decodeURIComponent(rm[1]),decodeURIComponent(rm[2]),req.method==="DELETE");}
 return json({error:"Not found"},404)}
