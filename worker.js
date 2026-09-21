@@ -87,6 +87,25 @@ async function discordMembers(env,guildId){
  const members=await r.json();
  return json({members:members.map(m=>({id:m.user?.id,username:m.user?.username||"Unknown",globalName:m.user?.global_name||m.nick||m.user?.username||"Unknown",nick:m.nick||null,avatar:m.user?.avatar||null,roles:m.roles||[],bot:!!m.user?.bot,joinedAt:m.joined_at||null}))});
 }
+async function sendDirectMessages(req,env,guildId){
+ let body;try{body=await req.json()}catch{return json({error:"Invalid JSON"},400)}
+ const memberIds=[...new Set((Array.isArray(body.memberIds)?body.memberIds:[]).map(x=>String(x||"").trim()).filter(x=>/^\d{16,22}$/.test(x)))];
+ const message=String(body.message||"").trim().slice(0,1900);
+ if(!memberIds.length)return json({error:"Select at least one member"},400);
+ if(memberIds.length>100)return json({error:"Maximum 100 recipients per send"},400);
+ if(!message)return json({error:"Message is required"},400);
+ const results=[];
+ for(const memberId of memberIds){
+  const member=await fetch(`https://discord.com/api/v10/guilds/${guildId}/members/${memberId}`,{headers:botHeaders(env)}).then(async r=>r.ok?r.json():null).catch(()=>null);
+  if(!member||member.user?.bot){results.push({memberId,ok:false,error:"Member unavailable"});continue}
+  const name=member.nick||member.user?.global_name||member.user?.username||memberId;
+  const ok=await discordDm(env,memberId,`📨 **BalticM Message**\n${message}`).catch(()=>false);
+  results.push({memberId,name,ok,error:ok?null:"DM unavailable"});
+  await new Promise(resolve=>setTimeout(resolve,175));
+ }
+ const sent=results.filter(x=>x.ok).length;
+ return json({ok:true,sent,failed:results.length-sent,total:results.length,results});
+}
 async function createDiscordRole(req,env,guildId){
  let body;try{body=await req.json()}catch{return json({error:"Invalid JSON"},400)}
  const name=String(body?.name||"").trim().slice(0,100);if(!name)return json({error:"Role name is required"},400);
@@ -350,6 +369,7 @@ if(p==="/api/music/disconnect"&&req.method==="POST"){const guildId=u.searchParam
 if(p==="/api/voice-create"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return req.method==="POST"?saveVoiceCreate(req,env,guildId):voiceCreateState(env,guildId);}
 const vr=p.match(/^\/api\/voice-create\/rooms\/([^/]+)$/);if(vr&&req.method==="POST"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return voiceRoomAction(req,env,guildId,decodeURIComponent(vr[1]));}
 if(p==="/api/moderation"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return req.method==="POST"?moderateMember(req,env,user,guildId):moderationState(env,guildId);}const ma=p.match(/^\/api\/moderation\/([^/]+)$/);if(ma&&req.method==="DELETE"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return removeModerationAction(env,user,guildId,decodeURIComponent(ma[1]));}
+if(p==="/api/direct-messages"&&req.method==="POST"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return sendDirectMessages(req,env,guildId);}
 if(p==="/api/discord/members"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return discordMembers(env,guildId);}
 if(p==="/api/discord/roles"&&req.method==="POST"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return createDiscordRole(req,env,guildId);}const er=p.match(/^\/api\/discord\/roles\/([^/]+)$/);if(er&&(req.method==="PATCH"||req.method==="DELETE")){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return req.method==="DELETE"?deleteDiscordRole(env,guildId,decodeURIComponent(er[1])):editDiscordRole(req,env,guildId,decodeURIComponent(er[1]));}
 const rm=p.match(/^\/api\/discord\/members\/([^/]+)\/roles\/([^/]+)$/);if(rm&&(req.method==="PUT"||req.method==="DELETE")){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return changeMemberRole(req,env,guildId,decodeURIComponent(rm[1]),decodeURIComponent(rm[2]),req.method==="DELETE");}
