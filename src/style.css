@@ -674,3 +674,16 @@ input,select,textarea,button{font-size:11px}
 
 /* Bot Status service diagnostics */
 .botServiceMeta{display:block;margin-top:5px;font-size:9px;font-weight:700;letter-spacing:.05em;color:#68748d}.botServiceCard:not(.online) .botServiceMeta{color:#b26b78}
+
+
+/* Modern account dropdown */
+.accountMenu{width:248px;padding:10px;border:1px solid #ffffff14;border-radius:16px;background:linear-gradient(180deg,#0d1422fa,#090e18fa);box-shadow:0 22px 65px #000b,0 0 0 1px #7655ff08;backdrop-filter:blur(18px);overflow:hidden}
+.accountMeta{padding:11px 12px 13px;margin-bottom:5px;border-bottom:1px solid #ffffff0d}
+.accountMeta b{font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.accountMeta span{margin-top:4px;font-size:9px;color:#77839b}
+.accountMenu>a,.accountMenu>button:not(.accountMeta){width:100%;margin:3px 0 0;padding:10px 11px;border:0;border-radius:10px;background:transparent;color:#dce3ef;text-decoration:none;display:flex;align-items:center;gap:10px;font:600 11px inherit;text-align:left;cursor:pointer;transition:background .16s ease,color .16s ease,transform .16s ease}
+.accountMenu>a svg,.accountMenu>button:not(.accountMeta) svg{width:16px;height:16px;color:#9b7dff;flex:0 0 16px}
+.accountMenu>a:hover,.accountMenu>button:not(.accountMeta):hover{background:linear-gradient(90deg,#7655ff20,#7655ff08);color:#fff;transform:translateX(2px)}
+.accountMenu>a:last-child{margin-top:8px;padding-top:11px;border-top:1px solid #ffffff0d;border-radius:0 0 10px 10px}
+.accountMenu>a:last-child:hover{border-top-color:#ffffff0d;border-radius:10px}
+.accountProfile{padding:11px 12px!important}
