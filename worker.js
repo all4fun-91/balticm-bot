@@ -117,6 +117,49 @@ async function sendDirectMessages(req,env,guildId){
  const sent=results.filter(x=>x.ok).length,skipped=results.filter(x=>x.skipped).length;
  return json({ok:true,sent,failed:results.length-sent-skipped,skipped,total:results.length,results});
 }
+async function ensureReactionRoleTables(env){
+ await env.BALTICM_DB.prepare("CREATE TABLE IF NOT EXISTS reaction_role_panels (id TEXT PRIMARY KEY,guild_id TEXT NOT NULL,channel_id TEXT NOT NULL,title TEXT NOT NULL,description TEXT NOT NULL DEFAULT '',message_id TEXT NOT NULL DEFAULT '',enabled INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,updated_at TEXT NOT NULL)").run();
+ await env.BALTICM_DB.prepare("CREATE TABLE IF NOT EXISTS reaction_role_links (id TEXT PRIMARY KEY,panel_id TEXT NOT NULL,guild_id TEXT NOT NULL,emoji TEXT NOT NULL,role_id TEXT NOT NULL,label TEXT NOT NULL DEFAULT '')").run();
+}
+async function reactionRoleState(env,guildId){
+ await ensureReactionRoleTables(env);
+ const [p,l]=await Promise.all([
+  env.BALTICM_DB.prepare("SELECT id,channel_id AS channelId,title,description,message_id AS messageId,enabled,created_at AS createdAt,updated_at AS updatedAt FROM reaction_role_panels WHERE guild_id=? ORDER BY created_at DESC").bind(guildId).all(),
+  env.BALTICM_DB.prepare("SELECT id,panel_id AS panelId,emoji,role_id AS roleId,label FROM reaction_role_links WHERE guild_id=?").bind(guildId).all()
+ ]);
+ const links=l.results||[];
+ return json({panels:(p.results||[]).map(x=>({...x,enabled:!!x.enabled,links:links.filter(y=>y.panelId===x.id)}))});
+}
+async function saveReactionRolePanel(req,env,guildId){
+ let body;try{body=await req.json()}catch{return json({error:"Invalid JSON"},400)}
+ const channelId=String(body.channelId||"").trim(),title=String(body.title||"").trim().slice(0,256),description=String(body.description||"").trim().slice(0,2000);
+ const links=(Array.isArray(body.links)?body.links:[]).map(x=>({emoji:String(x.emoji||"").trim().slice(0,100),roleId:String(x.roleId||"").trim(),label:String(x.label||"").trim().slice(0,100)})).filter(x=>x.emoji&&/^\d{16,22}$/.test(x.roleId));
+ if(!/^\d{16,22}$/.test(channelId))return json({error:"Select a Discord channel"},400);
+ if(!title)return json({error:"Panel title is required"},400);
+ if(!links.length)return json({error:"Add at least one emoji and role mapping"},400);
+ const [cr,rr]=await Promise.all([fetch(`https://discord.com/api/v10/channels/${channelId}`,{headers:botHeaders(env)}),fetch(`https://discord.com/api/v10/guilds/${guildId}/roles`,{headers:botHeaders(env)})]);
+ if(!cr.ok)return json({error:"Could not access selected channel"},400);const ch=await cr.json();if(String(ch.guild_id||"")!==String(guildId)||ch.type!==0)return json({error:"Select a text channel from this server"},400);
+ const roles=rr.ok?await rr.json():[],roleIds=new Set(roles.map(r=>r.id));if(links.some(x=>!roleIds.has(x.roleId)))return json({error:"One or more selected roles are invalid"},400);
+ await ensureReactionRoleTables(env);const id=crypto.randomUUID(),now=new Date().toISOString();
+ await env.BALTICM_DB.prepare("INSERT INTO reaction_role_panels (id,guild_id,channel_id,title,description,message_id,enabled,created_at,updated_at) VALUES (?,?,?,?,?,'',1,?,?)").bind(id,guildId,channelId,title,description,now,now).run();
+ for(const link of links)await env.BALTICM_DB.prepare("INSERT INTO reaction_role_links (id,panel_id,guild_id,emoji,role_id,label) VALUES (?,?,?,?,?,?)").bind(crypto.randomUUID(),id,guildId,link.emoji,link.roleId,link.label).run();
+ return json({ok:true,id},201);
+}
+async function deleteReactionRolePanel(env,guildId,id){
+ await ensureReactionRoleTables(env);const p=await env.BALTICM_DB.prepare("SELECT message_id AS messageId,channel_id AS channelId FROM reaction_role_panels WHERE id=? AND guild_id=?").bind(id,guildId).first();if(!p)return json({error:"Panel not found"},404);
+ if(p.messageId&&p.channelId)await fetch(`https://discord.com/api/v10/channels/${p.channelId}/messages/${p.messageId}`,{method:"DELETE",headers:botHeaders(env)}).catch(()=>{});
+ await env.BALTICM_DB.prepare("DELETE FROM reaction_role_links WHERE panel_id=? AND guild_id=?").bind(id,guildId).run();await env.BALTICM_DB.prepare("DELETE FROM reaction_role_panels WHERE id=? AND guild_id=?").bind(id,guildId).run();return json({ok:true});
+}
+async function publishReactionRolePanel(env,guildId,id){
+ await ensureReactionRoleTables(env);const p=await env.BALTICM_DB.prepare("SELECT id,channel_id AS channelId,title,description,message_id AS messageId FROM reaction_role_panels WHERE id=? AND guild_id=?").bind(id,guildId).first();if(!p)return json({error:"Panel not found"},404);
+ const lr=await env.BALTICM_DB.prepare("SELECT emoji,role_id AS roleId,label FROM reaction_role_links WHERE panel_id=? AND guild_id=?").bind(id,guildId).all(),links=lr.results||[];if(!links.length)return json({error:"Panel has no role mappings"},400);
+ const description=[p.description,...links.map(x=>`${x.emoji}  <@&${x.roleId}>${x.label?` — ${x.label}`:""}`)].filter(Boolean).join("\n\n");
+ const payload={embeds:[{title:p.title,description,color:0x7457ff}],allowed_mentions:{parse:[]}};
+ let dr;if(p.messageId)dr=await fetch(`https://discord.com/api/v10/channels/${p.channelId}/messages/${p.messageId}`,{method:"PATCH",headers:botHeaders(env,true),body:JSON.stringify(payload)});else dr=await fetch(`https://discord.com/api/v10/channels/${p.channelId}/messages`,{method:"POST",headers:botHeaders(env,true),body:JSON.stringify(payload)});
+ const data=await dr.json().catch(()=>({}));if(!dr.ok)return json({error:data.message||"Could not publish panel"},502);
+ for(const link of links){const emoji=encodeURIComponent(link.emoji);await fetch(`https://discord.com/api/v10/channels/${p.channelId}/messages/${data.id}/reactions/${emoji}/@me`,{method:"PUT",headers:botHeaders(env)}).catch(()=>{})}
+ await env.BALTICM_DB.prepare("UPDATE reaction_role_panels SET message_id=?,updated_at=? WHERE id=? AND guild_id=?").bind(data.id,new Date().toISOString(),id,guildId).run();return json({ok:true,messageId:data.id});
+}
 async function createDiscordRole(req,env,guildId){
  let body;try{body=await req.json()}catch{return json({error:"Invalid JSON"},400)}
  const name=String(body?.name||"").trim().slice(0,100);if(!name)return json({error:"Role name is required"},400);
