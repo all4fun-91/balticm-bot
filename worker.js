@@ -160,6 +160,10 @@ async function deleteReactionRolePanel(env,guildId,id){
  if(p.messageId&&p.channelId)await fetch(`https://discord.com/api/v10/channels/${p.channelId}/messages/${p.messageId}`,{method:"DELETE",headers:botHeaders(env)}).catch(()=>{});
  await env.BALTICM_DB.prepare("DELETE FROM reaction_role_links WHERE panel_id=? AND guild_id=?").bind(id,guildId).run();await env.BALTICM_DB.prepare("DELETE FROM reaction_role_panels WHERE id=? AND guild_id=?").bind(id,guildId).run();return json({ok:true});
 }
+async function normalizeReactionEmoji(raw){
+ const s=String(raw||"").trim(),m=s.match(/^<a?:([A-Za-z0-9_]+):(\d{16,22})>$/);
+ return m?{key:`${m[1]}:${m[2]}`,api:`${m[1]}:${m[2]}`}:{key:s,api:s};
+}
 async function publishReactionRolePanel(env,guildId,id){
  await ensureReactionRoleTables(env);const p=await env.BALTICM_DB.prepare("SELECT id,channel_id AS channelId,title,description,thumbnail_url AS thumbnailUrl,message_id AS messageId FROM reaction_role_panels WHERE id=? AND guild_id=?").bind(id,guildId).first();if(!p)return json({error:"Panel not found"},404);
  const lr=await env.BALTICM_DB.prepare("SELECT emoji,role_id AS roleId,label FROM reaction_role_links WHERE panel_id=? AND guild_id=?").bind(id,guildId).all(),links=lr.results||[];if(!links.length)return json({error:"Panel has no role mappings"},400);
@@ -167,8 +171,27 @@ async function publishReactionRolePanel(env,guildId,id){
  const embed={title:p.title,description,color:0x7457ff};if(p.thumbnailUrl)embed.thumbnail={url:p.thumbnailUrl};const payload={embeds:[embed],allowed_mentions:{parse:[]}};
  let dr;if(p.messageId)dr=await fetch(`https://discord.com/api/v10/channels/${p.channelId}/messages/${p.messageId}`,{method:"PATCH",headers:botHeaders(env,true),body:JSON.stringify(payload)});else dr=await fetch(`https://discord.com/api/v10/channels/${p.channelId}/messages`,{method:"POST",headers:botHeaders(env,true),body:JSON.stringify(payload)});
  const data=await dr.json().catch(()=>({}));if(!dr.ok)return json({error:data.message||"Could not publish panel"},502);
- const reactionFailures=[];for(const link of links){const raw=String(link.emoji||"").trim(),m=raw.match(/^<a?:([A-Za-z0-9_]+):(\d{16,22})>$/),reaction=m?`${m[1]}:${m[2]}`:raw,emoji=encodeURIComponent(reaction);const er=await fetch(`https://discord.com/api/v10/channels/${p.channelId}/messages/${data.id}/reactions/${emoji}/@me`,{method:"PUT",headers:botHeaders(env)}).catch(()=>null);if(!er||!er.ok)reactionFailures.push(raw)}
+ const wanted=new Map(links.map(x=>{const n=normalizeReactionEmoji(x.emoji);return[n.key,n.api]})),reactionFailures=[];
+ if(p.messageId){
+  const current=Array.isArray(data.reactions)?data.reactions:[];
+  for(const r of current){if(!r?.me)continue;const key=r.emoji?.id?`${r.emoji.name}:${r.emoji.id}`:String(r.emoji?.name||"");if(key&&!wanted.has(key)){const api=r.emoji?.id?`${r.emoji.name}:${r.emoji.id}`:key;await fetch(`https://discord.com/api/v10/channels/${p.channelId}/messages/${data.id}/reactions/${encodeURIComponent(api)}/@me`,{method:"DELETE",headers:botHeaders(env)}).catch(()=>null)}}
+ }
+ for(const [raw,reaction] of wanted){const er=await fetch(`https://discord.com/api/v10/channels/${p.channelId}/messages/${data.id}/reactions/${encodeURIComponent(reaction)}/@me`,{method:"PUT",headers:botHeaders(env)}).catch(()=>null);if(!er||!er.ok)reactionFailures.push(raw)}
  await env.BALTICM_DB.prepare("UPDATE reaction_role_panels SET message_id=?,updated_at=? WHERE id=? AND guild_id=?").bind(data.id,new Date().toISOString(),id,guildId).run();return json({ok:true,messageId:data.id,reactionFailures});
+}
+async function reactionRoleServiceEvent(req,env){
+ const secret=req.headers.get("X-BalticM-Service-Secret")||"";if(!env.BALTICM_REACTION_SERVICE_SECRET||secret!==env.BALTICM_REACTION_SERVICE_SECRET)return json({error:"Unauthorized"},401);
+ let body;try{body=await req.json()}catch{return json({error:"Invalid JSON"},400)}
+ const guildId=String(body.guildId||""),channelId=String(body.channelId||""),messageId=String(body.messageId||""),userId=String(body.userId||""),action=String(body.action||"").toLowerCase(),emoji=String(body.emoji||"").trim();
+ if(!/^\d{16,22}$/.test(guildId)||!/^\d{16,22}$/.test(channelId)||!/^\d{16,22}$/.test(messageId)||!/^\d{16,22}$/.test(userId)||!["add","remove"].includes(action)||!emoji)return json({error:"Invalid reaction event"},400);
+ await ensureReactionRoleTables(env);
+ const p=await env.BALTICM_DB.prepare("SELECT id FROM reaction_role_panels WHERE guild_id=? AND channel_id=? AND message_id=? AND enabled=1").bind(guildId,channelId,messageId).first();if(!p)return json({ok:true,matched:false});
+ const links=await env.BALTICM_DB.prepare("SELECT emoji,role_id AS roleId FROM reaction_role_links WHERE guild_id=? AND panel_id=?").bind(guildId,p.id).all(),eventKey=normalizeReactionEmoji(emoji).key;
+ const link=(links.results||[]).find(x=>normalizeReactionEmoji(x.emoji).key===eventKey);if(!link)return json({ok:true,matched:false});
+ const member=await fetch(`https://discord.com/api/v10/guilds/${guildId}/members/${userId}`,{headers:botHeaders(env)}).then(r=>r.ok?r.json():null).catch(()=>null);if(!member||member.user?.bot)return json({ok:true,matched:true,ignored:true});
+ const rr=await fetch(`https://discord.com/api/v10/guilds/${guildId}/members/${userId}/roles/${link.roleId}`,{method:action==="add"?"PUT":"DELETE",headers:botHeaders(env)});
+ if(!rr.ok){const detail=await rr.text().catch(()=>"");return json({error:"Discord role update failed",status:rr.status,detail},rr.status===403?403:502)}
+ return json({ok:true,matched:true,action,roleId:link.roleId});
 }
 async function createDiscordRole(req,env,guildId){
  let body;try{body=await req.json()}catch{return json({error:"Invalid JSON"},400)}
@@ -739,6 +762,7 @@ if(interaction?.type===3&&customId.startsWith("dm_unsubscribe:")){
 export default{async fetch(req,env,ctx){
  const u=new URL(req.url),p=u.pathname;
  if(p==="/api/health")return health();
+ if(p==="/api/reaction-roles/service/event"&&req.method==="POST")return reactionRoleServiceEvent(req,env);
  if(p==="/api/discord-interactions")return discordInteractionGateway(req,env,ctx);
  if(p==="/api/desktop/latest")return desktopLatest();
  const um=p.match(/^\/api\/desktop\/update\/([^/]+)\/([^/]+)\/([^/]+)$/);if(um)return desktopUpdate(decodeURIComponent(um[1]),decodeURIComponent(um[2]),decodeURIComponent(um[3]));
