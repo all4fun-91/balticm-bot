@@ -497,6 +497,36 @@ async function moderationState(env,guildId){
   return json({actions,stats});
  }catch(e){return json({error:String(e.message||e)},503)}
 }
+const moderationSettingsSql=`CREATE TABLE IF NOT EXISTS moderation_settings (
+ guild_id TEXT PRIMARY KEY,
+ mod_log_channel_id TEXT NOT NULL DEFAULT ''
+)`;
+async function ensureModerationSettingsTable(env){
+ if(!env.BALTICM_DB)throw new Error("BALTICM_DB binding is not configured");
+ await env.BALTICM_DB.prepare(moderationSettingsSql).run();
+}
+async function moderationSettingsState(env,guildId){
+ try{
+  await ensureModerationSettingsTable(env);
+  const row=await env.BALTICM_DB.prepare("SELECT mod_log_channel_id AS modLogChannelId FROM moderation_settings WHERE guild_id=?").bind(guildId).first();
+  return json({config:{modLogChannelId:row?.modLogChannelId||""}});
+ }catch(e){return json({error:String(e.message||e)},503)}
+}
+async function saveModerationSettings(req,env,guildId){
+ try{
+  const body=await req.json().catch(()=>({})),modLogChannelId=String(body.modLogChannelId||"").trim();
+  if(modLogChannelId&&!/^\d{16,22}$/.test(modLogChannelId))return json({error:"Invalid mod log channel"},400);
+  if(modLogChannelId){
+   const r=await fetch(`https://discord.com/api/v10/channels/${modLogChannelId}`,{headers:botHeaders(env)});
+   if(!r.ok)return json({error:"Could not access selected channel"},400);
+   const ch=await r.json();
+   if(String(ch.guild_id||"")!==String(guildId)||ch.type!==0)return json({error:"Select a text channel from this Discord server"},400);
+  }
+  await ensureModerationSettingsTable(env);
+  await env.BALTICM_DB.prepare("INSERT INTO moderation_settings (guild_id,mod_log_channel_id) VALUES (?,?) ON CONFLICT(guild_id) DO UPDATE SET mod_log_channel_id=excluded.mod_log_channel_id").bind(guildId,modLogChannelId).run();
+  return json({ok:true,config:{modLogChannelId}});
+ }catch(e){return json({error:String(e.message||e)},503)}
+}
 async function discordDm(env,userId,content){
  const cr=await fetch("https://discord.com/api/v10/users/@me/channels",{method:"POST",headers:botHeaders(env,true),body:JSON.stringify({recipient_id:userId})});
  if(!cr.ok)return false;
@@ -505,6 +535,9 @@ async function discordDm(env,userId,content){
  return mr.ok;
 }
 async function findModLogChannel(env,guildId){
+ await ensureModerationSettingsTable(env);
+ const cfg=await env.BALTICM_DB.prepare("SELECT mod_log_channel_id AS modLogChannelId FROM moderation_settings WHERE guild_id=?").bind(guildId).first();
+ if(cfg?.modLogChannelId)return {id:cfg.modLogChannelId};
  const r=await fetch(`https://discord.com/api/v10/guilds/${guildId}/channels`,{headers:botHeaders(env)});
  if(!r.ok)return null;
  const channels=await r.json();
@@ -652,7 +685,7 @@ const ttp=p.match(/^\/api\/tickets\/types\/(support|report)\/publish$/);if(ttp&&
 if(p==="/api/tickets/config"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return req.method==="POST"?saveTicketConfig(req,env,guildId):ticketConfigState(env,guildId);}
 if(p==="/api/tickets/publish"&&req.method==="POST"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return publishTicketPanel(env,guildId);}
 const ta=p.match(/^\/api\/tickets\/([^/]+)$/);if(ta&&req.method==="POST"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return ticketAction(req,env,user,guildId,decodeURIComponent(ta[1]));}
-if(p==="/api/moderation"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return req.method==="POST"?moderateMember(req,env,user,guildId):moderationState(env,guildId);}const ma=p.match(/^\/api\/moderation\/([^/]+)$/);if(ma&&req.method==="DELETE"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return removeModerationAction(env,user,guildId,decodeURIComponent(ma[1]));}
+if(p==="/api/moderation/settings"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return req.method==="POST"?saveModerationSettings(req,env,guildId):moderationSettingsState(env,guildId);}\nif(p==="/api/moderation"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return req.method==="POST"?moderateMember(req,env,user,guildId):moderationState(env,guildId);}const ma=p.match(/^\/api\/moderation\/([^/]+)$/);if(ma&&req.method==="DELETE"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return removeModerationAction(env,user,guildId,decodeURIComponent(ma[1]));}
 if(p==="/api/direct-messages/opt-outs"&&req.method==="GET"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return dmOptOutState(env,guildId);}
 if(p==="/api/direct-messages"&&req.method==="POST"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return sendDirectMessages(req,env,guildId);}
 if(p==="/api/discord/members"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return discordMembers(env,guildId);}
