@@ -687,3 +687,21 @@ input,select,textarea,button{font-size:11px}
 .accountMenu>a:last-child{margin-top:8px;padding-top:11px;border-top:1px solid #ffffff0d;border-radius:0 0 10px 10px}
 .accountMenu>a:last-child:hover{border-top-color:#ffffff0d;border-radius:10px}
 .accountProfile{padding:11px 12px!important}
+
+
+/* Searchable moderation member picker */
+.modMemberField{position:relative}
+.modMemberPicker{position:relative}
+.modMemberTrigger{width:100%;height:42px;padding:0 12px;border:1px solid #ffffff12;border-radius:9px;background:#080e19;color:#dce4f2;display:flex;align-items:center;gap:9px;text-align:left;cursor:pointer}
+.modMemberTrigger:hover,.modMemberTrigger:focus{border-color:#7655ff88;box-shadow:0 0 0 2px #7655ff12}
+.modMemberTrigger>svg:first-child{width:15px;height:15px;color:#8d72ff}
+.modMemberTrigger>span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px}
+.modMemberTrigger .chev{width:14px;height:14px;color:#68758d;transition:transform .16s ease}.modMemberTrigger .chev.open{transform:rotate(180deg)}
+.modMemberDropdown{position:absolute;left:0;right:0;top:48px;z-index:80;padding:9px;border:1px solid #7655ff45;border-radius:12px;background:#090f1bf8;box-shadow:0 20px 55px #000c;backdrop-filter:blur(16px)}
+.modMemberSearch{height:38px;padding:0 10px;border:1px solid #ffffff12;border-radius:8px;background:#060b14;display:flex;align-items:center;gap:8px}
+.modMemberSearch svg{width:14px;height:14px;color:#8f76ff}.modMemberSearch input{width:100%;border:0!important;outline:0;background:transparent!important;color:#fff!important;box-shadow:none!important;font-size:11px}.modMemberSearch input::placeholder{color:#59657b}
+.modMemberResults{max-height:285px;overflow-y:auto;margin-top:7px;padding-right:3px}
+.modMemberResults>button{width:100%;padding:8px;border:0;border-radius:8px;background:transparent;color:#dbe3ef;display:flex;align-items:center;gap:9px;text-align:left;cursor:pointer}
+.modMemberResults>button:hover,.modMemberResults>button.selected{background:#7655ff16}.modMemberResults>button>span:nth-child(2){min-width:0;flex:1}.modMemberResults b,.modMemberResults small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.modMemberResults b{font-size:10px}.modMemberResults small{margin-top:2px;color:#69768d;font-size:9px}.modMemberResults>button>svg{width:14px;color:#8f76ff}
+.modMemberAvatar{width:30px;height:30px;border-radius:8px;background:#7655ff18;color:#a78fff;display:grid;place-items:center;overflow:hidden;flex:0 0 30px;font-size:10px;font-weight:800}.modMemberAvatar img{width:100%;height:100%;object-fit:cover}
+.modMemberNoResult{padding:18px 10px;text-align:center;color:#68758d;font-size:10px}
