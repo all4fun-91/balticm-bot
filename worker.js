@@ -118,7 +118,8 @@ async function sendDirectMessages(req,env,guildId){
  return json({ok:true,sent,failed:results.length-sent-skipped,skipped,total:results.length,results});
 }
 async function ensureReactionRoleTables(env){
- await env.BALTICM_DB.prepare("CREATE TABLE IF NOT EXISTS reaction_role_panels (id TEXT PRIMARY KEY,guild_id TEXT NOT NULL,channel_id TEXT NOT NULL,title TEXT NOT NULL,description TEXT NOT NULL DEFAULT '',thumbnail_url TEXT NOT NULL DEFAULT '',message_id TEXT NOT NULL DEFAULT '',enabled INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,updated_at TEXT NOT NULL)").run();
+ await env.BALTICM_DB.prepare("CREATE TABLE IF NOT EXISTS reaction_role_panels (id TEXT PRIMARY KEY,guild_id TEXT NOT NULL,channel_id TEXT NOT NULL,title TEXT NOT NULL,description TEXT NOT NULL DEFAULT '',message_id TEXT NOT NULL DEFAULT '',enabled INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,updated_at TEXT NOT NULL)").run();
+ try{await env.BALTICM_DB.prepare("ALTER TABLE reaction_role_panels ADD COLUMN thumbnail_url TEXT NOT NULL DEFAULT ''").run()}catch{}
  await env.BALTICM_DB.prepare("CREATE TABLE IF NOT EXISTS reaction_role_links (id TEXT PRIMARY KEY,panel_id TEXT NOT NULL,guild_id TEXT NOT NULL,emoji TEXT NOT NULL,role_id TEXT NOT NULL,label TEXT NOT NULL DEFAULT '')").run();
 }
 async function reactionRoleState(env,guildId){
@@ -151,7 +152,7 @@ async function deleteReactionRolePanel(env,guildId,id){
  await env.BALTICM_DB.prepare("DELETE FROM reaction_role_links WHERE panel_id=? AND guild_id=?").bind(id,guildId).run();await env.BALTICM_DB.prepare("DELETE FROM reaction_role_panels WHERE id=? AND guild_id=?").bind(id,guildId).run();return json({ok:true});
 }
 async function publishReactionRolePanel(env,guildId,id){
- await ensureReactionRoleTables(env);const p=await env.BALTICM_DB.prepare("SELECT id,channel_id AS channelId,title,description,message_id AS messageId FROM reaction_role_panels WHERE id=? AND guild_id=?").bind(id,guildId).first();if(!p)return json({error:"Panel not found"},404);
+ await ensureReactionRoleTables(env);const p=await env.BALTICM_DB.prepare("SELECT id,channel_id AS channelId,title,description,thumbnail_url AS thumbnailUrl,message_id AS messageId FROM reaction_role_panels WHERE id=? AND guild_id=?").bind(id,guildId).first();if(!p)return json({error:"Panel not found"},404);
  const lr=await env.BALTICM_DB.prepare("SELECT emoji,role_id AS roleId,label FROM reaction_role_links WHERE panel_id=? AND guild_id=?").bind(id,guildId).all(),links=lr.results||[];if(!links.length)return json({error:"Panel has no role mappings"},400);
  const description=[p.description,...links.map(x=>`${x.emoji}  <@&${x.roleId}>${x.label?` — ${x.label}`:""}`)].filter(Boolean).join("\n\n");
  const embed={title:p.title,description,color:0x7457ff};if(p.thumbnailUrl)embed.thumbnail={url:p.thumbnailUrl};const payload={embeds:[embed],allowed_mentions:{parse:[]}};
