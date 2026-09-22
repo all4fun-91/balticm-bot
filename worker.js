@@ -66,7 +66,29 @@ async function health(req){
 }
 async function ensureActivityLogTable(env){await env.BALTICM_DB.prepare("CREATE TABLE IF NOT EXISTS activity_logs (id TEXT PRIMARY KEY,guild_id TEXT NOT NULL,actor_id TEXT DEFAULT '',actor_name TEXT DEFAULT '',action TEXT NOT NULL,target TEXT DEFAULT '',source TEXT NOT NULL,details TEXT DEFAULT '',created_at TEXT NOT NULL)").run();await env.BALTICM_DB.prepare("CREATE INDEX IF NOT EXISTS idx_activity_logs_guild_created ON activity_logs(guild_id,created_at DESC)").run()}
 async function addActivityLog(env,guildId,{actorId="",actorName="",action,target="",source="BALTICM",details=""}){try{await ensureActivityLogTable(env);await env.BALTICM_DB.prepare("INSERT INTO activity_logs (id,guild_id,actor_id,actor_name,action,target,source,details,created_at) VALUES (?,?,?,?,?,?,?,?,?)").bind(crypto.randomUUID(),guildId,String(actorId||""),String(actorName||""),String(action||""),String(target||""),String(source||"BALTICM").toUpperCase(),String(details||""),new Date().toISOString()).run()}catch(e){}}
-async function activityLogState(env,guildId){await ensureActivityLogTable(env);const r=await env.BALTICM_DB.prepare("SELECT id,actor_id AS actorId,actor_name AS actorName,action,target,source,details,created_at AS createdAt FROM activity_logs WHERE guild_id=? ORDER BY created_at DESC LIMIT 250").bind(guildId).all();return json({events:r.results||[]})}
+async function syncDiscordAuditLogs(env,guildId){
+ try{
+  const ar=await fetch(`https://discord.com/api/v10/guilds/${guildId}/audit-logs?limit=50`,{headers:botHeaders(env)});
+  if(!ar.ok)return;
+  const data=await ar.json(),users=new Map((data.users||[]).map(x=>[String(x.id),x])),roles=new Map();
+  try{const rr=await fetch(`https://discord.com/api/v10/guilds/${guildId}/roles`,{headers:botHeaders(env)});if(rr.ok)for(const x of await rr.json())roles.set(String(x.id),x.name)}catch{}
+  const actionNames={10:"Channel created",11:"Channel updated",12:"Channel deleted",20:"Member kicked",22:"Member banned",23:"Member unbanned",24:"Member updated",25:"Member roles updated",30:"Role created",31:"Role updated",32:"Role deleted",40:"Invite created",42:"Invite deleted",72:"Message deleted",73:"Messages bulk deleted",80:"Integration created",82:"Integration deleted"};
+  for(const e of data.audit_log_entries||[]){
+   const type=Number(e.action_type),label=actionNames[type];if(!label)continue;
+   const snow=BigInt(e.id),createdAt=new Date(Number((snow>>22n)+1420070400000n)).toISOString();
+   if(Date.now()-new Date(createdAt).getTime()>86400000)continue;
+   const id="discord:"+e.id,exists=await env.BALTICM_DB.prepare("SELECT id FROM activity_logs WHERE id=?").bind(id).first();if(exists)continue;
+   const actor=users.get(String(e.user_id||"")),actorName=actor?.global_name||actor?.username||String(e.user_id||"Discord");
+   let target=String(e.target_id||""),details=e.reason?("Reason: "+e.reason):"";
+   if(type===25){
+    const added=(e.changes||[]).find(x=>x.key==="$add")?.new_value||[],removed=(e.changes||[]).find(x=>x.key==="$remove")?.new_value||[];
+    if(added.length||removed.length){const bits=[];if(added.length)bits.push("Added: "+added.map(x=>x.name||roles.get(String(x.id))||x.id).join(", "));if(removed.length)bits.push("Removed: "+removed.map(x=>x.name||roles.get(String(x.id))||x.id).join(", "));details=bits.join(" • ");label=added.length&&!removed.length?"Role assigned":removed.length&&!added.length?"Role removed":"Member roles updated"}
+   }
+   await env.BALTICM_DB.prepare("INSERT INTO activity_logs (id,guild_id,actor_id,actor_name,action,target,source,details,created_at) VALUES (?,?,?,?,?,?,?,?,?)").bind(id,guildId,String(e.user_id||""),actorName,label,target,"DISCORD",details,createdAt).run();
+  }
+ }catch(e){}
+}
+async function activityLogState(env,guildId){await ensureActivityLogTable(env);await syncDiscordAuditLogs(env,guildId);const r=await env.BALTICM_DB.prepare("SELECT id,actor_id AS actorId,actor_name AS actorName,action,target,source,details,created_at AS createdAt FROM activity_logs WHERE guild_id=? ORDER BY created_at DESC LIMIT 250").bind(guildId).all();return json({events:r.results||[]})}
 function redirectUri(req,env){return env.DISCORD_REDIRECT_URI||new URL("/api/auth/callback",new URL(req.url).origin).toString()}
 async function login(req,env){
  const state=crypto.randomUUID(),u=new URL("https://discord.com/oauth2/authorize");
