@@ -81,8 +81,10 @@ async function syncDiscordAuditLogs(env,guildId){
    const actor=users.get(String(e.user_id||"")),actorName=actor?.global_name||actor?.username||String(e.user_id||"Discord");
    let target=String(e.target_id||""),details=e.reason?("Reason: "+e.reason):"";
    if(type===25){
-    const added=(e.changes||[]).find(x=>x.key==="$add")?.new_value||[],removed=(e.changes||[]).find(x=>x.key==="$remove")?.new_value||[];
+    const changes=e.changes||[],added=changes.find(x=>x.key==="$add")?.new_value||[],removed=changes.find(x=>x.key==="$remove")?.new_value||[];
+    const targetUser=users.get(String(e.target_id||""));target=targetUser?.global_name||targetUser?.username||target;
     if(added.length||removed.length){const bits=[];if(added.length)bits.push("Added: "+added.map(x=>x.name||roles.get(String(x.id))||x.id).join(", "));if(removed.length)bits.push("Removed: "+removed.map(x=>x.name||roles.get(String(x.id))||x.id).join(", "));details=bits.join(" • ");label=added.length&&!removed.length?"Role assigned":removed.length&&!added.length?"Role removed":"Member roles updated"}
+    else{const bits=[];for(const ch of changes){if(ch.key==="nick")bits.push("Nickname: "+String(ch.old_value??"None")+" → "+String(ch.new_value??"None"));else if(ch.key==="communication_disabled_until")bits.push(ch.new_value?"Timeout until: "+ch.new_value:"Timeout removed");else if(ch.key==="mute")bits.push("Server mute: "+(ch.new_value?"On":"Off"));else if(ch.key==="deaf")bits.push("Server deaf: "+(ch.new_value?"On":"Off"));}if(bits.length){details=bits.join(" • ");label=bits[0].startsWith("Nickname")?"Nickname changed":bits[0].startsWith("Timeout")?"Timeout changed":"Member updated"}else details="Member settings changed"}
    }
    await env.BALTICM_DB.prepare("INSERT INTO activity_logs (id,guild_id,actor_id,actor_name,action,target,source,details,created_at) VALUES (?,?,?,?,?,?,?,?,?)").bind(id,guildId,String(e.user_id||""),actorName,label,target,"DISCORD",details,createdAt).run();
   }
