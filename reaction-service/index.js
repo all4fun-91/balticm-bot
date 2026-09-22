@@ -3,7 +3,7 @@ import { WebSocket } from "ws";
 
 const PORT=Number(process.env.PORT||3000);
 const TOKEN=process.env.DISCORD_BOT_TOKEN||"";
-const CONTROL_CENTER_URL=String(process.env.BALTICM_CONTROL_CENTER_URL||"").replace(/\\\/$/,"");
+const CONTROL_CENTER_URL=String(process.env.BALTICM_CONTROL_CENTER_URL||"").replace(/\/$/,"");
 const SERVICE_SECRET=process.env.BALTICM_REACTION_SERVICE_SECRET||"";
 const GATEWAY="wss://gateway.discord.gg/?v=10&encoding=json";
 const INTENTS=(1<<0)|(1<<10);
