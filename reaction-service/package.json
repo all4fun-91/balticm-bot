@@ -1,0 +1,12 @@
+{
+  "name": "balticm-reaction-roles-gateway",
+  "private": true,
+  "version": "2.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.3"
+  }
+}
