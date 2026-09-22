@@ -87,6 +87,9 @@ async function discordMembers(env,guildId){
  const members=await r.json();
  return json({members:members.map(m=>({id:m.user?.id,username:m.user?.username||"Unknown",globalName:m.user?.global_name||m.nick||m.user?.username||"Unknown",nick:m.nick||null,avatar:m.user?.avatar||null,roles:m.roles||[],bot:!!m.user?.bot,joinedAt:m.joined_at||null}))});
 }
+async function ensureDmOptOutTable(env){await env.BALTICM_DB.prepare("CREATE TABLE IF NOT EXISTS dm_opt_outs (guild_id TEXT NOT NULL, user_id TEXT NOT NULL, opted_out_at TEXT NOT NULL, PRIMARY KEY (guild_id,user_id))").run()}
+async function dmOptOutState(env,guildId){await ensureDmOptOutTable(env);const r=await env.BALTICM_DB.prepare("SELECT user_id AS userId,opted_out_at AS optedOutAt FROM dm_opt_outs WHERE guild_id=? ORDER BY opted_out_at DESC").bind(guildId).all();return json({optedOut:r.results||[]})}
+async function setDmOptOut(env,guildId,userId,optOut=true){await ensureDmOptOutTable(env);if(optOut)await env.BALTICM_DB.prepare("INSERT OR REPLACE INTO dm_opt_outs (guild_id,user_id,opted_out_at) VALUES (?,?,?)").bind(guildId,userId,new Date().toISOString()).run();else await env.BALTICM_DB.prepare("DELETE FROM dm_opt_outs WHERE guild_id=? AND user_id=?").bind(guildId,userId).run();return json({ok:true,optOut})}
 async function sendDirectMessages(req,env,guildId){
  let body;try{body=await req.json()}catch{return json({error:"Invalid JSON"},400)}
  const memberIds=[...new Set((Array.isArray(body.memberIds)?body.memberIds:[]).map(x=>String(x||"").trim()).filter(x=>/^\d{16,22}$/.test(x)))];
@@ -95,21 +98,24 @@ async function sendDirectMessages(req,env,guildId){
  if(memberIds.length>100)return json({error:"Maximum 100 recipients per send"},400);
  if(!message)return json({error:"Message is required"},400);
  if(bannerUrl&&!/^https:\/\//i.test(bannerUrl))return json({error:"Banner URL must use https://"},400);
+ await ensureDmOptOutTable(env);
+ const oo=await env.BALTICM_DB.prepare("SELECT user_id AS userId FROM dm_opt_outs WHERE guild_id=?").bind(guildId).all(),blocked=new Set((oo.results||[]).map(x=>x.userId));
  const results=[];
  for(const memberId of memberIds){
+  if(blocked.has(memberId)){results.push({memberId,ok:false,skipped:true,error:"Opted out"});continue}
   const member=await fetch(`https://discord.com/api/v10/guilds/${guildId}/members/${memberId}`,{headers:botHeaders(env)}).then(async r=>r.ok?r.json():null).catch(()=>null);
   if(!member||member.user?.bot){results.push({memberId,ok:false,error:"Member unavailable"});continue}
   const name=member.nick||member.user?.global_name||member.user?.username||memberId;
   let ok=false;
   if(embed){
    const cr=await fetch("https://discord.com/api/v10/users/@me/channels",{method:"POST",headers:botHeaders(env,true),body:JSON.stringify({recipient_id:memberId})});
-   if(cr.ok){const ch=await cr.json(),payload={embeds:[{description:message,color:0x7457ff,footer:{text:"BalticM.eu • PLAY TOGETHER"}}]};if(bannerUrl)payload.embeds[0].image={url:bannerUrl};const dr=await fetch(`https://discord.com/api/v10/channels/${ch.id}/messages`,{method:"POST",headers:botHeaders(env,true),body:JSON.stringify(payload)});ok=dr.ok}
+   if(cr.ok){const ch=await cr.json(),payload={embeds:[{description:message,color:0x7457ff,footer:{text:"BalticM.eu • PLAY TOGETHER"}}],components:[{type:1,components:[{type:2,style:2,label:"Unsubscribe from news",custom_id:`dm_unsubscribe:${guildId}`}]}]};if(bannerUrl)payload.embeds[0].image={url:bannerUrl};const dr=await fetch(`https://discord.com/api/v10/channels/${ch.id}/messages`,{method:"POST",headers:botHeaders(env,true),body:JSON.stringify(payload)});ok=dr.ok}
   }else ok=await discordDm(env,memberId,`📨 **BalticM Message**\n${message}`).catch(()=>false);
   results.push({memberId,name,ok,error:ok?null:"DM unavailable"});
   await new Promise(resolve=>setTimeout(resolve,175));
  }
- const sent=results.filter(x=>x.ok).length;
- return json({ok:true,sent,failed:results.length-sent,total:results.length,results});
+ const sent=results.filter(x=>x.ok).length,skipped=results.filter(x=>x.skipped).length;
+ return json({ok:true,sent,failed:results.length-sent-skipped,skipped,total:results.length,results});
 }
 async function createDiscordRole(req,env,guildId){
  let body;try{body=await req.json()}catch{return json({error:"Invalid JSON"},400)}
@@ -374,6 +380,7 @@ if(p==="/api/music/disconnect"&&req.method==="POST"){const guildId=u.searchParam
 if(p==="/api/voice-create"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return req.method==="POST"?saveVoiceCreate(req,env,guildId):voiceCreateState(env,guildId);}
 const vr=p.match(/^\/api\/voice-create\/rooms\/([^/]+)$/);if(vr&&req.method==="POST"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return voiceRoomAction(req,env,guildId,decodeURIComponent(vr[1]));}
 if(p==="/api/moderation"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return req.method==="POST"?moderateMember(req,env,user,guildId):moderationState(env,guildId);}const ma=p.match(/^\/api\/moderation\/([^/]+)$/);if(ma&&req.method==="DELETE"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return removeModerationAction(env,user,guildId,decodeURIComponent(ma[1]));}
+if(p==="/api/direct-messages/opt-outs"&&req.method==="GET"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return dmOptOutState(env,guildId);}
 if(p==="/api/direct-messages"&&req.method==="POST"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return sendDirectMessages(req,env,guildId);}
 if(p==="/api/discord/members"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return discordMembers(env,guildId);}
 if(p==="/api/discord/roles"&&req.method==="POST"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return createDiscordRole(req,env,guildId);}const er=p.match(/^\/api\/discord\/roles\/([^/]+)$/);if(er&&(req.method==="PATCH"||req.method==="DELETE")){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return req.method==="DELETE"?deleteDiscordRole(env,guildId,decodeURIComponent(er[1])):editDiscordRole(req,env,guildId,decodeURIComponent(er[1]));}
