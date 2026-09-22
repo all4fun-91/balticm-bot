@@ -256,10 +256,12 @@ async function createDiscordRole(req,env,guildId){
  await addActivityLog(env,guildId,{action:"Role created",target:data.name||name,source:"BALTICM"});
  return json({role:data},201);
 }
-async function changeMemberRole(req,env,guildId,memberId,roleId,remove=false){
+async function changeMemberRole(req,env,user,guildId,memberId,roleId,remove=false){
  if(!memberId||!roleId)return json({error:"memberId and roleId are required"},400);
  const r=await fetch(`https://discord.com/api/v10/guilds/${guildId}/members/${memberId}/roles/${roleId}`,{method:remove?"DELETE":"PUT",headers:botHeaders(env)});
  if(!r.ok){const data=await r.json().catch(()=>({}));return json({error:data.message||"Role update failed",status:r.status},r.status===403?403:502)}
+ const actorName=user?.global_name||user?.username||user?.id||"Control Center";
+ await addActivityLog(env,guildId,{actorId:user?.id||"",actorName,action:remove?"Role removed":"Role assigned",target:memberId,source:"BALTICM",details:`roleId=${roleId}`});
  return new Response(null,{status:204});
 }
 async function deleteDiscordRole(env,guildId,roleId){
@@ -881,7 +883,7 @@ if(p==="/api/direct-messages"&&req.method==="POST"){const guildId=u.searchParams
 if(p==="/api/logs"&&req.method==="GET"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return activityLogState(env,guildId);}
 if(p==="/api/discord/members"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return discordMembers(env,guildId);}
 if(p==="/api/discord/roles"&&req.method==="POST"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return createDiscordRole(req,env,guildId);}const er=p.match(/^\/api\/discord\/roles\/([^/]+)$/);if(er&&(req.method==="PATCH"||req.method==="DELETE")){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return req.method==="DELETE"?deleteDiscordRole(env,guildId,decodeURIComponent(er[1])):editDiscordRole(req,env,guildId,decodeURIComponent(er[1]));}
-const rm=p.match(/^\/api\/discord\/members\/([^/]+)\/roles\/([^/]+)$/);if(rm&&(req.method==="PUT"||req.method==="DELETE")){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return changeMemberRole(req,env,guildId,decodeURIComponent(rm[1]),decodeURIComponent(rm[2]),req.method==="DELETE");}
+const rm=p.match(/^\/api\/discord\/members\/([^/]+)\/roles\/([^/]+)$/);if(rm&&(req.method==="PUT"||req.method==="DELETE")){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return changeMemberRole(req,env,user,guildId,decodeURIComponent(rm[1]),decodeURIComponent(rm[2]),req.method==="DELETE");}
 return json({error:"Not found"},404)}
  return env.ASSETS.fetch(req);
 }};
