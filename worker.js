@@ -255,10 +255,55 @@ const ticketTablesSql=[
  panel_message_id TEXT,
  updated_at TEXT NOT NULL
 )`
-];
+,
+`CREATE TABLE IF NOT EXISTS ticket_types (
+ guild_id TEXT NOT NULL,
+ type_key TEXT NOT NULL,
+ category_id TEXT,
+ staff_role_id TEXT,
+ panel_channel_id TEXT,
+ panel_message_id TEXT,
+ updated_at TEXT NOT NULL,
+ PRIMARY KEY (guild_id,type_key)
+)`];
 async function ensureTicketTables(env){
  if(!env.BALTICM_DB)throw new Error("BALTICM_DB binding is not configured");
  for(const sql of ticketTablesSql)await env.BALTICM_DB.prepare(sql).run();
+}
+async function ticketTypeConfig(env,guildId,typeKey){
+ await ensureTicketTables(env);
+ const row=await env.BALTICM_DB.prepare("SELECT category_id AS categoryId,staff_role_id AS staffRoleId,panel_channel_id AS panelChannelId,panel_message_id AS panelMessageId FROM ticket_types WHERE guild_id=? AND type_key=?").bind(guildId,typeKey).first();
+ if(row)return row;
+ if(typeKey==="support"){
+  const legacy=await env.BALTICM_DB.prepare("SELECT category_id AS categoryId,staff_role_id AS staffRoleId,panel_channel_id AS panelChannelId,panel_message_id AS panelMessageId FROM ticket_config WHERE guild_id=?").bind(guildId).first();
+  if(legacy)return legacy;
+ }
+ return {categoryId:"",staffRoleId:"",panelChannelId:"",panelMessageId:""};
+}
+async function ticketTypesState(env,guildId){
+ return json({support:await ticketTypeConfig(env,guildId,"support"),report:await ticketTypeConfig(env,guildId,"report")});
+}
+async function saveTicketType(req,env,guildId,typeKey){
+ if(!["support","report"].includes(typeKey))return json({error:"Invalid ticket type"},400);
+ let body;try{body=await req.json()}catch{return json({error:"Invalid JSON"},400)}
+ const categoryId=String(body.categoryId||"").trim(),staffRoleId=String(body.staffRoleId||"").trim(),panelChannelId=String(body.panelChannelId||"").trim();
+ for(const [label,id] of [["category",categoryId],["staff role",staffRoleId],["panel channel",panelChannelId]])if(id&&!/^\d{16,22}$/.test(id))return json({error:`Invalid ${label}`},400);
+ await ensureTicketTables(env);
+ await env.BALTICM_DB.prepare("INSERT INTO ticket_types (guild_id,type_key,category_id,staff_role_id,panel_channel_id,panel_message_id,updated_at) VALUES (?,?,?,?,?,NULL,?) ON CONFLICT(guild_id,type_key) DO UPDATE SET category_id=excluded.category_id,staff_role_id=excluded.staff_role_id,panel_channel_id=excluded.panel_channel_id,updated_at=excluded.updated_at").bind(guildId,typeKey,categoryId||null,staffRoleId||null,panelChannelId||null,new Date().toISOString()).run();
+ return json({ok:true,config:await ticketTypeConfig(env,guildId,typeKey)});
+}
+async function publishTicketTypePanel(env,guildId,typeKey){
+ if(!["support","report"].includes(typeKey))return json({error:"Invalid ticket type"},400);
+ const cfg=await ticketTypeConfig(env,guildId,typeKey);
+ if(!cfg?.panelChannelId)return json({error:"Select a panel channel first"},400);
+ const gr=await fetch(`https://discord.com/api/v10/guilds/${guildId}`,{headers:botHeaders(env)}),guild=gr.ok?await gr.json():null;
+ const isReport=typeKey==="report";
+ const embed=isReport?{author:{name:guild?.name||"Report Center",icon_url:guild?.icon?`https://cdn.discordapp.com/icons/${guildId}/${guild.icon}.png`:undefined},title:"🚨 Report a Player",description:"Report a player privately to the server staff.\n\n**Please include**\n> 👤 Player name / ID\n> 📋 What happened and when\n> 🖼️ Screenshots, video or other evidence\n> 🎮 Relevant server / game information\n\n*Reports are private and only visible to you and the staff team.*",color:0xe34d59,footer:{text:"Powered by BalticM.eu • PLAY TOGETHER"}}:{author:{name:guild?.name||"Support Center",icon_url:guild?.icon?`https://cdn.discordapp.com/icons/${guildId}/${guild.icon}.png`:undefined},title:"Support Center",description:"Need assistance? Create a **private ticket** and our staff will help you.\n\n**Before opening a ticket**\n> 📝 Explain your issue clearly\n> 🔁 Please do not create duplicate tickets\n> 🕐 A staff member will respond as soon as possible\n\n*Your ticket will only be visible to you and the support team.*",color:0x7457ff,footer:{text:"Powered by BalticM.eu • PLAY TOGETHER"}};
+ const payload={embeds:[embed],components:[{type:1,components:[{type:2,style:isReport?4:1,label:isReport?"Report a Player":"Open a Ticket",emoji:{name:isReport?"🚨":"🎫"},custom_id:`ticket_create:${guildId}:${typeKey}`}]}]};
+ const pr=await fetch(`https://discord.com/api/v10/channels/${cfg.panelChannelId}/messages`,{method:"POST",headers:botHeaders(env,true),body:JSON.stringify(payload)}),data=await pr.json().catch(()=>({}));
+ if(!pr.ok)return json({error:data.message||"Could not publish ticket panel",status:pr.status},502);
+ await env.BALTICM_DB.prepare("UPDATE ticket_types SET panel_message_id=?,updated_at=? WHERE guild_id=? AND type_key=?").bind(data.id,new Date().toISOString(),guildId,typeKey).run();
+ return json({ok:true,messageId:data.id,type:typeKey});
 }
 async function ticketConfigState(env,guildId){
  await ensureTicketTables(env);
@@ -284,23 +329,24 @@ async function publishTicketPanel(env,guildId){
  await env.BALTICM_DB.prepare("UPDATE ticket_config SET panel_message_id=?,updated_at=? WHERE guild_id=?").bind(data.id,new Date().toISOString(),guildId).run();
  return json({ok:true,messageId:data.id,guildName:guild?.name||guildId});
 }
-async function createTicketFromInteraction(env,interaction,guildId){
+async function createTicketFromInteraction(env,interaction,guildId,typeKey="support"){
  await ensureTicketTables(env);
  const user=interaction?.member?.user||interaction?.user,userId=String(user?.id||""),username=String(interaction?.member?.nick||user?.global_name||user?.username||"member");
  if(!userId)return json({type:4,data:{content:"Could not identify your Discord account.",flags:64}});
- const existing=await env.BALTICM_DB.prepare("SELECT channel_id AS channelId FROM tickets WHERE guild_id=? AND opener_id=? AND status='open' ORDER BY created_at DESC LIMIT 1").bind(guildId,userId).first();
+ const subject=typeKey==="report"?"Player report":"Support ticket";
+ const existing=await env.BALTICM_DB.prepare("SELECT channel_id AS channelId FROM tickets WHERE guild_id=? AND opener_id=? AND subject=? AND status='open' ORDER BY created_at DESC LIMIT 1").bind(guildId,userId,subject).first();
  if(existing?.channelId)return json({type:4,data:{content:`You already have an open ticket: <#${existing.channelId}>`,flags:64}});
- const cfg=await env.BALTICM_DB.prepare("SELECT category_id AS categoryId,staff_role_id AS staffRoleId FROM ticket_config WHERE guild_id=?").bind(guildId).first();
+ const cfg=await ticketTypeConfig(env,guildId,typeKey);
  const safe=username.toLowerCase().replace(/[^a-z0-9]/g,"-").replace(/-+/g,"-").replace(/^-|-$/g,"").slice(0,55)||"member";
  const overwrites=[{id:guildId,type:0,deny:"1024",allow:"0"},{id:userId,type:1,allow:"68608",deny:"0"}];
  if(cfg?.staffRoleId)overwrites.push({id:cfg.staffRoleId,type:0,allow:"68608",deny:"0"});
- const payload={name:`ticket-${safe}`,type:0,permission_overwrites:overwrites};
+ const payload={name:`${typeKey==="report"?"report":"ticket"}-${safe}`,type:0,permission_overwrites:overwrites};
  if(cfg?.categoryId)payload.parent_id=cfg.categoryId;
  const cr=await fetch(`https://discord.com/api/v10/guilds/${guildId}/channels`,{method:"POST",headers:botHeaders(env,true),body:JSON.stringify(payload)});
  const ch=await cr.json().catch(()=>({}));if(!cr.ok)return json({type:4,data:{content:"I could not create the ticket channel. Check my channel permissions.",flags:64}});
  const id=crypto.randomUUID(),createdAt=new Date().toISOString();
- await env.BALTICM_DB.prepare("INSERT INTO tickets (id,guild_id,channel_id,opener_id,opener_name,subject,status,created_at) VALUES (?,?,?,?,?,?,'open',?)").bind(id,guildId,ch.id,userId,username,"Support ticket",createdAt).run();
- const welcome={content:`<@${userId}>`,embeds:[{title:"🎫 Support request opened",description:"Thanks for contacting our support team.\n\n**Tell us what you need help with**\n> 📝 Describe the issue in as much detail as possible\n> 🖼️ Add screenshots or other useful information if needed\n> 🕐 A staff member will reply as soon as possible\n\n*Please keep this channel open until your issue has been resolved.*",color:0x7457ff,footer:{text:"Support ticket • Private conversation"}}],components:[{type:1,components:[{type:2,style:4,label:"Close Ticket",emoji:{name:"🔒"},custom_id:`ticket_close:${id}`}]}],allowed_mentions:{users:[userId]}};
+ await env.BALTICM_DB.prepare("INSERT INTO tickets (id,guild_id,channel_id,opener_id,opener_name,subject,status,created_at) VALUES (?,?,?,?,?,?,'open',?)").bind(id,guildId,ch.id,userId,username,subject,createdAt).run();
+ const welcome=typeKey==="report"?{content:`<@${userId}>`,embeds:[{title:"🚨 Player report opened",description:"Thanks. Your report is private and has been sent to the staff team.\n\n**Please provide the following**\n> 👤 Player name / ID\n> 🎮 Server or game\n> 📝 What happened and when\n> 🖼️ Screenshots, clips or other evidence\n\n*Do not contact or provoke the reported player while staff reviews the report.*",color:0xe34d59,footer:{text:"Player report • Private conversation"}}],components:[{type:1,components:[{type:2,style:4,label:"Close Report",emoji:{name:"🔒"},custom_id:`ticket_close:${id}`}]}],allowed_mentions:{users:[userId]}}:{content:`<@${userId}>`,embeds:[{title:"🎫 Support request opened",description:"Thanks for contacting our support team.\n\n**Tell us what you need help with**\n> 📝 Describe the issue in as much detail as possible\n> 🖼️ Add screenshots or other useful information if needed\n> 🕐 A staff member will reply as soon as possible\n\n*Please keep this channel open until your issue has been resolved.*",color:0x7457ff,footer:{text:"Support ticket • Private conversation"}}],components:[{type:1,components:[{type:2,style:4,label:"Close Ticket",emoji:{name:"🔒"},custom_id:`ticket_close:${id}`}]}],allowed_mentions:{users:[userId]}};
  await fetch(`https://discord.com/api/v10/channels/${ch.id}/messages`,{method:"POST",headers:botHeaders(env,true),body:JSON.stringify(welcome)}).catch(()=>null);
  return json({type:4,data:{content:`✅ Your ticket has been created: <#${ch.id}>`,flags:64}});
 }
@@ -557,9 +603,9 @@ async function discordInteractionGateway(req,env,ctx){
  if(interaction?.type===1)return json({type:1});
  const customId=String(interaction?.data?.custom_id||"");
  if(interaction?.type===3&&customId.startsWith("ticket_create:")){
- const guildId=customId.slice("ticket_create:".length);
- if(!guildId||guildId!==String(interaction?.guild_id||""))return json({type:4,data:{content:"Invalid ticket server.",flags:64}});
- try{return await createTicketFromInteraction(env,interaction,guildId)}catch(e){return json({type:4,data:{content:"Could not create your ticket. Please contact server staff.",flags:64}})}
+ const parts=customId.slice("ticket_create:".length).split(":"),guildId=parts[0],typeKey=parts[1]||"support";
+ if(!guildId||guildId!==String(interaction?.guild_id||"")||!["support","report"].includes(typeKey))return json({type:4,data:{content:"Invalid ticket server.",flags:64}});
+ try{return await createTicketFromInteraction(env,interaction,guildId,typeKey)}catch(e){return json({type:4,data:{content:"Could not create your ticket. Please contact server staff.",flags:64}})}
 }
 if(interaction?.type===3&&customId.startsWith("ticket_close:")){
  const ticketId=customId.slice("ticket_close:".length);
@@ -599,6 +645,9 @@ if(p==="/api/music/disconnect"&&req.method==="POST"){const guildId=u.searchParam
 if(p==="/api/voice-create"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return req.method==="POST"?saveVoiceCreate(req,env,guildId):voiceCreateState(env,guildId);}
 const vr=p.match(/^\/api\/voice-create\/rooms\/([^/]+)$/);if(vr&&req.method==="POST"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return voiceRoomAction(req,env,guildId,decodeURIComponent(vr[1]));}
 if(p==="/api/tickets"&&req.method==="GET"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return ticketsState(env,guildId);}
+if(p==="/api/tickets/types"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return ticketTypesState(env,guildId);}
+const ttc=p.match(/^\/api\/tickets\/types\/(support|report)$/);if(ttc&&req.method==="POST"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return saveTicketType(req,env,guildId,ttc[1]);}
+const ttp=p.match(/^\/api\/tickets\/types\/(support|report)\/publish$/);if(ttp&&req.method==="POST"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return publishTicketTypePanel(env,guildId,ttp[1]);}
 if(p==="/api/tickets/config"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return req.method==="POST"?saveTicketConfig(req,env,guildId):ticketConfigState(env,guildId);}
 if(p==="/api/tickets/publish"&&req.method==="POST"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return publishTicketPanel(env,guildId);}
 const ta=p.match(/^\/api\/tickets\/([^/]+)$/);if(ta&&req.method==="POST"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return ticketAction(req,env,user,guildId,decodeURIComponent(ta[1]));}
