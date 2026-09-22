@@ -546,11 +546,28 @@ async function findModLogChannel(env,guildId){
 }
 async function sendModLog(env,guildId,entry){
  const ch=await findModLogChannel(env,guildId);if(!ch)return false;
- const labels={warn:"WARNING",timeout:"TIMEOUT",kick:"KICK",ban:"BAN",removed:"ACTION REMOVED"};
- const lines=[`**BalticM Moderation • ${labels[entry.action]||entry.action.toUpperCase()}**`,`**Member:** <@${entry.memberId}> (${entry.memberName})`,`**Moderator:** <@${entry.moderatorId}> (${entry.moderatorName})`,`**Reason:** ${entry.reason}`];
- if(entry.durationMinutes)lines.push(`**Duration:** ${entry.durationMinutes} minutes`);
- lines.push(`**Time:** <t:${Math.floor(new Date(entry.createdAt).getTime()/1000)}:F>`);
- const r=await fetch(`https://discord.com/api/v10/channels/${ch.id}/messages`,{method:"POST",headers:botHeaders(env,true),body:JSON.stringify({content:lines.join("\n"),allowed_mentions:{parse:[]}})});
+ const meta={
+  warn:{title:"⚠️ Member warned",color:0xf1c40f,status:"Warning issued"},
+  timeout:{title:"⏳ Member timed out",color:0xf39c12,status:"Timeout active"},
+  kick:{title:"👢 Member kicked",color:0xe67e22,status:"Removed from server"},
+  ban:{title:"🔨 Member banned",color:0xe74c3c,status:"Banned from server"},
+  removed:{title:"✅ Moderation action removed",color:0x2ecc71,status:"Action cleared"}
+ }[entry.action]||{title:"🛡️ Moderation action",color:0x7457ff,status:String(entry.action||"Updated")};
+ const fields=[
+  {name:"Member",value:`<@${entry.memberId}>\n\`${entry.memberName||entry.memberId}\``,inline:true},
+  {name:"Moderator",value:`<@${entry.moderatorId}>\n\`${entry.moderatorName||entry.moderatorId}\``,inline:true},
+  {name:"Status",value:meta.status,inline:true},
+  {name:"Reason",value:String(entry.reason||"No reason provided").slice(0,1024),inline:false}
+ ];
+ if(entry.durationMinutes)fields.splice(3,0,{name:"Duration",value:`${entry.durationMinutes} minutes`,inline:true});
+ const payload={embeds:[{
+  title:meta.title,
+  color:meta.color,
+  fields,
+  footer:{text:"Moderation log • Control Center"},
+  timestamp:entry.createdAt||new Date().toISOString()
+ }],allowed_mentions:{parse:[]}};
+ const r=await fetch(`https://discord.com/api/v10/channels/${ch.id}/messages`,{method:"POST",headers:botHeaders(env,true),body:JSON.stringify(payload)});
  return r.ok;
 }
 async function removeModerationAction(env,user,guildId,id){
