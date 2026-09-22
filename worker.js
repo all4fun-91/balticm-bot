@@ -370,7 +370,7 @@ async function ticketAction(req,env,user,guildId,ticketId){
   if(row.channelId){
    const safe=(`closed-${row.openerName||"ticket"}`).toLowerCase().replace(/[^a-z0-9-]/g,"-").replace(/-+/g,"-").slice(0,90);
    await fetch(`https://discord.com/api/v10/channels/${row.channelId}`,{method:"PATCH",headers:botHeaders(env,true),body:JSON.stringify({name:safe,permission_overwrites:[{id:guildId,type:0,deny:"1024",allow:"0"},{id:row.openerId,type:1,deny:"2048",allow:"66560"}]})}).catch(()=>null);
-   const closed={embeds:[{title:"🔒 Ticket closed",description:`This support ticket was closed by **${staffName}** from the Control Center.\n\nThe conversation has been archived and the transcript was saved.\n*Staff can reopen this ticket if more help is needed.*`,color:0xe34d59,footer:{text:"Support ticket • Closed"}}]};
+   const closed={embeds:[{title:"🔒 Ticket closed",description:`Closed by **${staffName}**\n\n**Status:** 🔴 Closed\n📄 Transcript saved\n\n*Staff can reopen this ticket if further assistance is needed.*`,color:0xe34d59,footer:{text:"Support ticket • Closed"}}]};
    await fetch(`https://discord.com/api/v10/channels/${row.channelId}/messages`,{method:"POST",headers:botHeaders(env,true),body:JSON.stringify(closed)}).catch(()=>null);
   }
   return json({ok:true,action,archived});
@@ -382,7 +382,7 @@ async function ticketAction(req,env,user,guildId,ticketId){
    const safe=(`ticket-${row.openerName||"member"}`).toLowerCase().replace(/[^a-z0-9-]/g,"-").replace(/-+/g,"-").slice(0,90),overwrites=[{id:guildId,type:0,deny:"1024",allow:"0"},{id:row.openerId,type:1,allow:"68608",deny:"0"}];
    if(cfg?.staffRoleId)overwrites.push({id:cfg.staffRoleId,type:0,allow:"68608",deny:"0"});
    await fetch(`https://discord.com/api/v10/channels/${row.channelId}`,{method:"PATCH",headers:botHeaders(env,true),body:JSON.stringify({name:safe,permission_overwrites:overwrites})}).catch(()=>null);
-   const reopened={embeds:[{title:"🔓 Ticket reopened",description:`This support ticket was reopened by **${staffName}**.\n\nYou can continue the conversation below.`,color:0x57d39b,footer:{text:"Support ticket • Reopened"}}],components:[{type:1,components:[{type:2,style:4,label:"Close Ticket",emoji:{name:"🔒"},custom_id:`ticket_close:${ticketId}`}]}]};
+   const reopened={embeds:[{title:"🔓 Ticket reopened",description:`Reopened by **${staffName}**\n\n**Status:** 🟢 Open\nYou can continue the conversation below.`,color:0x57d39b,footer:{text:"Support ticket • Reopened"}}],components:[{type:1,components:[{type:2,style:4,label:"Close Ticket",emoji:{name:"🔒"},custom_id:`ticket_close:${ticketId}`}]}]};
    await fetch(`https://discord.com/api/v10/channels/${row.channelId}/messages`,{method:"POST",headers:botHeaders(env,true),body:JSON.stringify(reopened)}).catch(()=>null);
   }
   return json({ok:true,action});
