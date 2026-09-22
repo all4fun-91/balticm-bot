@@ -109,7 +109,7 @@ async function sendDirectMessages(req,env,guildId){
   let ok=false;
   if(embed){
    const cr=await fetch("https://discord.com/api/v10/users/@me/channels",{method:"POST",headers:botHeaders(env,true),body:JSON.stringify({recipient_id:memberId})});
-   if(cr.ok){const ch=await cr.json(),payload={embeds:[{description:message,color:0x7457ff,footer:{text:"BalticM.eu • PLAY TOGETHER"}}],components:[{type:1,components:[{type:2,style:2,label:"Unsubscribe from news",custom_id:`dm_unsubscribe:${guildId}`}]}]};if(bannerUrl)payload.embeds[0].image={url:bannerUrl};const dr=await fetch(`https://discord.com/api/v10/channels/${ch.id}/messages`,{method:"POST",headers:botHeaders(env,true),body:JSON.stringify(payload)});ok=dr.ok}
+   if(cr.ok){const ch=await cr.json(),payload={embeds:[{description:message,color:0x7457ff}],components:[{type:1,components:[{type:2,style:2,label:"Unsubscribe from news",custom_id:`dm_unsubscribe:${guildId}`}]}]};if(bannerUrl)payload.embeds[0].image={url:bannerUrl};const dr=await fetch(`https://discord.com/api/v10/channels/${ch.id}/messages`,{method:"POST",headers:botHeaders(env,true),body:JSON.stringify(payload)});ok=dr.ok}
   }else ok=await discordDm(env,memberId,`📨 **BalticM Message**\n${message}`).catch(()=>false);
   results.push({memberId,name,ok,error:ok?null:"DM unavailable"});
   await new Promise(resolve=>setTimeout(resolve,175));
