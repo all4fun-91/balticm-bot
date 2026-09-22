@@ -307,13 +307,17 @@ async function createTicketFromInteraction(env,interaction,guildId){
 async function closeTicketFromInteraction(env,interaction,ticketId){
  await ensureTicketTables(env);
  const guildId=String(interaction?.guild_id||"");
- const row=await env.BALTICM_DB.prepare("SELECT channel_id AS channelId,status FROM tickets WHERE id=? AND guild_id=?").bind(ticketId,guildId).first();
+ const row=await env.BALTICM_DB.prepare("SELECT channel_id AS channelId,opener_id AS openerId,opener_name AS openerName,status FROM tickets WHERE id=? AND guild_id=?").bind(ticketId,guildId).first();
  if(!row)return json({type:4,data:{content:"Ticket not found.",flags:64}});
  if(row.status==="closed")return json({type:4,data:{content:"This ticket is already closed.",flags:64}});
  const user=interaction?.member?.user||interaction?.user,name=interaction?.member?.nick||user?.global_name||user?.username||user?.id||"Discord user",now=new Date().toISOString();
+ if(row.channelId)await archiveTicketMessages(env,guildId,ticketId,row.channelId).catch(()=>0);
  await env.BALTICM_DB.prepare("UPDATE tickets SET status='closed',closed_at=?,closed_by_id=?,closed_by_name=? WHERE id=? AND guild_id=?").bind(now,String(user?.id||""),String(name),ticketId,guildId).run();
- if(row.channelId)await fetch(`https://discord.com/api/v10/channels/${row.channelId}`,{method:"PATCH",headers:botHeaders(env,true),body:JSON.stringify({name:`closed-${String(row.channelId).slice(-6)}`})}).catch(()=>null);
- return json({type:7,data:{content:`🔒 Ticket closed by <@${user?.id}>.`,components:[],allowed_mentions:{parse:[]}}});
+ if(row.channelId){
+  const safe=(`closed-${row.openerName||"ticket"}`).toLowerCase().replace(/[^a-z0-9-]/g,"-").replace(/-+/g,"-").slice(0,90);
+  await fetch(`https://discord.com/api/v10/channels/${row.channelId}`,{method:"PATCH",headers:botHeaders(env,true),body:JSON.stringify({name:safe,permission_overwrites:[{id:guildId,type:0,deny:"1024",allow:"0"},{id:row.openerId,type:1,deny:"2048",allow:"66560"}]})}).catch(()=>null);
+ }
+ return json({type:7,data:{content:`🔒 Ticket closed by <@${user?.id}>. Transcript saved.\nStaff can reopen or delete the channel from the Control Center.`,components:[],allowed_mentions:{parse:[]} }});
 }
 async function ticketsState(env,guildId){
  try{
