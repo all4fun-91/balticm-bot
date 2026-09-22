@@ -711,7 +711,7 @@ ${meta.status}`,
 ${entry.durationMinutes} minutes`:null,
   `**Reason**
 ${String(entry.reason||"No reason provided").slice(0,1000)}`
- ].filter(Boolean).join("\\n\\n");
+ ].filter(Boolean).join("\n\n");
  const payload={embeds:[{
   title:meta.title,
   description,
