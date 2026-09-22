@@ -670,3 +670,7 @@ input,select,textarea,button{font-size:11px}
 .memberRoleModal .memberRoleMenuHead small{font-size:10px}
 .memberRoleModal .memberRoleSearch{height:38px}
 @media(max-width:760px){.memberRoleMenu.memberRoleModal{left:14px!important;right:14px!important;top:50%!important;bottom:auto!important;transform:translateY(-50%);width:auto;max-height:calc(100vh - 28px)}.memberRoleModal .memberRoleOptions{max-height:calc(100vh - 220px)}}
+
+
+/* Bot Status service diagnostics */
+.botServiceMeta{display:block;margin-top:5px;font-size:9px;font-weight:700;letter-spacing:.05em;color:#68748d}.botServiceCard:not(.online) .botServiceMeta{color:#b26b78}
