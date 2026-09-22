@@ -380,6 +380,8 @@ async function ticketAction(req,env,user,guildId,ticketId){
    const safe=(`ticket-${row.openerName||"member"}`).toLowerCase().replace(/[^a-z0-9-]/g,"-").replace(/-+/g,"-").slice(0,90),overwrites=[{id:guildId,type:0,deny:"1024",allow:"0"},{id:row.openerId,type:1,allow:"68608",deny:"0"}];
    if(cfg?.staffRoleId)overwrites.push({id:cfg.staffRoleId,type:0,allow:"68608",deny:"0"});
    await fetch(`https://discord.com/api/v10/channels/${row.channelId}`,{method:"PATCH",headers:botHeaders(env,true),body:JSON.stringify({name:safe,permission_overwrites:overwrites})}).catch(()=>null);
+   const reopened={embeds:[{title:"🔓 Ticket reopened",description:`This support ticket was reopened by **${staffName}**.\n\nYou can continue the conversation below.`,color:0x57d39b,footer:{text:"Support ticket • Reopened"}}],components:[{type:1,components:[{type:2,style:4,label:"Close Ticket",emoji:{name:"🔒"},custom_id:`ticket_close:${ticketId}`}]}]};
+   await fetch(`https://discord.com/api/v10/channels/${row.channelId}/messages`,{method:"POST",headers:botHeaders(env,true),body:JSON.stringify(reopened)}).catch(()=>null);
   }
   return json({ok:true,action});
  }
