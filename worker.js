@@ -44,9 +44,23 @@ async function publicNotifications(env){
 async function desktopLatest(){
  try{const r=await latestDesktopRelease();return r?json({available:true,version:r.version,url:r.url,notes:r.notes,pub_date:r.pub_date}):json({available:false})}catch(e){return json({available:false,error:String(e.message||e)},502)}
 }
-async function health(){
- const targets=[["Main Bot","https://balticm.eu/discord-bot/"],["Reaction Roles","https://balticm.eu/reactions/"]];
- const services=await Promise.all(targets.map(async([name,url])=>{try{const r=await fetch(url,{headers:{Accept:"application/json,text/plain,*/*"}}),text=await r.text();let data;try{data=JSON.parse(text)}catch{data=text.slice(0,250)}return{name,url,ok:r.ok,status:r.status,data}}catch(e){return{name,url,ok:false,status:0,error:String(e.message||e)}}}));
+async function health(req){
+ const origin=req?new URL(req.url).origin:"https://bot.balticm.eu";
+ const targets=[
+  {name:"Main Bot",url:"https://balticm.eu/discord-bot/",kind:"CORE SERVICE"},
+  {name:"Reaction Roles",url:"https://balticm.eu/reactions/",kind:"MODULE"},
+  {name:"Music Bot",url:"https://balticm.eu/music/",kind:"MODULE"},
+  {name:"Voice Create",url:"https://balticm.eu/voice/",kind:"MODULE"},
+  {name:"Bot Center",url:origin+"/api/status-public",kind:"CONTROL CENTER"}
+ ];
+ const services=await Promise.all(targets.map(async target=>{
+  const started=Date.now();
+  try{
+   const r=await fetch(target.url,{headers:{Accept:"application/json,text/plain,*/*","Cache-Control":"no-cache"}});
+   const text=await r.text();let data;try{data=JSON.parse(text)}catch{data=text.slice(0,250)}
+   return{...target,ok:r.ok,status:r.status,responseMs:Date.now()-started,data};
+  }catch(e){return{...target,ok:false,status:0,responseMs:Date.now()-started,error:String(e.message||e)}}
+ }));
  return json({ok:services.every(x=>x.ok),checkedAt:new Date().toISOString(),services});
 }
 function redirectUri(req,env){return env.DISCORD_REDIRECT_URI||new URL("/api/auth/callback",new URL(req.url).origin).toString()}
@@ -795,7 +809,7 @@ if(interaction?.type===3&&customId.startsWith("giveaway_enter:")){try{return awa
 
 export default{async scheduled(event,env,ctx){ctx.waitUntil(finishDueGiveaways(env))},async fetch(req,env,ctx){
  const u=new URL(req.url),p=u.pathname;
- if(p==="/api/health")return health();
+ if(p==="/api/health")return health(req);\n if(p==="/api/status-public")return json({ok:true,service:"BalticM Bot Center",checkedAt:new Date().toISOString()});
  if(p==="/api/reaction-roles/service/event"&&req.method==="POST")return reactionRoleServiceEvent(req,env);
  if(p==="/api/discord-interactions")return discordInteractionGateway(req,env,ctx);
  if(p==="/api/desktop/latest")return desktopLatest();
