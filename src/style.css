@@ -587,3 +587,5 @@ input,select,textarea,button{font-size:11px}
 .ticketSetupActions button.primary:hover:not(:disabled){filter:brightness(1.08)}
 
 .ticketActions button.danger{border-color:#ff526833;background:#ff52680c;color:#ff8494}.ticketActions button.danger:hover{border-color:#ff526866;background:#ff526817;color:#ff9aaa}
+
+.reportSetup{border-color:#e34d5924;background:linear-gradient(180deg,#e34d5907,#070b14)}.reportSetup .ticketSetupHead h3{color:#ffd7dc}.ticketSetupActions button.dangerPublish{border-color:#e34d5955!important;background:#e34d5917!important;color:#ff9ba7!important}.ticketSetupActions button.dangerPublish:hover:not(:disabled){border-color:#e34d5980!important;background:#e34d5925!important;color:#ffc0c8!important}
