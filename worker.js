@@ -428,14 +428,7 @@ async function publishTicketTypePanel(env,guildId,typeKey){
  if(!cfg?.panelChannelId)return json({error:"Select a panel channel first"},400);
  const gr=await fetch(`https://discord.com/api/v10/guilds/${guildId}`,{headers:botHeaders(env)}),guild=gr.ok?await gr.json():null;
  const isReport=typeKey==="report";
- const embed=isReport?{author:{name:guild?.name||"Report Center",icon_url:guild?.icon?`https://cdn.discordapp.com/icons/${guildId}/${guild.icon}.png`:undefined},title:"🚨 Report a Player",description:"Report a player privately to the server staff.\n\n**Please include**\n> 👤 Player name / ID\n> 📋 What happened and when\n> 🖼️ Screenshots, video or other evidence\n> 🎮 Relevant server / game information\n\n*Reports are private and only visible to you and the staff team.*",color:0xe34d59,footer:{text:"Powered by BalticM.eu • PLAY TOGETHER"}}:{author:{name:guild?.name||"Support Center",icon_url:guild?.icon?`https://cdn.discordapp.com/icons/${guildId}/${guild.icon}.png`:undefined},title:"Support Center",description:"Need assistance? Create a **private ticket** and our staff will help you.
-
-**Before opening a ticket**
-> 📝 Explain your issue clearly
-> 🔁 Please do not create duplicate tickets
-> 🕐 A staff member will respond as soon as possible
-
-*Your ticket will only be visible to you and the support team.*",color:0x7457ff,footer:{text:"Powered by BalticM.eu • PLAY TOGETHER"}};
+ const embed=isReport?{author:{name:guild?.name||"Report Center",icon_url:guild?.icon?`https://cdn.discordapp.com/icons/${guildId}/${guild.icon}.png`:undefined},title:"🚨 Report a Player",description:"Report a player privately to the server staff.\n\n**Please include**\n> 👤 Player name / ID\n> 📋 What happened and when\n> 🖼️ Screenshots, video or other evidence\n> 🎮 Relevant server / game information\n\n*Reports are private and only visible to you and the staff team.*",color:0xe34d59,footer:{text:"Powered by BalticM.eu • PLAY TOGETHER"}}:{author:{name:guild?.name||"Support Center",icon_url:guild?.icon?`https://cdn.discordapp.com/icons/${guildId}/${guild.icon}.png`:undefined},title:"Support Center",description:"Need assistance? Create a **private ticket** and our staff will help you.\n\n**Before opening a ticket**\n> 📝 Explain your issue clearly\n> 🔁 Please do not create duplicate tickets\n> 🕐 A staff member will respond as soon as possible\n\n*Your ticket will only be visible to you and the support team.*",color:0x7457ff,footer:{text:"Powered by BalticM.eu • PLAY TOGETHER"}};
  const payload={embeds:[embed],components:[{type:1,components:[{type:2,style:isReport?4:1,label:isReport?"Report a Player":"Open a Ticket",emoji:{name:isReport?"🚨":"🎫"},custom_id:`ticket_create:${guildId}:${typeKey}`}]}]};
  const pr=await fetch(`https://discord.com/api/v10/channels/${cfg.panelChannelId}/messages`,{method:"POST",headers:botHeaders(env,true),body:JSON.stringify(payload)}),data=await pr.json().catch(()=>({}));
  if(!pr.ok)return json({error:data.message||"Could not publish ticket panel",status:pr.status},502);
