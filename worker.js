@@ -51,10 +51,11 @@ async function health(req){
   {name:"Reaction Roles",url:"https://balticm.eu/reactions/",kind:"MODULE"},
   {name:"Music Bot",url:"https://balticm.eu/music/",kind:"MODULE"},
   {name:"Voice Create",url:"https://balticm.eu/voice/",kind:"MODULE"},
-  {name:"Bot Center",url:origin+"/api/status-public",kind:"CONTROL CENTER"}
+  {name:"Bot Center",url:origin+"/api/status-public",kind:"CONTROL CENTER",self:true}
  ];
  const services=await Promise.all(targets.map(async target=>{
   const started=Date.now();
+  if(target.self)return{...target,ok:true,status:200,responseMs:Date.now()-started,data:{ok:true,service:"BalticM Bot Center"}};
   try{
    const r=await fetch(target.url,{headers:{Accept:"application/json,text/plain,*/*","Cache-Control":"no-cache"}});
    const text=await r.text();let data;try{data=JSON.parse(text)}catch{data=text.slice(0,250)}
