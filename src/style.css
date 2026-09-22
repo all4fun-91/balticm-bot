@@ -585,3 +585,5 @@ input,select,textarea,button{font-size:11px}
 .ticketSetupActions button{min-height:38px;padding:0 14px!important;border-radius:9px!important}
 .ticketSetupActions button.primary{background:linear-gradient(135deg,#7658ff,#6548e8)!important;border-color:#846cff!important;color:#fff!important;box-shadow:0 8px 22px #6548e81f}
 .ticketSetupActions button.primary:hover:not(:disabled){filter:brightness(1.08)}
+
+.ticketActions button.danger{border-color:#ff526833;background:#ff52680c;color:#ff8494}.ticketActions button.danger:hover{border-color:#ff526866;background:#ff526817;color:#ff9aaa}
