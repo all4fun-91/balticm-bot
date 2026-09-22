@@ -554,11 +554,11 @@ async function sendModLog(env,guildId,entry){
   removed:{title:"✅ Moderation action removed",color:0x2ecc71,status:"Action cleared"}
  }[entry.action]||{title:"🛡️ Moderation action",color:0x7457ff,status:String(entry.action||"Updated")};
  const description=[
-  `🟣 **Member**\n<@${entry.memberId}>`,
-  `🔵 **Moderator**\n<@${entry.moderatorId}>`,
-  `🟢 **Status**\n${meta.status}`,
-  entry.durationMinutes?`🟠 **Duration**\n${entry.durationMinutes} minutes`:null,
-  `🟡 **Reason**\n${String(entry.reason||"No reason provided").slice(0,1000)}`
+  `**Member**\n<@${entry.memberId}>`,
+  `**Moderator**\n<@${entry.moderatorId}>`,
+  `**Status**\n${meta.status}`,
+  entry.durationMinutes?`**Duration**\n${entry.durationMinutes} minutes`:null,
+  `**Reason**\n${String(entry.reason||"No reason provided").slice(0,1000)}`
  ].filter(Boolean).join("\n\n");
  const payload={embeds:[{
   title:meta.title,
