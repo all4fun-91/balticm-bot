@@ -725,3 +725,16 @@ input,select,textarea,button{font-size:11px}
 .moderationPage .modActions .modMemberField{max-width:none}
 .moderationPage .modActions .modMemberTrigger{width:100%}
 @media(max-width:1100px){.moderationPage .modActions .createRoleForm{grid-template-columns:1fr 180px}.moderationPage .modActions .createRoleForm>label:nth-of-type(3){grid-column:1/-1}.moderationPage .modActions .createRoleForm>button{grid-column:1/-1}}
+
+
+/* Activity log event cards */
+.activityLogList{display:grid;gap:8px}
+.activityLogRow{min-height:76px;padding:12px 14px;border:1px solid #ffffff0d;border-radius:12px;background:linear-gradient(180deg,#090f1a,#070c16);display:grid;grid-template-columns:34px minmax(0,1fr) auto;align-items:center;gap:12px;transition:border-color .16s ease,transform .16s ease}
+.activityLogRow:hover{border-color:#795aff35;transform:translateY(-1px)}
+.activityLogMark{width:34px;height:34px;border:1px solid #795aff2c;border-radius:9px;background:#795aff0d;display:grid;place-items:center}.activityLogMark svg{width:16px;color:#957aff}
+.activityLogMain{min-width:0}.activityLogTitle{display:flex;align-items:center;gap:8px}.activityLogTitle>b{font-size:11px;color:#f2f5fb}
+.activityLogSource{padding:3px 6px;border:1px solid #795aff30;border-radius:5px;background:#795aff0b;color:#9c84f5;font-size:7px;font-weight:900;font-style:normal;letter-spacing:.5px}.activityLogSource.discord{border-color:#5c75ff35;background:#5c75ff0c;color:#8fa0ff}
+.activityLogFacts{margin-top:7px;display:flex;align-items:center;gap:20px;min-width:0}.activityLogFacts>span{min-width:0;display:flex;align-items:baseline;gap:6px}.activityLogFacts small{color:#59667e;font-size:7px;font-weight:900;letter-spacing:.7px}.activityLogFacts strong{max-width:360px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#aeb9cc;font-size:9px;font-weight:600}
+.activityLogRow>time{color:#647088;font-size:8px;white-space:nowrap}
+.activityLogRow.role-add .activityLogMark{border-color:#3fe39a2d;background:#3fe39a0b}.activityLogRow.role-add .activityLogMark svg{color:#54dfa1}.activityLogRow.role-remove .activityLogMark{border-color:#ffb84a2d;background:#ffb84a0b}.activityLogRow.role-remove .activityLogMark svg{color:#ffc05d}.activityLogRow.moderation-warn .activityLogMark,.activityLogRow.moderation-ban .activityLogMark,.activityLogRow.moderation-kick .activityLogMark,.activityLogRow.moderation-timeout .activityLogMark{border-color:#ffcc472d;background:#ffcc470b}.activityLogRow.moderation-warn .activityLogMark svg,.activityLogRow.moderation-ban .activityLogMark svg,.activityLogRow.moderation-kick .activityLogMark svg,.activityLogRow.moderation-timeout .activityLogMark svg{color:#ffd05c}
+@media(max-width:760px){.activityLogRow{grid-template-columns:34px 1fr}.activityLogRow>time{grid-column:2}.activityLogFacts{align-items:flex-start;flex-direction:column;gap:4px}}
