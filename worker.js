@@ -666,7 +666,14 @@ if(interaction?.type===3&&customId.startsWith("dm_unsubscribe:")){
   const guildId=customId.slice("dm_unsubscribe:".length),userId=String(interaction?.user?.id||interaction?.member?.user?.id||"");
   if(guildId&&userId){
    try{await ensureDmOptOutTable(env);await env.BALTICM_DB.prepare("INSERT OR REPLACE INTO dm_opt_outs (guild_id,user_id,opted_out_at) VALUES (?,?,?)").bind(guildId,userId,new Date().toISOString()).run()}catch(e){return json({type:4,data:{content:"Could not update your BalticM news preference. Please try again.",flags:64}})}
-   return json({type:7,data:{content:"✅ You are unsubscribed from BalticM news messages. Moderation and essential service messages may still be sent.",components:[]}});
+   return json({type:7,data:{content:"🔕 News messages are unsubscribed. Moderation and essential service messages may still be sent.",components:[{type:1,components:[{type:2,style:3,label:"Subscribe to news",custom_id:`dm_subscribe:${guildId}`}]}]}});
+  }
+ }
+ if(interaction?.type===3&&customId.startsWith("dm_subscribe:")){
+  const guildId=customId.slice("dm_subscribe:".length),userId=String(interaction?.user?.id||interaction?.member?.user?.id||"");
+  if(guildId&&userId){
+   try{await ensureDmOptOutTable(env);await env.BALTICM_DB.prepare("DELETE FROM dm_opt_outs WHERE guild_id=? AND user_id=?").bind(guildId,userId).run()}catch(e){return json({type:4,data:{content:"Could not update your news preference. Please try again.",flags:64}})}
+   return json({type:7,data:{content:"🔔 News messages are subscribed.",components:[{type:1,components:[{type:2,style:2,label:"Unsubscribe from news",custom_id:`dm_unsubscribe:${guildId}`}]}]}});
   }
  }
  const headers=new Headers(req.headers);headers.set("content-type","application/json");headers.delete("host");
