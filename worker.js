@@ -300,7 +300,7 @@ async function createTicketFromInteraction(env,interaction,guildId){
  const ch=await cr.json().catch(()=>({}));if(!cr.ok)return json({type:4,data:{content:"I could not create the ticket channel. Check my channel permissions.",flags:64}});
  const id=crypto.randomUUID(),createdAt=new Date().toISOString();
  await env.BALTICM_DB.prepare("INSERT INTO tickets (id,guild_id,channel_id,opener_id,opener_name,subject,status,created_at) VALUES (?,?,?,?,?,?,'open',?)").bind(id,guildId,ch.id,userId,username,"Support ticket",createdAt).run();
- const welcome={content:`<@${userId}> welcome! A staff member will be with you shortly.\nPlease describe what you need help with.`,components:[{type:1,components:[{type:2,style:4,label:"Close Ticket",emoji:{name:"🔒"},custom_id:`ticket_close:${id}`}]}],allowed_mentions:{users:[userId]}};
+ const welcome={content:`<@${userId}>`,embeds:[{title:"🎫 Support request opened",description:"Thanks for contacting our support team.\n\n**Tell us what you need help with**\n> 📝 Describe the issue in as much detail as possible\n> 🖼️ Add screenshots or other useful information if needed\n> 🕐 A staff member will reply as soon as possible\n\n*Please keep this channel open until your issue has been resolved.*",color:0x7457ff,footer:{text:"Support ticket • Private conversation"}}],components:[{type:1,components:[{type:2,style:4,label:"Close Ticket",emoji:{name:"🔒"},custom_id:`ticket_close:${id}`}]}],allowed_mentions:{users:[userId]}};
  await fetch(`https://discord.com/api/v10/channels/${ch.id}/messages`,{method:"POST",headers:botHeaders(env,true),body:JSON.stringify(welcome)}).catch(()=>null);
  return json({type:4,data:{content:`✅ Your ticket has been created: <#${ch.id}>`,flags:64}});
 }
