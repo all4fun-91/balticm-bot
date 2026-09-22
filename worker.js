@@ -520,8 +520,7 @@ async function archiveTicketMessages(env,guildId,ticketId,channelId){
  const messages=await fetchTicketChannelMessages(env,channelId);
  await env.BALTICM_DB.prepare("DELETE FROM ticket_messages WHERE ticket_id=? AND guild_id=?").bind(ticketId,guildId).run();
  for(const m of messages){
-  const content=[String(m.content||""),...(m.attachments||[]).map(a=>a.url),...(m.embeds||[]).map(e=>e.title||e.description||"").filter(Boolean)].filter(Boolean).join("
-").slice(0,8000);
+  const content=[String(m.content||""),...(m.attachments||[]).map(a=>a.url),...(m.embeds||[]).map(e=>e.title||e.description||"").filter(Boolean)].filter(Boolean).join("\\n").slice(0,8000);
   if(!content)continue;
   const authorName=m.member?.nick||m.author?.global_name||m.author?.username||m.author?.id||"Unknown";
   await env.BALTICM_DB.prepare("INSERT OR REPLACE INTO ticket_messages (id,ticket_id,guild_id,author_id,author_name,content,created_at) VALUES (?,?,?,?,?,?,?)").bind(String(m.id),ticketId,guildId,String(m.author?.id||""),String(authorName),content,String(m.timestamp||new Date().toISOString())).run();
