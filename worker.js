@@ -160,7 +160,7 @@ async function deleteReactionRolePanel(env,guildId,id){
  if(p.messageId&&p.channelId)await fetch(`https://discord.com/api/v10/channels/${p.channelId}/messages/${p.messageId}`,{method:"DELETE",headers:botHeaders(env)}).catch(()=>{});
  await env.BALTICM_DB.prepare("DELETE FROM reaction_role_links WHERE panel_id=? AND guild_id=?").bind(id,guildId).run();await env.BALTICM_DB.prepare("DELETE FROM reaction_role_panels WHERE id=? AND guild_id=?").bind(id,guildId).run();return json({ok:true});
 }
-async function normalizeReactionEmoji(raw){
+function normalizeReactionEmoji(raw){
  const s=String(raw||"").trim(),m=s.match(/^<a?:([A-Za-z0-9_]+):(\d{16,22})>$/);
  return m?{key:`${m[1]}:${m[2]}`,api:`${m[1]}:${m[2]}`}:{key:s,api:s};
 }
