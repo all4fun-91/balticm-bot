@@ -358,10 +358,18 @@ async function ticketAction(req,env,user,guildId,ticketId){
  const now=new Date().toISOString(),staffName=user.global_name||user.username||user.id;
  if(action==="assign"){
   await env.BALTICM_DB.prepare("UPDATE tickets SET assigned_id=?,assigned_name=? WHERE id=? AND guild_id=?").bind(user.id,staffName,ticketId,guildId).run();
+  if(row.channelId){
+   const assigned={embeds:[{title:"👤 Ticket assigned",description:`**${staffName}** has taken this support ticket.\n\n**Status:** 🟣 Assigned\nA staff member is now handling your request.`,color:0x7457ff,footer:{text:"Support ticket • Assigned"}}]};
+   await fetch(`https://discord.com/api/v10/channels/${row.channelId}/messages`,{method:"POST",headers:botHeaders(env,true),body:JSON.stringify(assigned)}).catch(()=>null);
+  }
   return json({ok:true,action,assignedId:user.id,assignedName:staffName});
  }
  if(action==="unassign"){
   await env.BALTICM_DB.prepare("UPDATE tickets SET assigned_id=NULL,assigned_name=NULL WHERE id=? AND guild_id=?").bind(ticketId,guildId).run();
+  if(row.channelId){
+   const unassigned={embeds:[{title:"↩️ Ticket unassigned",description:`**${staffName}** released this support ticket.\n\n**Status:** 🟡 Waiting\nThe ticket is available for another staff member.`,color:0xe2ad42,footer:{text:"Support ticket • Waiting"}}]};
+   await fetch(`https://discord.com/api/v10/channels/${row.channelId}/messages`,{method:"POST",headers:botHeaders(env,true),body:JSON.stringify(unassigned)}).catch(()=>null);
+  }
   return json({ok:true,action});
  }
  if(action==="close"){
