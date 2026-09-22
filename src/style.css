@@ -660,3 +660,13 @@ input,select,textarea,button{font-size:11px}
 .memberRolePicker:has(.memberRoleTrigger.open){z-index:70}
 .memberRoleMenu{top:auto;bottom:43px}
 .memberRow:first-child .memberRoleMenu,.memberRow:nth-child(2) .memberRoleMenu,.memberRow:nth-child(3) .memberRoleMenu{top:43px;bottom:auto}
+
+
+/* Member role manager: true overlay above the Control Center */
+.memberRoleBackdrop{position:fixed;inset:0;z-index:9998;background:rgba(2,6,14,.58);backdrop-filter:blur(2px)}
+.memberRoleMenu.memberRoleModal{position:fixed!important;z-index:9999!important;left:50%!important;right:auto!important;top:50%!important;bottom:auto!important;transform:translate(-50%,-50%);width:min(430px,calc(100vw - 32px));max-height:min(620px,calc(100vh - 48px));padding:14px;border:1px solid #795aff55;border-radius:14px;background:#090f1a;box-shadow:0 28px 90px #000d,0 0 0 1px #ffffff08}
+.memberRoleModal .memberRoleOptions{max-height:min(420px,calc(100vh - 220px))}
+.memberRoleModal .memberRoleMenuHead b{font-size:13px}
+.memberRoleModal .memberRoleMenuHead small{font-size:10px}
+.memberRoleModal .memberRoleSearch{height:38px}
+@media(max-width:760px){.memberRoleMenu.memberRoleModal{left:14px!important;right:14px!important;top:50%!important;bottom:auto!important;transform:translateY(-50%);width:auto;max-height:calc(100vh - 28px)}.memberRoleModal .memberRoleOptions{max-height:calc(100vh - 220px)}}
