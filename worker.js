@@ -370,6 +370,8 @@ async function ticketAction(req,env,user,guildId,ticketId){
   if(row.channelId){
    const safe=(`closed-${row.openerName||"ticket"}`).toLowerCase().replace(/[^a-z0-9-]/g,"-").replace(/-+/g,"-").slice(0,90);
    await fetch(`https://discord.com/api/v10/channels/${row.channelId}`,{method:"PATCH",headers:botHeaders(env,true),body:JSON.stringify({name:safe,permission_overwrites:[{id:guildId,type:0,deny:"1024",allow:"0"},{id:row.openerId,type:1,deny:"2048",allow:"66560"}]})}).catch(()=>null);
+   const closed={embeds:[{title:"🔒 Ticket closed",description:`This support ticket was closed by **${staffName}** from the Control Center.\n\nThe conversation has been archived and the transcript was saved.\n*Staff can reopen this ticket if more help is needed.*`,color:0xe34d59,footer:{text:"Support ticket • Closed"}}]};
+   await fetch(`https://discord.com/api/v10/channels/${row.channelId}/messages`,{method:"POST",headers:botHeaders(env,true),body:JSON.stringify(closed)}).catch(()=>null);
   }
   return json({ok:true,action,archived});
  }
