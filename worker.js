@@ -324,11 +324,32 @@ async function ticketsState(env,guildId){
   return json({tickets,stats});
  }catch(e){return json({error:String(e.message||e)},503)}
 }
+async function fetchTicketChannelMessages(env,channelId){
+ const all=[];let before="";
+ for(let page=0;page<10;page++){
+  const url=new URL(`https://discord.com/api/v10/channels/${channelId}/messages`);url.searchParams.set("limit","100");if(before)url.searchParams.set("before",before);
+  const r=await fetch(url,{headers:botHeaders(env)});if(!r.ok)break;
+  const batch=await r.json();if(!Array.isArray(batch)||!batch.length)break;
+  all.push(...batch);before=batch[batch.length-1].id;if(batch.length<100)break;
+ }
+ return all.reverse();
+}
+async function archiveTicketMessages(env,guildId,ticketId,channelId){
+ const messages=await fetchTicketChannelMessages(env,channelId);
+ await env.BALTICM_DB.prepare("DELETE FROM ticket_messages WHERE ticket_id=? AND guild_id=?").bind(ticketId,guildId).run();
+ for(const m of messages){
+  const content=[String(m.content||""),...(m.attachments||[]).map(a=>a.url),...(m.embeds||[]).map(e=>e.title||e.description||"").filter(Boolean)].filter(Boolean).join("\n").slice(0,8000);
+  if(!content)continue;
+  const authorName=m.member?.nick||m.author?.global_name||m.author?.username||m.author?.id||"Unknown";
+  await env.BALTICM_DB.prepare("INSERT OR REPLACE INTO ticket_messages (id,ticket_id,guild_id,author_id,author_name,content,created_at) VALUES (?,?,?,?,?,?,?)").bind(String(m.id),ticketId,guildId,String(m.author?.id||""),String(authorName),content,String(m.timestamp||new Date().toISOString())).run();
+ }
+ return messages.length;
+}
 async function ticketAction(req,env,user,guildId,ticketId){
  let body={};try{body=await req.json()}catch{}
  const action=String(body.action||"").toLowerCase();
  await ensureTicketTables(env);
- const row=await env.BALTICM_DB.prepare("SELECT id,channel_id AS channelId,opener_id AS openerId,opener_name AS openerName,subject,status,assigned_id AS assignedId,assigned_name AS assignedName,created_at AS createdAt FROM tickets WHERE id=? AND guild_id=?").bind(ticketId,guildId).first();
+ const row=await env.BALTICM_DB.prepare("SELECT id,channel_id AS channelId,opener_id AS openerId,opener_name AS openerName,subject,status,assigned_id AS assignedId,assigned_name AS assignedName,created_at AS createdAt,closed_at AS closedAt FROM tickets WHERE id=? AND guild_id=?").bind(ticketId,guildId).first();
  if(!row)return json({error:"Ticket not found"},404);
  const now=new Date().toISOString(),staffName=user.global_name||user.username||user.id;
  if(action==="assign"){
@@ -340,17 +361,37 @@ async function ticketAction(req,env,user,guildId,ticketId){
   return json({ok:true,action});
  }
  if(action==="close"){
+  let archived=0;if(row.channelId)archived=await archiveTicketMessages(env,guildId,ticketId,row.channelId).catch(()=>0);
   await env.BALTICM_DB.prepare("UPDATE tickets SET status='closed',closed_at=?,closed_by_id=?,closed_by_name=? WHERE id=? AND guild_id=?").bind(now,user.id,staffName,ticketId,guildId).run();
-  if(row.channelId)await fetch(`https://discord.com/api/v10/channels/${row.channelId}`,{method:"PATCH",headers:botHeaders(env,true),body:JSON.stringify({name:(`closed-${row.openerName||"ticket"}`).toLowerCase().replace(/[^a-z0-9-]/g,"-").slice(0,90)})}).catch(()=>null);
-  return json({ok:true,action});
+  if(row.channelId){
+   const safe=(`closed-${row.openerName||"ticket"}`).toLowerCase().replace(/[^a-z0-9-]/g,"-").replace(/-+/g,"-").slice(0,90);
+   await fetch(`https://discord.com/api/v10/channels/${row.channelId}`,{method:"PATCH",headers:botHeaders(env,true),body:JSON.stringify({name:safe,permission_overwrites:[{id:guildId,type:0,deny:"1024",allow:"0"},{id:row.openerId,type:1,deny:"2048",allow:"66560"}]})}).catch(()=>null);
+  }
+  return json({ok:true,action,archived});
  }
  if(action==="reopen"){
+  const cfg=await env.BALTICM_DB.prepare("SELECT staff_role_id AS staffRoleId FROM ticket_config WHERE guild_id=?").bind(guildId).first();
   await env.BALTICM_DB.prepare("UPDATE tickets SET status='open',closed_at=NULL,closed_by_id=NULL,closed_by_name=NULL WHERE id=? AND guild_id=?").bind(ticketId,guildId).run();
+  if(row.channelId){
+   const safe=(`ticket-${row.openerName||"member"}`).toLowerCase().replace(/[^a-z0-9-]/g,"-").replace(/-+/g,"-").slice(0,90),overwrites=[{id:guildId,type:0,deny:"1024",allow:"0"},{id:row.openerId,type:1,allow:"68608",deny:"0"}];
+   if(cfg?.staffRoleId)overwrites.push({id:cfg.staffRoleId,type:0,allow:"68608",deny:"0"});
+   await fetch(`https://discord.com/api/v10/channels/${row.channelId}`,{method:"PATCH",headers:botHeaders(env,true),body:JSON.stringify({name:safe,permission_overwrites:overwrites})}).catch(()=>null);
+  }
   return json({ok:true,action});
  }
  if(action==="transcript"){
+  if(row.status!=="closed"&&row.channelId)await archiveTicketMessages(env,guildId,ticketId,row.channelId).catch(()=>0);
   const messages=await env.BALTICM_DB.prepare("SELECT author_name AS authorName,content,created_at AS createdAt FROM ticket_messages WHERE ticket_id=? AND guild_id=? ORDER BY created_at ASC").bind(ticketId,guildId).all();
   return json({ticket:row,messages:messages.results||[]});
+ }
+ if(action==="delete"){
+  if(row.status!=="closed")return json({error:"Close the ticket before deleting its Discord channel"},400);
+  if(row.channelId){
+   const dr=await fetch(`https://discord.com/api/v10/channels/${row.channelId}`,{method:"DELETE",headers:botHeaders(env)});
+   if(!dr.ok&&dr.status!==404)return json({error:"Could not delete Discord ticket channel"},502);
+  }
+  await env.BALTICM_DB.prepare("UPDATE tickets SET channel_id='' WHERE id=? AND guild_id=?").bind(ticketId,guildId).run();
+  return json({ok:true,action});
  }
  return json({error:"Unknown ticket action"},400);
 }
