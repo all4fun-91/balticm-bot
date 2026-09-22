@@ -718,3 +718,10 @@ input,select,textarea,button{font-size:11px}
  .modMemberResults{display:block}
  .modMemberResults>button{display:flex;width:100%}
 }
+
+
+/* Keep moderation action row compact */
+.moderationPage .modActions .createRoleForm{grid-template-columns:minmax(260px,420px) minmax(150px,220px) minmax(320px,1fr) 130px;padding:16px 32px;column-gap:14px}
+.moderationPage .modActions .modMemberField{max-width:none}
+.moderationPage .modActions .modMemberTrigger{width:100%}
+@media(max-width:1100px){.moderationPage .modActions .createRoleForm{grid-template-columns:1fr 180px}.moderationPage .modActions .createRoleForm>label:nth-of-type(3){grid-column:1/-1}.moderationPage .modActions .createRoleForm>button{grid-column:1/-1}}
