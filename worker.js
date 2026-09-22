@@ -529,13 +529,9 @@ async function archiveTicketMessages(env,guildId,ticketId,channelId){
 }
 async function postTicketTranscript(env,guildId,ticketId,channelId){
  const rows=await env.BALTICM_DB.prepare("SELECT author_name AS authorName,content,created_at AS createdAt FROM ticket_messages WHERE ticket_id=? AND guild_id=? ORDER BY created_at ASC").bind(ticketId,guildId).all();
- const lines=[`Ticket transcript • ${ticketId}`,"",...(rows.results||[]).flatMap(m=>[`[${new Date(m.createdAt).toISOString()}] ${m.authorName}:`,String(m.content||"").replace(/\
-/g,"
-"),""])];
- const text=lines.join("
-"),form=new FormData();
- form.append("payload_json",JSON.stringify({content:"📄 **Ticket transcript**
-A copy of this conversation is attached below."}));
+ const lines=[`Ticket transcript • ${ticketId}`,"",...(rows.results||[]).flatMap(m=>[`[${new Date(m.createdAt).toISOString()}] ${m.authorName}:`,String(m.content||"").replace(/\\n/g,"\n"),""])];
+ const text=lines.join("\\n"),form=new FormData();
+ form.append("payload_json",JSON.stringify({content:"📄 **Ticket transcript**\\nA copy of this conversation is attached below."}));
  form.append("files[0]",new Blob([text],{type:"text/plain;charset=utf-8"}),`ticket-${ticketId}.txt`);
  const r=await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`,{method:"POST",headers:{Authorization:`Bot ${env.DISCORD_BOT_TOKEN}`},body:form});
  return r.ok;
