@@ -268,7 +268,7 @@ async function ticketConfigState(env,guildId){
 async function saveTicketConfig(req,env,guildId){
  let body;try{body=await req.json()}catch{return json({error:"Invalid JSON"},400)}
  const categoryId=String(body.categoryId||"").trim(),staffRoleId=String(body.staffRoleId||"").trim(),panelChannelId=String(body.panelChannelId||"").trim();
- for(const [label,id] of [["category",categoryId],["staff role",staffRoleId],["panel channel",panelChannelId]])if(id&&!/^\\d{16,22}$/.test(id))return json({error:`Invalid ${label}`},400);
+ for(const [label,id] of [["category",categoryId],["staff role",staffRoleId],["panel channel",panelChannelId]])if(id&&!/^\d{16,22}$/.test(id))return json({error:`Invalid ${label}`},400);
  await ensureTicketTables(env);
  await env.BALTICM_DB.prepare("INSERT INTO ticket_config (guild_id,category_id,staff_role_id,panel_channel_id,panel_message_id,updated_at) VALUES (?,?,?,?,NULL,?) ON CONFLICT(guild_id) DO UPDATE SET category_id=excluded.category_id,staff_role_id=excluded.staff_role_id,panel_channel_id=excluded.panel_channel_id,updated_at=excluded.updated_at").bind(guildId,categoryId||null,staffRoleId||null,panelChannelId||null,new Date().toISOString()).run();
  return ticketConfigState(env,guildId);
