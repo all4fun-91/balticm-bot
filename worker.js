@@ -90,16 +90,21 @@ async function discordMembers(env,guildId){
 async function sendDirectMessages(req,env,guildId){
  let body;try{body=await req.json()}catch{return json({error:"Invalid JSON"},400)}
  const memberIds=[...new Set((Array.isArray(body.memberIds)?body.memberIds:[]).map(x=>String(x||"").trim()).filter(x=>/^\d{16,22}$/.test(x)))];
- const message=String(body.message||"").trim().slice(0,1900);
+ const message=String(body.message||"").trim().slice(0,1900),embed=!!body.embed,bannerUrl=String(body.bannerUrl||"").trim().slice(0,1000);
  if(!memberIds.length)return json({error:"Select at least one member"},400);
  if(memberIds.length>100)return json({error:"Maximum 100 recipients per send"},400);
  if(!message)return json({error:"Message is required"},400);
+ if(bannerUrl&&!/^https:\/\//i.test(bannerUrl))return json({error:"Banner URL must use https://"},400);
  const results=[];
  for(const memberId of memberIds){
   const member=await fetch(`https://discord.com/api/v10/guilds/${guildId}/members/${memberId}`,{headers:botHeaders(env)}).then(async r=>r.ok?r.json():null).catch(()=>null);
   if(!member||member.user?.bot){results.push({memberId,ok:false,error:"Member unavailable"});continue}
   const name=member.nick||member.user?.global_name||member.user?.username||memberId;
-  const ok=await discordDm(env,memberId,`📨 **BalticM Message**\n${message}`).catch(()=>false);
+  let ok=false;
+  if(embed){
+   const cr=await fetch("https://discord.com/api/v10/users/@me/channels",{method:"POST",headers:botHeaders(env,true),body:JSON.stringify({recipient_id:memberId})});
+   if(cr.ok){const ch=await cr.json(),payload={embeds:[{description:message,color:0x7457ff,footer:{text:"BalticM.eu • PLAY TOGETHER"}}]};if(bannerUrl)payload.embeds[0].image={url:bannerUrl};const dr=await fetch(`https://discord.com/api/v10/channels/${ch.id}/messages`,{method:"POST",headers:botHeaders(env,true),body:JSON.stringify(payload)});ok=dr.ok}
+  }else ok=await discordDm(env,memberId,`📨 **BalticM Message**\n${message}`).catch(()=>false);
   results.push({memberId,name,ok,error:ok?null:"DM unavailable"});
   await new Promise(resolve=>setTimeout(resolve,175));
  }
