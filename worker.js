@@ -669,7 +669,7 @@ async function moderationState(env,guildId){
  }catch(e){return json({error:String(e.message||e)},503)}
 }
 const accessSettingsKey=guildId=>"access-settings:"+guildId;
-const ACCESS_KEYS=["general","notifications","modules","services","moderation","members","statistics","premium"];
+const ACCESS_KEYS=["dashboard","servers","premium","direct_messages","tickets","members_roles","moderation","reaction_roles","giveaways","announcements","voice_create","music_bot","bot_status","logs","settings"];
 async function accessSettingsState(env,guildId){
  if(!env.BALTICM_DB)throw new Error("BALTICM_DB binding is not configured");
  await env.BALTICM_DB.prepare("CREATE TABLE IF NOT EXISTS bot_config (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL)").run();
