@@ -185,8 +185,12 @@ function normalizeReactionEmoji(raw){
 async function publishReactionRolePanel(env,guildId,id){
  await ensureReactionRoleTables(env);const p=await env.BALTICM_DB.prepare("SELECT id,channel_id AS channelId,title,description,thumbnail_url AS thumbnailUrl,message_id AS messageId FROM reaction_role_panels WHERE id=? AND guild_id=?").bind(id,guildId).first();if(!p)return json({error:"Panel not found"},404);
  const lr=await env.BALTICM_DB.prepare("SELECT emoji,role_id AS roleId,label FROM reaction_role_links WHERE panel_id=? AND guild_id=?").bind(id,guildId).all(),links=lr.results||[];if(!links.length)return json({error:"Panel has no role mappings"},400);
- const description=[p.description,...links.map(x=>`${x.emoji} <@&${x.roleId}>${x.label?` — ${x.label}`:""}`)].filter(Boolean).join("\n");
- const cleanDescription=p.thumbnailUrl?description.replaceAll(p.thumbnailUrl,"").replace(/^\s+|\s+$/g,"").replace(/\n{3,}/g,"\n\n"):description;
+ const description=[p.description,...links.map(x=>`${x.emoji} <@&${x.roleId}>${x.label?` — ${x.label}`:""}`)].filter(Boolean).join("
+");
+ const cleanDescription=p.thumbnailUrl?description.replaceAll(p.thumbnailUrl,"").replace(/^\s+|\s+$/g,"").replace(/
+{3,}/g,"
+
+"):description;
  const embed={title:p.title,description:cleanDescription,color:0x7457ff};if(p.thumbnailUrl)embed.thumbnail={url:p.thumbnailUrl};const payload={embeds:[embed],allowed_mentions:{parse:[]}};
  let dr;if(p.messageId)dr=await fetch(`https://discord.com/api/v10/channels/${p.channelId}/messages/${p.messageId}`,{method:"PATCH",headers:botHeaders(env,true),body:JSON.stringify(payload)});else dr=await fetch(`https://discord.com/api/v10/channels/${p.channelId}/messages`,{method:"POST",headers:botHeaders(env,true),body:JSON.stringify(payload)});
  const data=await dr.json().catch(()=>({}));if(!dr.ok)return json({error:data.message||"Could not publish panel"},502);
@@ -224,12 +228,19 @@ async function giveawayState(env,guildId){await ensureGiveawayTables(env);const 
 function parseGiveaway(body){return{channelId:String(body.channelId||"").trim(),prize:String(body.prize||"").trim().slice(0,256),description:String(body.description||"").trim().slice(0,2000),logoUrl:String(body.logoUrl||"").trim().slice(0,1000),winnerCount:Math.max(1,Math.min(20,Number(body.winnerCount)||1)),endAt:String(body.endAt||"").trim(),requiredRoles:[...new Set((Array.isArray(body.requiredRoles)?body.requiredRoles:[]).map(String).filter(x=>/^\d{16,22}$/.test(x)))],excludedRoles:[...new Set((Array.isArray(body.excludedRoles)?body.excludedRoles:[]).map(String).filter(x=>/^\d{16,22}$/.test(x)))],requiredRolesMode:body.requiredRolesMode==="any"?"any":"all"}}
 async function validateGiveaway(env,guildId,a){if(!/^\d{16,22}$/.test(a.channelId))return"Select a Discord channel";if(!a.prize)return"Prize is required";const end=Date.parse(a.endAt);if(!Number.isFinite(end)||end<=Date.now())return"End time must be in the future";const [cr,rr]=await Promise.all([fetch("https://discord.com/api/v10/channels/"+a.channelId,{headers:botHeaders(env)}),fetch("https://discord.com/api/v10/guilds/"+guildId+"/roles",{headers:botHeaders(env)})]);if(!cr.ok)return"Could not access selected channel";const ch=await cr.json();if(String(ch.guild_id||"")!==String(guildId)||![0,5].includes(ch.type))return"Select a text channel from this server";const roles=rr.ok?await rr.json():[],ids=new Set(roles.map(x=>x.id));if([...a.requiredRoles,...a.excludedRoles].some(x=>!ids.has(x)))return"One or more selected roles are invalid";return""}
 async function saveGiveaway(req,env,guildId,id=""){let body;try{body=await req.json()}catch{return json({error:"Invalid JSON"},400)}const a=parseGiveaway(body),error=await validateGiveaway(env,guildId,a);if(error)return json({error},400);await ensureGiveawayTables(env);const now=new Date().toISOString();if(id){const old=await env.BALTICM_DB.prepare("SELECT id,status FROM giveaways WHERE id=? AND guild_id=?").bind(id,guildId).first();if(!old)return json({error:"Giveaway not found"},404);if(old.status==="ended")return json({error:"Finished giveaways cannot be edited"},400);await env.BALTICM_DB.prepare("UPDATE giveaways SET channel_id=?,prize=?,description=?,logo_url=?,winner_count=?,end_at=?,required_roles_json=?,excluded_roles_json=?,required_roles_mode=?,updated_at=? WHERE id=? AND guild_id=?").bind(a.channelId,a.prize,a.description,a.logoUrl,a.winnerCount,new Date(Date.parse(a.endAt)).toISOString(),JSON.stringify(a.requiredRoles),JSON.stringify(a.excludedRoles),a.requiredRolesMode,now,id,guildId).run();return json({ok:true,id})}id=crypto.randomUUID();await env.BALTICM_DB.prepare("INSERT INTO giveaways (id,guild_id,channel_id,prize,description,logo_url,winner_count,end_at,required_roles_json,excluded_roles_json,required_roles_mode,message_id,status,winner_ids_json,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,'','draft','[]',?,?)").bind(id,guildId,a.channelId,a.prize,a.description,a.logoUrl,a.winnerCount,new Date(Date.parse(a.endAt)).toISOString(),JSON.stringify(a.requiredRoles),JSON.stringify(a.excludedRoles),a.requiredRolesMode,now,now).run();return json({ok:true,id},201)}
-async function giveawayPayload(env,g){const er=await env.BALTICM_DB.prepare("SELECT COUNT(*) AS c FROM giveaway_entries WHERE giveaway_id=?").bind(g.id).first(),count=Number(er?.c||0),endUnix=Math.floor(Date.parse(g.endAt)/1000);return{embeds:[{title:"🎉 GIVEAWAY — "+g.prize,description:[g.description||"Enter for a chance to win!",`\n**Winners:** ${g.winnerCount}`,`**Ends:** <t:${endUnix}:F> • <t:${endUnix}:R>`,g.requiredRoles.length?"**Required roles ("+(g.requiredRolesMode==="any"?"ANY":"ALL")+"):** "+g.requiredRoles.map(x=>"<@&"+x+">").join(", "):"",g.excludedRoles.length?"**Excluded roles:** "+g.excludedRoles.map(x=>"<@&"+x+">").join(", "):"",`\n**Entries:** ${count}`].filter(Boolean).join("\n"),color:0x7457ff,...(g.logoUrl?{thumbnail:{url:g.logoUrl}}:{}),footer:{text:"BalticM.eu Giveaway"}}],components:g.status==="ended"?[]:[{type:1,components:[{type:2,style:3,label:"Enter Giveaway",emoji:{name:"🎉"},custom_id:"giveaway_enter:"+g.id}]}],allowed_mentions:{parse:[]}}}
+async function giveawayPayload(env,g){const er=await env.BALTICM_DB.prepare("SELECT COUNT(*) AS c FROM giveaway_entries WHERE giveaway_id=?").bind(g.id).first(),count=Number(er?.c||0),endUnix=Math.floor(Date.parse(g.endAt)/1000);return{embeds:[{title:"🎉 GIVEAWAY — "+g.prize,description:[g.description||"Enter for a chance to win!",`
+**Winners:** ${g.winnerCount}`,`**Ends:** <t:${endUnix}:F> • <t:${endUnix}:R>`,g.requiredRoles.length?"**Required roles ("+(g.requiredRolesMode==="any"?"ANY":"ALL")+"):** "+g.requiredRoles.map(x=>"<@&"+x+">").join(", "):"",g.excludedRoles.length?"**Excluded roles:** "+g.excludedRoles.map(x=>"<@&"+x+">").join(", "):"",`
+**Entries:** ${count}`].filter(Boolean).join("
+"),color:0x7457ff,...(g.logoUrl?{thumbnail:{url:g.logoUrl}}:{}),footer:{text:"BalticM.eu Giveaway"}}],components:g.status==="ended"?[]:[{type:1,components:[{type:2,style:3,label:"Enter Giveaway",emoji:{name:"🎉"},custom_id:"giveaway_enter:"+g.id}]}],allowed_mentions:{parse:[]}}}
 async function publishGiveaway(env,guildId,id){await ensureGiveawayTables(env);const row=await env.BALTICM_DB.prepare("SELECT id,channel_id AS channelId,prize,description,logo_url AS logoUrl,winner_count AS winnerCount,end_at AS endAt,required_roles_json AS requiredRolesJson,excluded_roles_json AS excludedRolesJson,required_roles_mode AS requiredRolesMode,message_id AS messageId,status FROM giveaways WHERE id=? AND guild_id=?").bind(id,guildId).first();if(!row)return json({error:"Giveaway not found"},404);const g=giveawayRow(row);if(g.status==="ended")return json({error:"Giveaway already ended"},400);const payload=await giveawayPayload(env,g);let r;if(g.messageId){r=await fetch("https://discord.com/api/v10/channels/"+g.channelId+"/messages/"+g.messageId,{method:"PATCH",headers:botHeaders(env,true),body:JSON.stringify(payload)});if(r.status===404)r=await fetch("https://discord.com/api/v10/channels/"+g.channelId+"/messages",{method:"POST",headers:botHeaders(env,true),body:JSON.stringify(payload)})}else r=await fetch("https://discord.com/api/v10/channels/"+g.channelId+"/messages",{method:"POST",headers:botHeaders(env,true),body:JSON.stringify(payload)});const d=await r.json().catch(()=>({}));if(!r.ok)return json({error:d.message||"Could not publish giveaway"},502);await env.BALTICM_DB.prepare("UPDATE giveaways SET message_id=?,status='active',updated_at=? WHERE id=? AND guild_id=?").bind(d.id,new Date().toISOString(),id,guildId).run();return json({ok:true,messageId:d.id})}
 async function giveawayEligible(env,g,userId,roles){if(g.requiredRoles.length){const ok=g.requiredRolesMode==="any"?g.requiredRoles.some(x=>roles.includes(x)):g.requiredRoles.every(x=>roles.includes(x));if(!ok)return g.requiredRolesMode==="any"?"You need at least one required role.":"Missing a required role.";}if(g.excludedRoles.some(x=>roles.includes(x)))return"You have an excluded role.";return""}
 async function giveawayEnterInteraction(env,interaction,id,ctx){await ensureGiveawayTables(env);const guildId=String(interaction.guild_id||""),userId=String(interaction.member?.user?.id||interaction.user?.id||"");const row=await env.BALTICM_DB.prepare("SELECT id,channel_id AS channelId,prize,description,logo_url AS logoUrl,winner_count AS winnerCount,end_at AS endAt,required_roles_json AS requiredRolesJson,excluded_roles_json AS excludedRolesJson,required_roles_mode AS requiredRolesMode,message_id AS messageId,status FROM giveaways WHERE id=? AND guild_id=?").bind(id,guildId).first();if(!row)return json({type:4,data:{content:"This giveaway no longer exists.",flags:64}});const g=giveawayRow(row);if(g.status!=="active"||Date.parse(g.endAt)<=Date.now())return json({type:4,data:{content:"This giveaway has ended.",flags:64}});if(interaction.member?.user?.bot)return json({type:4,data:{content:"Bots cannot enter giveaways.",flags:64}});const bad=await giveawayEligible(env,g,userId,interaction.member?.roles||[]);if(bad)return json({type:4,data:{content:bad,flags:64}});const existing=await env.BALTICM_DB.prepare("SELECT user_id FROM giveaway_entries WHERE giveaway_id=? AND user_id=?").bind(id,userId).first();if(existing)return json({type:4,data:{content:"🎟️ You're already entered in this giveaway.",flags:64}});await env.BALTICM_DB.prepare("INSERT INTO giveaway_entries (giveaway_id,guild_id,user_id,entered_at) VALUES (?,?,?,?)").bind(id,guildId,userId,new Date().toISOString()).run();const payload=await giveawayPayload(env,g),token=String(interaction.token||""),messageId=String(interaction.message?.id||g.messageId||"");if(token&&messageId){const update=fetch("https://discord.com/api/v10/webhooks/"+interaction.application_id+"/"+token+"/messages/"+messageId,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)}).catch(()=>null);if(ctx?.waitUntil)ctx.waitUntil(update)}return json({type:4,data:{content:"🎉 You're entered! Good luck.",flags:64}})}
 function securePick(ids,n){const a=[...ids];for(let i=a.length-1;i>0;i--){const b=new Uint32Array(1);crypto.getRandomValues(b);const j=b[0]%(i+1);[a[i],a[j]]=[a[j],a[i]]}return a.slice(0,Math.min(n,a.length))}
-async function endGiveaway(env,guildId,id,reroll=false){await ensureGiveawayTables(env);const row=await env.BALTICM_DB.prepare("SELECT id,channel_id AS channelId,prize,description,logo_url AS logoUrl,winner_count AS winnerCount,end_at AS endAt,required_roles_json AS requiredRolesJson,excluded_roles_json AS excludedRolesJson,required_roles_mode AS requiredRolesMode,message_id AS messageId,status FROM giveaways WHERE id=? AND guild_id=?").bind(id,guildId).first();if(!row)return json({error:"Giveaway not found"},404);const g=giveawayRow(row);if(reroll&&g.status!=="ended")return json({error:"Only finished giveaways can be rerolled"},400);if(!reroll&&g.status==="ended")return json({error:"Giveaway already ended"},400);const er=await env.BALTICM_DB.prepare("SELECT user_id AS userId FROM giveaway_entries WHERE giveaway_id=?").bind(id).all(),winners=securePick((er.results||[]).map(x=>x.userId),g.winnerCount),now=new Date().toISOString();await env.BALTICM_DB.prepare("UPDATE giveaways SET status='ended',winner_ids_json=?,ended_at=?,updated_at=? WHERE id=? AND guild_id=?").bind(JSON.stringify(winners),now,now,id,guildId).run();if(g.messageId){const ended={...g,status:"ended"},payload=await giveawayPayload(env,ended);await fetch("https://discord.com/api/v10/channels/"+g.channelId+"/messages/"+g.messageId,{method:"PATCH",headers:botHeaders(env,true),body:JSON.stringify(payload)}).catch(()=>null);const resultEmbed=winners.length?{title:"🎉 Giveaway Winner"+(winners.length>1?"s":""),description:"Congratulations "+winners.map(x=>"<@"+x+">").join(", ")+"!\n\n🏆 **Prize:** "+g.prize,color:0x7457ff,...(g.logoUrl?{thumbnail:{url:g.logoUrl}}:{}),footer:{text:"BalticM.eu Giveaway"}}:{title:"🎉 Giveaway Ended",description:"**"+g.prize+"** ended with no eligible entries.",color:0x7457ff,...(g.logoUrl?{thumbnail:{url:g.logoUrl}}:{}),footer:{text:"BalticM.eu Giveaway"}};await fetch("https://discord.com/api/v10/channels/"+g.channelId+"/messages",{method:"POST",headers:botHeaders(env,true),body:JSON.stringify({embeds:[resultEmbed],allowed_mentions:{users:winners}})}).catch(()=>null);for(const userId of winners){try{const dm=await fetch("https://discord.com/api/v10/users/@me/channels",{method:"POST",headers:botHeaders(env,true),body:JSON.stringify({recipient_id:userId})});if(!dm.ok)continue;const d=await dm.json();await fetch("https://discord.com/api/v10/channels/"+d.id+"/messages",{method:"POST",headers:botHeaders(env,true),body:JSON.stringify({embeds:[{title:"🎉 You won a giveaway!",description:"Congratulations! You won **"+g.prize+"**.\n\nPlease contact the server staff to receive your prize.",color:0x7457ff,...(g.logoUrl?{thumbnail:{url:g.logoUrl}}:{}),footer:{text:"BalticM.eu Giveaway"}}]})})}catch{}}}return json({ok:true,winnerIds:winners})}
+async function endGiveaway(env,guildId,id,reroll=false){await ensureGiveawayTables(env);const row=await env.BALTICM_DB.prepare("SELECT id,channel_id AS channelId,prize,description,logo_url AS logoUrl,winner_count AS winnerCount,end_at AS endAt,required_roles_json AS requiredRolesJson,excluded_roles_json AS excludedRolesJson,required_roles_mode AS requiredRolesMode,message_id AS messageId,status FROM giveaways WHERE id=? AND guild_id=?").bind(id,guildId).first();if(!row)return json({error:"Giveaway not found"},404);const g=giveawayRow(row);if(reroll&&g.status!=="ended")return json({error:"Only finished giveaways can be rerolled"},400);if(!reroll&&g.status==="ended")return json({error:"Giveaway already ended"},400);const er=await env.BALTICM_DB.prepare("SELECT user_id AS userId FROM giveaway_entries WHERE giveaway_id=?").bind(id).all(),winners=securePick((er.results||[]).map(x=>x.userId),g.winnerCount),now=new Date().toISOString();await env.BALTICM_DB.prepare("UPDATE giveaways SET status='ended',winner_ids_json=?,ended_at=?,updated_at=? WHERE id=? AND guild_id=?").bind(JSON.stringify(winners),now,now,id,guildId).run();if(g.messageId){const ended={...g,status:"ended"},payload=await giveawayPayload(env,ended);await fetch("https://discord.com/api/v10/channels/"+g.channelId+"/messages/"+g.messageId,{method:"PATCH",headers:botHeaders(env,true),body:JSON.stringify(payload)}).catch(()=>null);const resultEmbed=winners.length?{title:"🎉 Giveaway Winner"+(winners.length>1?"s":""),description:"Congratulations "+winners.map(x=>"<@"+x+">").join(", ")+"!
+
+🏆 **Prize:** "+g.prize,color:0x7457ff,...(g.logoUrl?{thumbnail:{url:g.logoUrl}}:{}),footer:{text:"BalticM.eu Giveaway"}}:{title:"🎉 Giveaway Ended",description:"**"+g.prize+"** ended with no eligible entries.",color:0x7457ff,...(g.logoUrl?{thumbnail:{url:g.logoUrl}}:{}),footer:{text:"BalticM.eu Giveaway"}};await fetch("https://discord.com/api/v10/channels/"+g.channelId+"/messages",{method:"POST",headers:botHeaders(env,true),body:JSON.stringify({embeds:[resultEmbed],allowed_mentions:{users:winners}})}).catch(()=>null);for(const userId of winners){try{const dm=await fetch("https://discord.com/api/v10/users/@me/channels",{method:"POST",headers:botHeaders(env,true),body:JSON.stringify({recipient_id:userId})});if(!dm.ok)continue;const d=await dm.json();await fetch("https://discord.com/api/v10/channels/"+d.id+"/messages",{method:"POST",headers:botHeaders(env,true),body:JSON.stringify({embeds:[{title:"🎉 You won a giveaway!",description:"Congratulations! You won **"+g.prize+"**.
+
+Please contact the server staff to receive your prize.",color:0x7457ff,...(g.logoUrl?{thumbnail:{url:g.logoUrl}}:{}),footer:{text:"BalticM.eu Giveaway"}}]})})}catch{}}}return json({ok:true,winnerIds:winners})}
 async function finishDueGiveaways(env){await ensureGiveawayTables(env);const now=new Date().toISOString(),r=await env.BALTICM_DB.prepare("SELECT id,guild_id AS guildId FROM giveaways WHERE status='active' AND end_at<=? LIMIT 50").bind(now).all();for(const g of r.results||[]){try{await endGiveaway(env,g.guildId,g.id,false)}catch{}}}
 async function deleteGiveaway(env,guildId,id){await ensureGiveawayTables(env);const g=await env.BALTICM_DB.prepare("SELECT channel_id AS channelId,message_id AS messageId FROM giveaways WHERE id=? AND guild_id=?").bind(id,guildId).first();if(!g)return json({error:"Giveaway not found"},404);if(g.messageId)await fetch("https://discord.com/api/v10/channels/"+g.channelId+"/messages/"+g.messageId,{method:"DELETE",headers:botHeaders(env)}).catch(()=>null);await env.BALTICM_DB.prepare("DELETE FROM giveaway_entries WHERE giveaway_id=? AND guild_id=?").bind(id,guildId).run();await env.BALTICM_DB.prepare("DELETE FROM giveaways WHERE id=? AND guild_id=?").bind(id,guildId).run();return json({ok:true})}
 
@@ -251,7 +262,8 @@ async function createDiscordRole(req,env,guildId){
  if(/^#[0-9a-fA-F]{6}$/.test(body.color||""))payload.color=parseInt(body.color.slice(1),16);
  const r=await fetch(`https://discord.com/api/v10/guilds/${guildId}/roles`,{method:"POST",headers:botHeaders(env,true),body:JSON.stringify(payload)});
  const data=await r.json().catch(()=>({}));if(!r.ok)return json({error:data.message||"Role creation failed",status:r.status},r.status===403?403:502);
- await addActivityLog(env,guildId,{action:"Role created",target:data.name||name,source:"BALTICM"});\n return json({role:data},201);
+ await addActivityLog(env,guildId,{action:"Role created",target:data.name||name,source:"BALTICM"});
+ return json({role:data},201);
 }
 async function changeMemberRole(req,env,guildId,memberId,roleId,remove=false){
  if(!memberId||!roleId)return json({error:"memberId and roleId are required"},400);
@@ -425,7 +437,22 @@ async function publishTicketTypePanel(env,guildId,typeKey){
  if(!cfg?.panelChannelId)return json({error:"Select a panel channel first"},400);
  const gr=await fetch(`https://discord.com/api/v10/guilds/${guildId}`,{headers:botHeaders(env)}),guild=gr.ok?await gr.json():null;
  const isReport=typeKey==="report";
- const embed=isReport?{author:{name:guild?.name||"Report Center",icon_url:guild?.icon?`https://cdn.discordapp.com/icons/${guildId}/${guild.icon}.png`:undefined},title:"🚨 Report a Player",description:"Report a player privately to the server staff.\n\n**Please include**\n> 👤 Player name / ID\n> 📋 What happened and when\n> 🖼️ Screenshots, video or other evidence\n> 🎮 Relevant server / game information\n\n*Reports are private and only visible to you and the staff team.*",color:0xe34d59,footer:{text:"Powered by BalticM.eu • PLAY TOGETHER"}}:{author:{name:guild?.name||"Support Center",icon_url:guild?.icon?`https://cdn.discordapp.com/icons/${guildId}/${guild.icon}.png`:undefined},title:"Support Center",description:"Need assistance? Create a **private ticket** and our staff will help you.\n\n**Before opening a ticket**\n> 📝 Explain your issue clearly\n> 🔁 Please do not create duplicate tickets\n> 🕐 A staff member will respond as soon as possible\n\n*Your ticket will only be visible to you and the support team.*",color:0x7457ff,footer:{text:"Powered by BalticM.eu • PLAY TOGETHER"}};
+ const embed=isReport?{author:{name:guild?.name||"Report Center",icon_url:guild?.icon?`https://cdn.discordapp.com/icons/${guildId}/${guild.icon}.png`:undefined},title:"🚨 Report a Player",description:"Report a player privately to the server staff.
+
+**Please include**
+> 👤 Player name / ID
+> 📋 What happened and when
+> 🖼️ Screenshots, video or other evidence
+> 🎮 Relevant server / game information
+
+*Reports are private and only visible to you and the staff team.*",color:0xe34d59,footer:{text:"Powered by BalticM.eu • PLAY TOGETHER"}}:{author:{name:guild?.name||"Support Center",icon_url:guild?.icon?`https://cdn.discordapp.com/icons/${guildId}/${guild.icon}.png`:undefined},title:"Support Center",description:"Need assistance? Create a **private ticket** and our staff will help you.
+
+**Before opening a ticket**
+> 📝 Explain your issue clearly
+> 🔁 Please do not create duplicate tickets
+> 🕐 A staff member will respond as soon as possible
+
+*Your ticket will only be visible to you and the support team.*",color:0x7457ff,footer:{text:"Powered by BalticM.eu • PLAY TOGETHER"}};
  const payload={embeds:[embed],components:[{type:1,components:[{type:2,style:isReport?4:1,label:isReport?"Report a Player":"Open a Ticket",emoji:{name:isReport?"🚨":"🎫"},custom_id:`ticket_create:${guildId}:${typeKey}`}]}]};
  const pr=await fetch(`https://discord.com/api/v10/channels/${cfg.panelChannelId}/messages`,{method:"POST",headers:botHeaders(env,true),body:JSON.stringify(payload)}),data=await pr.json().catch(()=>({}));
  if(!pr.ok)return json({error:data.message||"Could not publish ticket panel",status:pr.status},502);
@@ -450,7 +477,14 @@ async function publishTicketPanel(env,guildId){
  const cfg=await env.BALTICM_DB.prepare("SELECT panel_channel_id AS panelChannelId FROM ticket_config WHERE guild_id=?").bind(guildId).first();
  if(!cfg?.panelChannelId)return json({error:"Select a panel channel first"},400);
  const gr=await fetch(`https://discord.com/api/v10/guilds/${guildId}`,{headers:botHeaders(env)}),guild=gr.ok?await gr.json():null;
- const payload={embeds:[{author:{name:guild?.name||"Support Center",icon_url:guild?.icon?`https://cdn.discordapp.com/icons/${guildId}/${guild.icon}.png`:undefined},title:"Support Center",description:"Need assistance? Create a **private ticket** and our staff will help you.\n\n**Before opening a ticket**\n> 📝 Explain your issue clearly\n> 🔁 Please do not create duplicate tickets\n> 🕐 A staff member will respond as soon as possible\n\n*Your ticket will only be visible to you and the support team.*",color:0x7457ff,footer:{text:"Powered by BalticM.eu • PLAY TOGETHER"}}],components:[{type:1,components:[{type:2,style:1,label:"Open a Ticket",emoji:{name:"🎫"},custom_id:`ticket_create:${guildId}`}]}]};
+ const payload={embeds:[{author:{name:guild?.name||"Support Center",icon_url:guild?.icon?`https://cdn.discordapp.com/icons/${guildId}/${guild.icon}.png`:undefined},title:"Support Center",description:"Need assistance? Create a **private ticket** and our staff will help you.
+
+**Before opening a ticket**
+> 📝 Explain your issue clearly
+> 🔁 Please do not create duplicate tickets
+> 🕐 A staff member will respond as soon as possible
+
+*Your ticket will only be visible to you and the support team.*",color:0x7457ff,footer:{text:"Powered by BalticM.eu • PLAY TOGETHER"}}],components:[{type:1,components:[{type:2,style:1,label:"Open a Ticket",emoji:{name:"🎫"},custom_id:`ticket_create:${guildId}`}]}]};
  const pr=await fetch(`https://discord.com/api/v10/channels/${cfg.panelChannelId}/messages`,{method:"POST",headers:botHeaders(env,true),body:JSON.stringify(payload)});
  const data=await pr.json().catch(()=>({}));if(!pr.ok)return json({error:data.message||"Could not publish ticket panel",status:pr.status},502);
  await env.BALTICM_DB.prepare("UPDATE ticket_config SET panel_message_id=?,updated_at=? WHERE guild_id=?").bind(data.id,new Date().toISOString(),guildId).run();
@@ -473,7 +507,22 @@ async function createTicketFromInteraction(env,interaction,guildId,typeKey="supp
  const ch=await cr.json().catch(()=>({}));if(!cr.ok)return json({type:4,data:{content:"I could not create the ticket channel. Check my channel permissions.",flags:64}});
  const id=crypto.randomUUID(),createdAt=new Date().toISOString();
  await env.BALTICM_DB.prepare("INSERT INTO tickets (id,guild_id,channel_id,opener_id,opener_name,subject,status,created_at) VALUES (?,?,?,?,?,?,'open',?)").bind(id,guildId,ch.id,userId,username,subject,createdAt).run();
- const welcome=typeKey==="report"?{content:`<@${userId}>`,embeds:[{title:"🚨 Player report opened",description:"Thanks. Your report is private and has been sent to the staff team.\n\n**Please provide the following**\n> 👤 Player name / ID\n> 🎮 Server or game\n> 📝 What happened and when\n> 🖼️ Screenshots, clips or other evidence\n\n*Do not contact or provoke the reported player while staff reviews the report.*",color:0xe34d59,footer:{text:"Player report • Private conversation"}}],components:[{type:1,components:[{type:2,style:4,label:"Close Report",emoji:{name:"🔒"},custom_id:`ticket_close:${id}`}]}],allowed_mentions:{users:[userId]}}:{content:`<@${userId}>`,embeds:[{title:"🎫 Support request opened",description:"Thanks for contacting our support team.\n\n**Tell us what you need help with**\n> 📝 Describe the issue in as much detail as possible\n> 🖼️ Add screenshots or other useful information if needed\n> 🕐 A staff member will reply as soon as possible\n\n*Please keep this channel open until your issue has been resolved.*",color:0x7457ff,footer:{text:"Support ticket • Private conversation"}}],components:[{type:1,components:[{type:2,style:4,label:"Close Ticket",emoji:{name:"🔒"},custom_id:`ticket_close:${id}`}]}],allowed_mentions:{users:[userId]}};
+ const welcome=typeKey==="report"?{content:`<@${userId}>`,embeds:[{title:"🚨 Player report opened",description:"Thanks. Your report is private and has been sent to the staff team.
+
+**Please provide the following**
+> 👤 Player name / ID
+> 🎮 Server or game
+> 📝 What happened and when
+> 🖼️ Screenshots, clips or other evidence
+
+*Do not contact or provoke the reported player while staff reviews the report.*",color:0xe34d59,footer:{text:"Player report • Private conversation"}}],components:[{type:1,components:[{type:2,style:4,label:"Close Report",emoji:{name:"🔒"},custom_id:`ticket_close:${id}`}]}],allowed_mentions:{users:[userId]}}:{content:`<@${userId}>`,embeds:[{title:"🎫 Support request opened",description:"Thanks for contacting our support team.
+
+**Tell us what you need help with**
+> 📝 Describe the issue in as much detail as possible
+> 🖼️ Add screenshots or other useful information if needed
+> 🕐 A staff member will reply as soon as possible
+
+*Please keep this channel open until your issue has been resolved.*",color:0x7457ff,footer:{text:"Support ticket • Private conversation"}}],components:[{type:1,components:[{type:2,style:4,label:"Close Ticket",emoji:{name:"🔒"},custom_id:`ticket_close:${id}`}]}],allowed_mentions:{users:[userId]}};
  await fetch(`https://discord.com/api/v10/channels/${ch.id}/messages`,{method:"POST",headers:botHeaders(env,true),body:JSON.stringify(welcome)}).catch(()=>null);
  return json({type:4,data:{content:`✅ Your ticket has been created: <#${ch.id}>`,flags:64}});
 }
@@ -491,7 +540,8 @@ async function closeTicketFromInteraction(env,interaction,ticketId){
   await fetch(`https://discord.com/api/v10/channels/${row.channelId}`,{method:"PATCH",headers:botHeaders(env,true),body:JSON.stringify({name:safe,permission_overwrites:[{id:guildId,type:0,deny:"1024",allow:"0"},{id:row.openerId,type:1,deny:"2048",allow:"66560"}]})}).catch(()=>null);
   await postTicketTranscript(env,guildId,ticketId,row.channelId).catch(()=>false);
  }
- return json({type:7,data:{content:`🔒 Ticket closed by <@${user?.id}>. Transcript saved and attached below.\nStaff can reopen or delete the channel from the Control Center.`,components:[],allowed_mentions:{parse:[]} }});
+ return json({type:7,data:{content:`🔒 Ticket closed by <@${user?.id}>. Transcript saved and attached below.
+Staff can reopen or delete the channel from the Control Center.`,components:[],allowed_mentions:{parse:[]} }});
 }
 async function ticketsState(env,guildId){
  try{
@@ -516,7 +566,8 @@ async function archiveTicketMessages(env,guildId,ticketId,channelId){
  const messages=await fetchTicketChannelMessages(env,channelId);
  await env.BALTICM_DB.prepare("DELETE FROM ticket_messages WHERE ticket_id=? AND guild_id=?").bind(ticketId,guildId).run();
  for(const m of messages){
-  const content=[String(m.content||""),...(m.attachments||[]).map(a=>a.url),...(m.embeds||[]).map(e=>e.title||e.description||"").filter(Boolean)].filter(Boolean).join("\n").slice(0,8000);
+  const content=[String(m.content||""),...(m.attachments||[]).map(a=>a.url),...(m.embeds||[]).map(e=>e.title||e.description||"").filter(Boolean)].filter(Boolean).join("
+").slice(0,8000);
   if(!content)continue;
   const authorName=m.member?.nick||m.author?.global_name||m.author?.username||m.author?.id||"Unknown";
   await env.BALTICM_DB.prepare("INSERT OR REPLACE INTO ticket_messages (id,ticket_id,guild_id,author_id,author_name,content,created_at) VALUES (?,?,?,?,?,?,?)").bind(String(m.id),ticketId,guildId,String(m.author?.id||""),String(authorName),content,String(m.timestamp||new Date().toISOString())).run();
@@ -525,9 +576,13 @@ async function archiveTicketMessages(env,guildId,ticketId,channelId){
 }
 async function postTicketTranscript(env,guildId,ticketId,channelId){
  const rows=await env.BALTICM_DB.prepare("SELECT author_name AS authorName,content,created_at AS createdAt FROM ticket_messages WHERE ticket_id=? AND guild_id=? ORDER BY created_at ASC").bind(ticketId,guildId).all();
- const lines=[`Ticket transcript • ${ticketId}`,"",...(rows.results||[]).flatMap(m=>[`[${new Date(m.createdAt).toISOString()}] ${m.authorName}:`,String(m.content||"").replace(/\\n/g,"\n"),""])];
- const text=lines.join("\n"),form=new FormData();
- form.append("payload_json",JSON.stringify({content:"📄 **Ticket transcript**\nA copy of this conversation is attached below."}));
+ const lines=[`Ticket transcript • ${ticketId}`,"",...(rows.results||[]).flatMap(m=>[`[${new Date(m.createdAt).toISOString()}] ${m.authorName}:`,String(m.content||"").replace(/\
+/g,"
+"),""])];
+ const text=lines.join("
+"),form=new FormData();
+ form.append("payload_json",JSON.stringify({content:"📄 **Ticket transcript**
+A copy of this conversation is attached below."}));
  form.append("files[0]",new Blob([text],{type:"text/plain;charset=utf-8"}),`ticket-${ticketId}.txt`);
  const r=await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`,{method:"POST",headers:{Authorization:`Bot ${env.DISCORD_BOT_TOKEN}`},body:form});
  return r.ok;
@@ -542,7 +597,10 @@ async function ticketAction(req,env,user,guildId,ticketId){
  if(action==="assign"){
   await env.BALTICM_DB.prepare("UPDATE tickets SET assigned_id=?,assigned_name=? WHERE id=? AND guild_id=?").bind(user.id,staffName,ticketId,guildId).run();
   if(row.channelId){
-   const assigned={embeds:[{title:"👤 Ticket assigned",description:`**${staffName}** has taken this support ticket.\n\n**Status:** 🟣 Assigned\nA staff member is now handling your request.`,color:0x7457ff,footer:{text:"Support ticket • Assigned"}}]};
+   const assigned={embeds:[{title:"👤 Ticket assigned",description:`**${staffName}** has taken this support ticket.
+
+**Status:** 🟣 Assigned
+A staff member is now handling your request.`,color:0x7457ff,footer:{text:"Support ticket • Assigned"}}]};
    await fetch(`https://discord.com/api/v10/channels/${row.channelId}/messages`,{method:"POST",headers:botHeaders(env,true),body:JSON.stringify(assigned)}).catch(()=>null);
   }
   return json({ok:true,action,assignedId:user.id,assignedName:staffName});
@@ -550,7 +608,10 @@ async function ticketAction(req,env,user,guildId,ticketId){
  if(action==="unassign"){
   await env.BALTICM_DB.prepare("UPDATE tickets SET assigned_id=NULL,assigned_name=NULL WHERE id=? AND guild_id=?").bind(ticketId,guildId).run();
   if(row.channelId){
-   const unassigned={embeds:[{title:"↩️ Ticket unassigned",description:`**${staffName}** released this support ticket.\n\n**Status:** 🟡 Waiting\nThe ticket is available for another staff member.`,color:0xe2ad42,footer:{text:"Support ticket • Waiting"}}]};
+   const unassigned={embeds:[{title:"↩️ Ticket unassigned",description:`**${staffName}** released this support ticket.
+
+**Status:** 🟡 Waiting
+The ticket is available for another staff member.`,color:0xe2ad42,footer:{text:"Support ticket • Waiting"}}]};
    await fetch(`https://discord.com/api/v10/channels/${row.channelId}/messages`,{method:"POST",headers:botHeaders(env,true),body:JSON.stringify(unassigned)}).catch(()=>null);
   }
   return json({ok:true,action});
@@ -561,7 +622,12 @@ async function ticketAction(req,env,user,guildId,ticketId){
   if(row.channelId){
    const safe=(`closed-${row.openerName||"ticket"}`).toLowerCase().replace(/[^a-z0-9-]/g,"-").replace(/-+/g,"-").slice(0,90);
    await fetch(`https://discord.com/api/v10/channels/${row.channelId}`,{method:"PATCH",headers:botHeaders(env,true),body:JSON.stringify({name:safe,permission_overwrites:[{id:guildId,type:0,deny:"1024",allow:"0"},{id:row.openerId,type:1,deny:"2048",allow:"66560"}]})}).catch(()=>null);
-   const closed={embeds:[{title:"🔒 Ticket closed",description:`Closed by **${staffName}**\n\n**Status:** 🔴 Closed\n📄 Transcript saved\n\n*Staff can reopen this ticket if further assistance is needed.*`,color:0xe34d59,footer:{text:"Support ticket • Closed"}}]};
+   const closed={embeds:[{title:"🔒 Ticket closed",description:`Closed by **${staffName}**
+
+**Status:** 🔴 Closed
+📄 Transcript saved
+
+*Staff can reopen this ticket if further assistance is needed.*`,color:0xe34d59,footer:{text:"Support ticket • Closed"}}]};
    await fetch(`https://discord.com/api/v10/channels/${row.channelId}/messages`,{method:"POST",headers:botHeaders(env,true),body:JSON.stringify(closed)}).catch(()=>null);
    await postTicketTranscript(env,guildId,ticketId,row.channelId).catch(()=>false);
   }
@@ -574,7 +640,10 @@ async function ticketAction(req,env,user,guildId,ticketId){
    const safe=(`ticket-${row.openerName||"member"}`).toLowerCase().replace(/[^a-z0-9-]/g,"-").replace(/-+/g,"-").slice(0,90),overwrites=[{id:guildId,type:0,deny:"1024",allow:"0"},{id:row.openerId,type:1,allow:"68608",deny:"0"}];
    if(cfg?.staffRoleId)overwrites.push({id:cfg.staffRoleId,type:0,allow:"68608",deny:"0"});
    await fetch(`https://discord.com/api/v10/channels/${row.channelId}`,{method:"PATCH",headers:botHeaders(env,true),body:JSON.stringify({name:safe,permission_overwrites:overwrites})}).catch(()=>null);
-   const reopened={embeds:[{title:"🔓 Ticket reopened",description:`Reopened by **${staffName}**\n\n**Status:** 🟢 Open\nYou can continue the conversation below.`,color:0x57d39b,footer:{text:"Support ticket • Reopened"}}],components:[{type:1,components:[{type:2,style:4,label:"Close Ticket",emoji:{name:"🔒"},custom_id:`ticket_close:${ticketId}`}]}]};
+   const reopened={embeds:[{title:"🔓 Ticket reopened",description:`Reopened by **${staffName}**
+
+**Status:** 🟢 Open
+You can continue the conversation below.`,color:0x57d39b,footer:{text:"Support ticket • Reopened"}}],components:[{type:1,components:[{type:2,style:4,label:"Close Ticket",emoji:{name:"🔒"},custom_id:`ticket_close:${ticketId}`}]}]};
    await fetch(`https://discord.com/api/v10/channels/${row.channelId}/messages`,{method:"POST",headers:botHeaders(env,true),body:JSON.stringify(reopened)}).catch(()=>null);
   }
   return json({ok:true,action});
@@ -681,12 +750,19 @@ async function sendModLog(env,guildId,entry){
   removed:{title:"✅ Moderation action removed",color:0x2ecc71,status:"Action cleared"}
  }[entry.action]||{title:"🛡️ Moderation action",color:0x7457ff,status:String(entry.action||"Updated")};
  const description=[
-  `**Member**\n<@${entry.memberId}>`,
-  `**Moderator**\n<@${entry.moderatorId}>`,
-  `**Status**\n${meta.status}`,
-  entry.durationMinutes?`**Duration**\n${entry.durationMinutes} minutes`:null,
-  `**Reason**\n${String(entry.reason||"No reason provided").slice(0,1000)}`
- ].filter(Boolean).join("\n\n");
+  `**Member**
+<@${entry.memberId}>`,
+  `**Moderator**
+<@${entry.moderatorId}>`,
+  `**Status**
+${meta.status}`,
+  entry.durationMinutes?`**Duration**
+${entry.durationMinutes} minutes`:null,
+  `**Reason**
+${String(entry.reason||"No reason provided").slice(0,1000)}`
+ ].filter(Boolean).join("
+
+");
  const payload={embeds:[{
   title:meta.title,
   description,
@@ -710,7 +786,9 @@ async function removeModerationAction(env,user,guildId,id){
  }
  await env.BALTICM_DB.prepare("DELETE FROM moderation_actions WHERE id=? AND guild_id=?").bind(id,guildId).run();
  const moderatorName=user.global_name||user.username||user.id,createdAt=new Date().toISOString();
- await discordDm(env,row.memberId,`✅ **BalticM Moderation**\nYour **${row.action}** in **Baltic | Mayhem** has been removed.\n**Removed by:** ${moderatorName}`).catch(()=>false);
+ await discordDm(env,row.memberId,`✅ **BalticM Moderation**
+Your **${row.action}** in **Baltic | Mayhem** has been removed.
+**Removed by:** ${moderatorName}`).catch(()=>false);
  await sendModLog(env,guildId,{action:"removed",memberId:row.memberId,memberName:row.memberName,moderatorId:user.id,moderatorName,reason:`Removed previous ${row.action}: ${row.reason}`,createdAt}).catch(()=>false);
  return json({ok:true,removedId:id,removedAction:row.action});
 }
@@ -728,7 +806,10 @@ async function moderateMember(req,env,user,guildId){
  const moderatorName=user.global_name||user.username||user.id;
  const guildName=(await fetch(`https://discord.com/api/v10/guilds/${guildId}`,{headers:botHeaders(env)}).then(x=>x.ok?x.json():null).catch(()=>null))?.name||"Baltic | Mayhem";
  const actionText=action==="warn"?"a warning":action==="timeout"?`a timeout for ${durationMinutes} minutes`:action==="kick"?"a kick":"a ban";
- const dmText=`⚠️ **BalticM Moderation**\nYou received **${actionText}** in **${guildName}**.\n**Reason:** ${reason}\n**Moderator:** ${moderatorName}`;
+ const dmText=`⚠️ **BalticM Moderation**
+You received **${actionText}** in **${guildName}**.
+**Reason:** ${reason}
+**Moderator:** ${moderatorName}`;
  // Kick/ban remove the shared guild relationship, so notify before the destructive action.
  let dm=false;
  if(action==="kick"||action==="ban")dm=await discordDm(env,memberId,dmText).catch(()=>false);
@@ -744,7 +825,8 @@ async function moderateMember(req,env,user,guildId){
   const entry={id,memberId,memberName,moderatorId:user.id,moderatorName,action,reason,durationMinutes,createdAt};
   await env.BALTICM_DB.prepare("INSERT INTO moderation_actions (id,guild_id,member_id,member_name,moderator_id,moderator_name,action,reason,duration_minutes,created_at) VALUES (?,?,?,?,?,?,?,?,?,?)").bind(id,guildId,memberId,memberName,user.id,moderatorName,action,reason,durationMinutes,createdAt).run();
   const modLog=await sendModLog(env,guildId,entry).catch(()=>false);
-  await addActivityLog(env,guildId,{actorId:user.id,actorName:moderatorName,action:"Moderation: "+action,target:memberName||memberId,source:"BALTICM",details:reason});\n  return json({ok:true,entry,dmSent:dm,modLogSent:modLog});
+  await addActivityLog(env,guildId,{actorId:user.id,actorName:moderatorName,action:"Moderation: "+action,target:memberName||memberId,source:"BALTICM",details:reason});
+  return json({ok:true,entry,dmSent:dm,modLogSent:modLog});
  }catch(e){return json({error:"Discord action succeeded, but audit log could not be saved",detail:String(e.message||e)},500)}
 }
 
@@ -849,7 +931,8 @@ if(p==="/api/announcements"){const guildId=u.searchParams.get("guildId");if(!gui
 const an=p.match(new RegExp("^/api/announcements/([^/]+)(?:/(publish))?$"));if(an){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);const id=decodeURIComponent(an[1]);if(an[2]==="publish"&&req.method==="POST")return publishAnnouncement(env,guildId,id);if(!an[2]&&req.method==="PUT")return saveAnnouncement(req,env,guildId,id);if(!an[2]&&req.method==="DELETE")return deleteAnnouncement(env,guildId,id);}
 if(p==="/api/direct-messages/opt-outs"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);if(req.method==="GET")return dmOptOutState(env,guildId);if(req.method==="DELETE"){let body;try{body=await req.json()}catch{return json({error:"Invalid JSON"},400)}const userId=String(body.userId||"").trim();if(!/^\d{16,22}$/.test(userId))return json({error:"Invalid user"},400);return setDmOptOut(env,guildId,userId,false)}return json({error:"Method not allowed"},405);}
 if(p==="/api/direct-messages"&&req.method==="POST"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return sendDirectMessages(req,env,guildId);}
-if(p==="/api/logs"&&req.method==="GET"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return activityLogState(env,guildId);}\nif(p==="/api/discord/members"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return discordMembers(env,guildId);}
+if(p==="/api/logs"&&req.method==="GET"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return activityLogState(env,guildId);}
+if(p==="/api/discord/members"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return discordMembers(env,guildId);}
 if(p==="/api/discord/roles"&&req.method==="POST"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return createDiscordRole(req,env,guildId);}const er=p.match(/^\/api\/discord\/roles\/([^/]+)$/);if(er&&(req.method==="PATCH"||req.method==="DELETE")){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return req.method==="DELETE"?deleteDiscordRole(env,guildId,decodeURIComponent(er[1])):editDiscordRole(req,env,guildId,decodeURIComponent(er[1]));}
 const rm=p.match(/^\/api\/discord\/members\/([^/]+)\/roles\/([^/]+)$/);if(rm&&(req.method==="PUT"||req.method==="DELETE")){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return changeMemberRole(req,env,guildId,decodeURIComponent(rm[1]),decodeURIComponent(rm[2]),req.method==="DELETE");}
 return json({error:"Not found"},404)}
