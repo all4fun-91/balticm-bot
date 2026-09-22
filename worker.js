@@ -476,15 +476,7 @@ async function createTicketFromInteraction(env,interaction,guildId,typeKey="supp
  const ch=await cr.json().catch(()=>({}));if(!cr.ok)return json({type:4,data:{content:"I could not create the ticket channel. Check my channel permissions.",flags:64}});
  const id=crypto.randomUUID(),createdAt=new Date().toISOString();
  await env.BALTICM_DB.prepare("INSERT INTO tickets (id,guild_id,channel_id,opener_id,opener_name,subject,status,created_at) VALUES (?,?,?,?,?,?,'open',?)").bind(id,guildId,ch.id,userId,username,subject,createdAt).run();
- const welcome=typeKey==="report"?{content:`<@${userId}>`,embeds:[{title:"🚨 Player report opened",description:"Thanks. Your report is private and has been sent to the staff team.
-
-**Please provide the following**
-> 👤 Player name / ID
-> 🎮 Server or game
-> 📝 What happened and when
-> 🖼️ Screenshots, clips or other evidence
-
-*Do not contact or provoke the reported player while staff reviews the report.*",color:0xe34d59,footer:{text:"Player report • Private conversation"}}],components:[{type:1,components:[{type:2,style:4,label:"Close Report",emoji:{name:"🔒"},custom_id:`ticket_close:${id}`}]}],allowed_mentions:{users:[userId]}}:{content:`<@${userId}>`,embeds:[{title:"🎫 Support request opened",description:"Thanks for contacting our support team.
+ const welcome=typeKey==="report"?{content:`<@${userId}>`,embeds:[{title:"🚨 Player report opened",description:"Thanks. Your report is private and has been sent to the staff team.\n\n**Please provide the following**\n> 👤 Player name / ID\n> 🎮 Server or game\n> 📝 What happened and when\n> 🖼️ Screenshots, clips or other evidence\n\n*Do not contact or provoke the reported player while staff reviews the report.*",color:0xe34d59,footer:{text:"Player report • Private conversation"}}],components:[{type:1,components:[{type:2,style:4,label:"Close Report",emoji:{name:"🔒"},custom_id:`ticket_close:${id}`}]}],allowed_mentions:{users:[userId]}}:{content:`<@${userId}>`,embeds:[{title:"🎫 Support request opened",description:"Thanks for contacting our support team.
 
 **Tell us what you need help with**
 > 📝 Describe the issue in as much detail as possible
