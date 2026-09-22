@@ -669,6 +669,8 @@ async function moderationState(env,guildId){
  }catch(e){return json({error:String(e.message||e)},503)}
 }
 const premiumPlanKey=guildId=>"premium-plan:"+guildId;
+const FREE_BOT_NICKNAME="BalticM.Eu";
+const FREE_BOT_AVATAR_URL="https://media.balticm.eu/media/site/1789671085906-96004b1e-3eb5-4f21-a47b-1e58bc088de2.png";
 async function premiumPlanState(env,guildId){
  let plan="free";
  if(env.BALTICM_DB){
@@ -681,18 +683,18 @@ async function premiumPlanState(env,guildId){
 }
 const generalSettingsKey=guildId=>"general-settings:"+guildId;
 async function generalSettingsState(env,guildId){
- let config={botNickname:"BalticM.Eu",timezone:"Europe/Berlin"};
+ let config={botNickname:FREE_BOT_NICKNAME,botAvatarUrl:FREE_BOT_AVATAR_URL,botInitials:"BM",timezone:"Europe/Berlin"};
  if(env.BALTICM_DB){await env.BALTICM_DB.prepare("CREATE TABLE IF NOT EXISTS bot_config (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL)").run();const row=await env.BALTICM_DB.prepare("SELECT value FROM bot_config WHERE key=?").bind(generalSettingsKey(guildId)).first();if(row?.value)try{config={...config,...JSON.parse(row.value)}}catch{}}
  const premiumState=await premiumPlanState(env,guildId);
  const rr=await fetch(`https://discord.com/api/v10/guilds/${guildId}/members/@me`,{headers:botHeaders(env)});if(rr.ok){const me=await rr.json();config.botNickname=me.nick||"BalticM.Eu"}
- if(!premiumState.premium)config.botNickname="BalticM.Eu";
+ if(!premiumState.premium){config.botNickname=FREE_BOT_NICKNAME;config.botAvatarUrl=FREE_BOT_AVATAR_URL;config.botInitials="BM"}
  return json({config,plan:premiumState.plan,premium:premiumState.premium});
 }
 async function saveGeneralSettings(req,env,guildId){
  try{
-  const body=await req.json(),premiumState=await premiumPlanState(env,guildId),requestedNickname=String(body.botNickname||"").trim().slice(0,32),botNickname=premiumState.premium?(requestedNickname||"BalticM.Eu"):"BalticM.Eu",timezone=String(body.timezone||"Europe/Berlin").slice(0,64);
+  const body=await req.json(),premiumState=await premiumPlanState(env,guildId),requestedNickname=String(body.botNickname||"").trim().slice(0,32),requestedAvatarUrl=String(body.botAvatarUrl||"").trim().slice(0,500),requestedInitials=String(body.botInitials||"").trim().toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,3),botNickname=premiumState.premium?(requestedNickname||FREE_BOT_NICKNAME):FREE_BOT_NICKNAME,botAvatarUrl=premiumState.premium?(requestedAvatarUrl||FREE_BOT_AVATAR_URL):FREE_BOT_AVATAR_URL,botInitials=premiumState.premium?(requestedInitials||"BM"):"BM",timezone=String(body.timezone||"Europe/Berlin").slice(0,64);
   const rr=await fetch(`https://discord.com/api/v10/guilds/${guildId}/members/@me`,{method:"PATCH",headers:{...botHeaders(env),"Content-Type":"application/json"},body:JSON.stringify({nick:botNickname})});if(!rr.ok)return json({error:"Discord rejected the bot nickname change",status:rr.status},rr.status);
-  if(!env.BALTICM_DB)throw new Error("BALTICM_DB binding is not configured");await env.BALTICM_DB.prepare("CREATE TABLE IF NOT EXISTS bot_config (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL)").run();const config={botNickname,timezone};await env.BALTICM_DB.prepare("INSERT INTO bot_config (key,value,updated_at) VALUES (?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at").bind(generalSettingsKey(guildId),JSON.stringify(config),new Date().toISOString()).run();return json({ok:true,config,plan:premiumState.plan,premium:premiumState.premium})
+  if(!env.BALTICM_DB)throw new Error("BALTICM_DB binding is not configured");await env.BALTICM_DB.prepare("CREATE TABLE IF NOT EXISTS bot_config (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL)").run();const config={botNickname,botAvatarUrl,botInitials,timezone};await env.BALTICM_DB.prepare("INSERT INTO bot_config (key,value,updated_at) VALUES (?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at").bind(generalSettingsKey(guildId),JSON.stringify(config),new Date().toISOString()).run();return json({ok:true,config,plan:premiumState.plan,premium:premiumState.premium})
  }catch(e){return json({error:String(e.message||e)},500)}
 }
 const moderationSettingsSql=`CREATE TABLE IF NOT EXISTS moderation_settings (
