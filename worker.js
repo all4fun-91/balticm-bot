@@ -739,7 +739,8 @@ async function removeModerationAction(env,user,guildId,id){
 Your **${row.action}** in **Baltic | Mayhem** has been removed.
 **Removed by:** ${moderatorName}`).catch(()=>false);
  await sendModLog(env,guildId,{action:"removed",memberId:row.memberId,memberName:row.memberName,moderatorId:user.id,moderatorName,reason:`Removed previous ${row.action}: ${row.reason}`,createdAt}).catch(()=>false);
- await addActivityLog(env,guildId,{actorId:user.id,actorName:moderatorName,action:"Moderation: removed "+row.action,target:row.memberName||row.memberId,source:"BALTICM",details:row.reason?("Previous reason: "+row.reason):"Moderation action removed"});\n return json({ok:true,removedId:id,removedAction:row.action});
+ await addActivityLog(env,guildId,{actorId:user.id,actorName:moderatorName,action:"Moderation: removed "+row.action,target:row.memberName||row.memberId,source:"BALTICM",details:row.reason?("Previous reason: "+row.reason):"Moderation action removed"});
+ return json({ok:true,removedId:id,removedAction:row.action});
 }
 async function moderateMember(req,env,user,guildId){
  let body;try{body=await req.json()}catch{return json({error:"Invalid JSON"},400)}
