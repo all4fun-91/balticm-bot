@@ -74,7 +74,7 @@ async function syncDiscordAuditLogs(env,guildId){
   try{const rr=await fetch(`https://discord.com/api/v10/guilds/${guildId}/roles`,{headers:botHeaders(env)});if(rr.ok)for(const x of await rr.json())roles.set(String(x.id),x.name)}catch{}
   const actionNames={10:"Channel created",11:"Channel updated",12:"Channel deleted",20:"Member kicked",22:"Member banned",23:"Member unbanned",24:"Member updated",25:"Member roles updated",30:"Role created",31:"Role updated",32:"Role deleted",40:"Invite created",42:"Invite deleted",72:"Message deleted",73:"Messages bulk deleted",80:"Integration created",82:"Integration deleted"};
   for(const e of data.audit_log_entries||[]){
-   const type=Number(e.action_type),label=actionNames[type];if(!label)continue;
+   const type=Number(e.action_type);let label=actionNames[type];if(!label)continue;
    const snow=BigInt(e.id),createdAt=new Date(Number((snow>>22n)+1420070400000n)).toISOString();
    if(Date.now()-new Date(createdAt).getTime()>86400000)continue;
    const id="discord:"+e.id,exists=await env.BALTICM_DB.prepare("SELECT id FROM activity_logs WHERE id=?").bind(id).first();if(exists)continue;
