@@ -670,7 +670,7 @@ async function moderationState(env,guildId){
 }
 const premiumPlanKey=guildId=>"premium-plan:"+guildId;
 const FREE_BOT_NICKNAME="BalticM.Eu";
-const FREE_BOT_AVATAR_URL="https://media.balticm.eu/media/site/1789671085906-96004b1e-3eb5-4f21-a47b-1e58bc088de2.png";
+const FREE_BOT_AVATAR_URL="https://media.balticm.eu/media/site/1789353600524-63dc7873-b363-4d93-a68c-4451208f096d.png";
 async function premiumPlanState(env,guildId){
  let plan="free";
  if(env.BALTICM_DB){
