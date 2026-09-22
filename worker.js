@@ -681,6 +681,25 @@ async function premiumPlanState(env,guildId){
  const premium=plan!=="free";
  return {plan,premium};
 }
+async function enforceFreeBotNickname(env,guildId){
+ try{
+  const state=await premiumPlanState(env,guildId);
+  if(state.premium)return {ok:true,skipped:true,plan:state.plan};
+  const mr=await fetch(`https://discord.com/api/v10/guilds/${guildId}/members/@me`,{headers:botHeaders(env)});
+  if(!mr.ok)return {ok:false,status:mr.status};
+  const me=await mr.json(),current=String(me.nick||"");
+  if(current===FREE_BOT_NICKNAME)return {ok:true,changed:false};
+  const rr=await fetch(`https://discord.com/api/v10/guilds/${guildId}/members/@me`,{method:"PATCH",headers:{...botHeaders(env),"Content-Type":"application/json","X-Audit-Log-Reason":encodeURIComponent("BalticM FREE plan branding")},body:JSON.stringify({nick:FREE_BOT_NICKNAME})});
+  return {ok:rr.ok,changed:rr.ok,status:rr.status};
+ }catch(e){return {ok:false,error:String(e.message||e)}}
+}
+async function enforceFreeBrandingForManagedGuilds(env){
+ if(!env.BALTICM_DB)return;
+ const r=await fetch("https://discord.com/api/v10/users/@me/guilds",{headers:botHeaders(env)});
+ if(!r.ok)return;
+ const guilds=await r.json();
+ for(const g of guilds.slice(0,200))await enforceFreeBotNickname(env,String(g.id));
+}
 const generalSettingsKey=guildId=>"general-settings:"+guildId;
 async function generalSettingsState(env,guildId){
  let config={botNickname:FREE_BOT_NICKNAME,botAvatarUrl:FREE_BOT_AVATAR_URL,botInitials:"BM",timezone:"Europe/Berlin"};
@@ -896,7 +915,7 @@ if(interaction?.type===3&&customId.startsWith("giveaway_enter:")){try{return awa
  return json({type:4,data:{content:"BalticM.eu interaction server is online.",flags:64}});
 }
 
-export default{async scheduled(event,env,ctx){ctx.waitUntil(finishDueGiveaways(env))},async fetch(req,env,ctx){
+export default{async scheduled(event,env,ctx){ctx.waitUntil(Promise.all([finishDueGiveaways(env),enforceFreeBrandingForManagedGuilds(env)]))},async fetch(req,env,ctx){
  const u=new URL(req.url),p=u.pathname;
  if(p==="/api/health")return health(req);
  if(p==="/api/status-public")return json({ok:true,service:"BalticM Bot Center",version:"status-public-v2",checkedAt:new Date().toISOString()});
@@ -924,7 +943,7 @@ const ttp=p.match(/^\/api\/tickets\/types\/(support|report)\/publish$/);if(ttp&&
 if(p==="/api/tickets/config"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return req.method==="POST"?saveTicketConfig(req,env,guildId):ticketConfigState(env,guildId);}
 if(p==="/api/tickets/publish"&&req.method==="POST"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return publishTicketPanel(env,guildId);}
 const ta=p.match(/^\/api\/tickets\/([^/]+)$/);if(ta&&req.method==="POST"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return ticketAction(req,env,user,guildId,decodeURIComponent(ta[1]));}
-if(p==="/api/premium"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);const state=await premiumPlanState(env,guildId);return json({ok:true,...state});}
+if(p==="/api/premium"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);const state=await premiumPlanState(env,guildId);if(!state.premium)ctx.waitUntil(enforceFreeBotNickname(env,guildId));return json({ok:true,...state});}
 if(p==="/api/settings/general"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return req.method==="POST"?saveGeneralSettings(req,env,guildId):generalSettingsState(env,guildId);}
 if(p==="/api/moderation/settings"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return req.method==="POST"?saveModerationSettings(req,env,guildId):moderationSettingsState(env,guildId);}
 if(p==="/api/moderation"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return req.method==="POST"?moderateMember(req,env,user,guildId):moderationState(env,guildId);}const ma=p.match(/^\/api\/moderation\/([^/]+)$/);if(ma&&req.method==="DELETE"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return removeModerationAction(env,user,guildId,decodeURIComponent(ma[1]));}
