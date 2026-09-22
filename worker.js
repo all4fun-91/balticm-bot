@@ -458,13 +458,14 @@ async function ticketAction(req,env,user,guildId,ticketId){
   return json({ticket:row,messages:messages.results||[]});
  }
  if(action==="delete"){
-  if(row.status!=="closed")return json({error:"Close the ticket before deleting its Discord channel"},400);
+  if(row.status!=="closed")return json({error:"Close the ticket before deleting it"},400);
   if(row.channelId){
    const dr=await fetch(`https://discord.com/api/v10/channels/${row.channelId}`,{method:"DELETE",headers:botHeaders(env)});
    if(!dr.ok&&dr.status!==404)return json({error:"Could not delete Discord ticket channel"},502);
   }
-  await env.BALTICM_DB.prepare("UPDATE tickets SET channel_id='' WHERE id=? AND guild_id=?").bind(ticketId,guildId).run();
-  return json({ok:true,action});
+  await env.BALTICM_DB.prepare("DELETE FROM ticket_messages WHERE ticket_id=? AND guild_id=?").bind(ticketId,guildId).run();
+  await env.BALTICM_DB.prepare("DELETE FROM tickets WHERE id=? AND guild_id=?").bind(ticketId,guildId).run();
+  return json({ok:true,action,purged:true});
  }
  return json({error:"Unknown ticket action"},400);
 }
