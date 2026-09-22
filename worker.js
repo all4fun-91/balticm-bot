@@ -809,7 +809,8 @@ if(interaction?.type===3&&customId.startsWith("giveaway_enter:")){try{return awa
 
 export default{async scheduled(event,env,ctx){ctx.waitUntil(finishDueGiveaways(env))},async fetch(req,env,ctx){
  const u=new URL(req.url),p=u.pathname;
- if(p==="/api/health")return health(req);\n if(p==="/api/status-public")return json({ok:true,service:"BalticM Bot Center",checkedAt:new Date().toISOString()});
+ if(p==="/api/health")return health(req);
+ if(p==="/api/status-public")return json({ok:true,service:"BalticM Bot Center",checkedAt:new Date().toISOString()});
  if(p==="/api/reaction-roles/service/event"&&req.method==="POST")return reactionRoleServiceEvent(req,env);
  if(p==="/api/discord-interactions")return discordInteractionGateway(req,env,ctx);
  if(p==="/api/desktop/latest")return desktopLatest();
