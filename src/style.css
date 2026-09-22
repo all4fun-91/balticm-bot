@@ -650,3 +650,13 @@ input,select,textarea,button{font-size:11px}
 .memberRoleNoResults{padding:24px 10px;text-align:center;color:#68748d;font-size:9px}
 .memberRoleMenuFoot{margin-top:7px;padding:8px 2px 1px;border-top:1px solid #ffffff0b;display:flex;align-items:center;justify-content:space-between;gap:8px}.memberRoleMenuFoot>span{color:#65718a;font-size:8px}.memberRoleMenuFoot button{height:28px;padding:0 10px;border:1px solid #795aff45;border-radius:7px;background:#795aff14;color:#b9a9ff;font-size:8px;font-weight:900;cursor:pointer}
 @media(max-width:760px){.memberRolePicker,.memberRoleTrigger{width:100%}.memberRoleMenu{position:fixed;left:14px;right:14px;top:auto;bottom:14px;width:auto;max-height:70vh}.memberRoleOptions{max-height:42vh}}
+
+
+/* Keep member role popup above the member directory instead of clipping inside it */
+.memberDirectory{overflow-y:auto;overflow-x:visible}
+.memberRow{position:relative}
+.memberRow:has(.memberRoleTrigger.open){z-index:60}
+.memberRolePicker{z-index:2}
+.memberRolePicker:has(.memberRoleTrigger.open){z-index:70}
+.memberRoleMenu{top:auto;bottom:43px}
+.memberRow:first-child .memberRoleMenu,.memberRow:nth-child(2) .memberRoleMenu,.memberRow:nth-child(3) .memberRoleMenu{top:43px;bottom:auto}
