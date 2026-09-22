@@ -705,3 +705,16 @@ input,select,textarea,button{font-size:11px}
 .modMemberResults>button:hover,.modMemberResults>button.selected{background:#7655ff16}.modMemberResults>button>span:nth-child(2){min-width:0;flex:1}.modMemberResults b,.modMemberResults small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.modMemberResults b{font-size:10px}.modMemberResults small{margin-top:2px;color:#69768d;font-size:9px}.modMemberResults>button>svg{width:14px;color:#8f76ff}
 .modMemberAvatar{width:30px;height:30px;border-radius:8px;background:#7655ff18;color:#a78fff;display:grid;place-items:center;overflow:hidden;flex:0 0 30px;font-size:10px;font-weight:800}.modMemberAvatar img{width:100%;height:100%;object-fit:cover}
 .modMemberNoResult{padding:18px 10px;text-align:center;color:#68758d;font-size:10px}
+
+
+/* Compact moderation member picker */
+.modMemberField{max-width:420px}
+.modMemberDropdown{left:0;right:auto;width:min(390px,calc(100vw - 48px));padding:8px}
+.modMemberResults{max-height:260px;margin-top:6px}
+.modMemberResults>button{padding:7px 8px;min-height:42px}
+.modMemberAvatar{width:28px;height:28px;flex-basis:28px;border-radius:7px}
+.modMemberResults b{font-size:10px}.modMemberResults small{font-size:8px}
+@media (min-width:700px){
+ .modMemberResults{display:block}
+ .modMemberResults>button{display:flex;width:100%}
+}
