@@ -738,3 +738,18 @@ input,select,textarea,button{font-size:11px}
 .activityLogRow>time{color:#647088;font-size:8px;white-space:nowrap}
 .activityLogRow.role-add .activityLogMark{border-color:#3fe39a2d;background:#3fe39a0b}.activityLogRow.role-add .activityLogMark svg{color:#54dfa1}.activityLogRow.role-remove .activityLogMark{border-color:#ffb84a2d;background:#ffb84a0b}.activityLogRow.role-remove .activityLogMark svg{color:#ffc05d}.activityLogRow.moderation-warn .activityLogMark,.activityLogRow.moderation-ban .activityLogMark,.activityLogRow.moderation-kick .activityLogMark,.activityLogRow.moderation-timeout .activityLogMark{border-color:#ffcc472d;background:#ffcc470b}.activityLogRow.moderation-warn .activityLogMark svg,.activityLogRow.moderation-ban .activityLogMark svg,.activityLogRow.moderation-kick .activityLogMark svg,.activityLogRow.moderation-timeout .activityLogMark svg{color:#ffd05c}
 @media(max-width:760px){.activityLogRow{grid-template-columns:34px 1fr}.activityLogRow>time{grid-column:2}.activityLogFacts{align-items:flex-start;flex-direction:column;gap:4px}}
+
+
+/* Activity log readability */
+.activityLogRow{min-height:88px;padding:15px 17px;grid-template-columns:38px minmax(0,1fr) auto;gap:15px}
+.activityLogMark{width:38px;height:38px;border-radius:10px}.activityLogMark svg{width:18px;height:18px}
+.activityLogTitle{gap:9px}.activityLogTitle>b{font-size:12px;line-height:1.25}
+.activityLogSource{padding:4px 7px;font-size:8px;letter-spacing:.55px}
+.activityLogFacts{margin-top:10px;gap:0;flex-wrap:wrap}
+.activityLogFacts>span{padding:0 16px;border-left:1px solid #ffffff0d;gap:8px;min-height:16px;align-items:center}
+.activityLogFacts>span:first-child{padding-left:0;border-left:0}
+.activityLogFacts small{font-size:8px;letter-spacing:.8px;color:#65738d}
+.activityLogFacts strong{max-width:440px;font-size:10px;line-height:1.35;color:#d2d9e6;font-weight:650}
+.activityLogRow>time{font-size:9px;color:#73809a}
+@media(max-width:900px){.activityLogFacts{row-gap:7px}.activityLogFacts>span{padding:0 10px}.activityLogFacts>span:first-child{padding-left:0}}
+@media(max-width:760px){.activityLogRow{grid-template-columns:38px 1fr}.activityLogFacts>span{padding:0;border-left:0;width:100%}}
