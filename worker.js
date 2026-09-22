@@ -64,6 +64,9 @@ async function health(req){
  }));
  return json({ok:services.every(x=>x.ok),checkedAt:new Date().toISOString(),services});
 }
+async function ensureActivityLogTable(env){await env.BALTICM_DB.prepare("CREATE TABLE IF NOT EXISTS activity_logs (id TEXT PRIMARY KEY,guild_id TEXT NOT NULL,actor_id TEXT DEFAULT '',actor_name TEXT DEFAULT '',action TEXT NOT NULL,target TEXT DEFAULT '',source TEXT NOT NULL,details TEXT DEFAULT '',created_at TEXT NOT NULL)").run();await env.BALTICM_DB.prepare("CREATE INDEX IF NOT EXISTS idx_activity_logs_guild_created ON activity_logs(guild_id,created_at DESC)").run()}
+async function addActivityLog(env,guildId,{actorId="",actorName="",action,target="",source="BALTICM",details=""}){try{await ensureActivityLogTable(env);await env.BALTICM_DB.prepare("INSERT INTO activity_logs (id,guild_id,actor_id,actor_name,action,target,source,details,created_at) VALUES (?,?,?,?,?,?,?,?,?)").bind(crypto.randomUUID(),guildId,String(actorId||""),String(actorName||""),String(action||""),String(target||""),String(source||"BALTICM").toUpperCase(),String(details||""),new Date().toISOString()).run()}catch(e){}}
+async function activityLogState(env,guildId){await ensureActivityLogTable(env);const r=await env.BALTICM_DB.prepare("SELECT id,actor_id AS actorId,actor_name AS actorName,action,target,source,details,created_at AS createdAt FROM activity_logs WHERE guild_id=? ORDER BY created_at DESC LIMIT 250").bind(guildId).all();return json({events:r.results||[]})}
 function redirectUri(req,env){return env.DISCORD_REDIRECT_URI||new URL("/api/auth/callback",new URL(req.url).origin).toString()}
 async function login(req,env){
  const state=crypto.randomUUID(),u=new URL("https://discord.com/oauth2/authorize");
@@ -248,7 +251,7 @@ async function createDiscordRole(req,env,guildId){
  if(/^#[0-9a-fA-F]{6}$/.test(body.color||""))payload.color=parseInt(body.color.slice(1),16);
  const r=await fetch(`https://discord.com/api/v10/guilds/${guildId}/roles`,{method:"POST",headers:botHeaders(env,true),body:JSON.stringify(payload)});
  const data=await r.json().catch(()=>({}));if(!r.ok)return json({error:data.message||"Role creation failed",status:r.status},r.status===403?403:502);
- return json({role:data},201);
+ await addActivityLog(env,guildId,{action:"Role created",target:data.name||name,source:"BALTICM"});\n return json({role:data},201);
 }
 async function changeMemberRole(req,env,guildId,memberId,roleId,remove=false){
  if(!memberId||!roleId)return json({error:"memberId and roleId are required"},400);
@@ -741,7 +744,7 @@ async function moderateMember(req,env,user,guildId){
   const entry={id,memberId,memberName,moderatorId:user.id,moderatorName,action,reason,durationMinutes,createdAt};
   await env.BALTICM_DB.prepare("INSERT INTO moderation_actions (id,guild_id,member_id,member_name,moderator_id,moderator_name,action,reason,duration_minutes,created_at) VALUES (?,?,?,?,?,?,?,?,?,?)").bind(id,guildId,memberId,memberName,user.id,moderatorName,action,reason,durationMinutes,createdAt).run();
   const modLog=await sendModLog(env,guildId,entry).catch(()=>false);
-  return json({ok:true,entry,dmSent:dm,modLogSent:modLog});
+  await addActivityLog(env,guildId,{actorId:user.id,actorName:moderatorName,action:"Moderation: "+action,target:memberName||memberId,source:"BALTICM",details:reason});\n  return json({ok:true,entry,dmSent:dm,modLogSent:modLog});
  }catch(e){return json({error:"Discord action succeeded, but audit log could not be saved",detail:String(e.message||e)},500)}
 }
 
@@ -846,7 +849,7 @@ if(p==="/api/announcements"){const guildId=u.searchParams.get("guildId");if(!gui
 const an=p.match(new RegExp("^/api/announcements/([^/]+)(?:/(publish))?$"));if(an){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);const id=decodeURIComponent(an[1]);if(an[2]==="publish"&&req.method==="POST")return publishAnnouncement(env,guildId,id);if(!an[2]&&req.method==="PUT")return saveAnnouncement(req,env,guildId,id);if(!an[2]&&req.method==="DELETE")return deleteAnnouncement(env,guildId,id);}
 if(p==="/api/direct-messages/opt-outs"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);if(req.method==="GET")return dmOptOutState(env,guildId);if(req.method==="DELETE"){let body;try{body=await req.json()}catch{return json({error:"Invalid JSON"},400)}const userId=String(body.userId||"").trim();if(!/^\d{16,22}$/.test(userId))return json({error:"Invalid user"},400);return setDmOptOut(env,guildId,userId,false)}return json({error:"Method not allowed"},405);}
 if(p==="/api/direct-messages"&&req.method==="POST"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return sendDirectMessages(req,env,guildId);}
-if(p==="/api/discord/members"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return discordMembers(env,guildId);}
+if(p==="/api/logs"&&req.method==="GET"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return activityLogState(env,guildId);}\nif(p==="/api/discord/members"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return discordMembers(env,guildId);}
 if(p==="/api/discord/roles"&&req.method==="POST"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return createDiscordRole(req,env,guildId);}const er=p.match(/^\/api\/discord\/roles\/([^/]+)$/);if(er&&(req.method==="PATCH"||req.method==="DELETE")){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return req.method==="DELETE"?deleteDiscordRole(env,guildId,decodeURIComponent(er[1])):editDiscordRole(req,env,guildId,decodeURIComponent(er[1]));}
 const rm=p.match(/^\/api\/discord\/members\/([^/]+)\/roles\/([^/]+)$/);if(rm&&(req.method==="PUT"||req.method==="DELETE")){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return changeMemberRole(req,env,guildId,decodeURIComponent(rm[1]),decodeURIComponent(rm[2]),req.method==="DELETE");}
 return json({error:"Not found"},404)}
