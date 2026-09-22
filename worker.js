@@ -553,17 +553,17 @@ async function sendModLog(env,guildId,entry){
   ban:{title:"🔨 Member banned",color:0xe74c3c,status:"Banned from server"},
   removed:{title:"✅ Moderation action removed",color:0x2ecc71,status:"Action cleared"}
  }[entry.action]||{title:"🛡️ Moderation action",color:0x7457ff,status:String(entry.action||"Updated")};
- const fields=[
-  {name:"Member",value:`<@${entry.memberId}>\n\`${entry.memberName||entry.memberId}\``,inline:true},
-  {name:"Moderator",value:`<@${entry.moderatorId}>\n\`${entry.moderatorName||entry.moderatorId}\``,inline:true},
-  {name:"Status",value:meta.status,inline:true},
-  {name:"Reason",value:String(entry.reason||"No reason provided").slice(0,1024),inline:false}
- ];
- if(entry.durationMinutes)fields.splice(3,0,{name:"Duration",value:`${entry.durationMinutes} minutes`,inline:true});
+ const description=[
+  `**Member**\n<@${entry.memberId}> • ${entry.memberName||entry.memberId}`,
+  `**Moderator**\n<@${entry.moderatorId}> • ${entry.moderatorName||entry.moderatorId}`,
+  `**Status**\n${meta.status}`,
+  entry.durationMinutes?`**Duration**\n${entry.durationMinutes} minutes`:null,
+  `**Reason**\n${String(entry.reason||"No reason provided").slice(0,1000)}`
+ ].filter(Boolean).join("\n\n");
  const payload={embeds:[{
   title:meta.title,
+  description,
   color:meta.color,
-  fields,
   footer:{text:"Moderation log • Control Center"},
   timestamp:entry.createdAt||new Date().toISOString()
  }],allowed_mentions:{parse:[]}};
