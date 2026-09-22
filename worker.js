@@ -316,8 +316,9 @@ async function closeTicketFromInteraction(env,interaction,ticketId){
  if(row.channelId){
   const safe=(`closed-${row.openerName||"ticket"}`).toLowerCase().replace(/[^a-z0-9-]/g,"-").replace(/-+/g,"-").slice(0,90);
   await fetch(`https://discord.com/api/v10/channels/${row.channelId}`,{method:"PATCH",headers:botHeaders(env,true),body:JSON.stringify({name:safe,permission_overwrites:[{id:guildId,type:0,deny:"1024",allow:"0"},{id:row.openerId,type:1,deny:"2048",allow:"66560"}]})}).catch(()=>null);
+  await postTicketTranscript(env,guildId,ticketId,row.channelId).catch(()=>false);
  }
- return json({type:7,data:{content:`🔒 Ticket closed by <@${user?.id}>. Transcript saved.\nStaff can reopen or delete the channel from the Control Center.`,components:[],allowed_mentions:{parse:[]} }});
+ return json({type:7,data:{content:`🔒 Ticket closed by <@${user?.id}>. Transcript saved and attached below.\nStaff can reopen or delete the channel from the Control Center.`,components:[],allowed_mentions:{parse:[]} }});
 }
 async function ticketsState(env,guildId){
  try{
@@ -348,6 +349,15 @@ async function archiveTicketMessages(env,guildId,ticketId,channelId){
   await env.BALTICM_DB.prepare("INSERT OR REPLACE INTO ticket_messages (id,ticket_id,guild_id,author_id,author_name,content,created_at) VALUES (?,?,?,?,?,?,?)").bind(String(m.id),ticketId,guildId,String(m.author?.id||""),String(authorName),content,String(m.timestamp||new Date().toISOString())).run();
  }
  return messages.length;
+}
+async function postTicketTranscript(env,guildId,ticketId,channelId){
+ const rows=await env.BALTICM_DB.prepare("SELECT author_name AS authorName,content,created_at AS createdAt FROM ticket_messages WHERE ticket_id=? AND guild_id=? ORDER BY created_at ASC").bind(ticketId,guildId).all();
+ const lines=[`Ticket transcript • ${ticketId}`,"",...(rows.results||[]).flatMap(m=>[`[${new Date(m.createdAt).toISOString()}] ${m.authorName}:`,String(m.content||"").replace(/\\n/g,"\n"),""])];
+ const text=lines.join("\n"),form=new FormData();
+ form.append("payload_json",JSON.stringify({content:"📄 **Ticket transcript**\nA copy of this conversation is attached below."}));
+ form.append("files[0]",new Blob([text],{type:"text/plain;charset=utf-8"}),`ticket-${ticketId}.txt`);
+ const r=await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`,{method:"POST",headers:{Authorization:`Bot ${env.DISCORD_BOT_TOKEN}`},body:form});
+ return r.ok;
 }
 async function ticketAction(req,env,user,guildId,ticketId){
  let body={};try{body=await req.json()}catch{}
@@ -380,6 +390,7 @@ async function ticketAction(req,env,user,guildId,ticketId){
    await fetch(`https://discord.com/api/v10/channels/${row.channelId}`,{method:"PATCH",headers:botHeaders(env,true),body:JSON.stringify({name:safe,permission_overwrites:[{id:guildId,type:0,deny:"1024",allow:"0"},{id:row.openerId,type:1,deny:"2048",allow:"66560"}]})}).catch(()=>null);
    const closed={embeds:[{title:"🔒 Ticket closed",description:`Closed by **${staffName}**\n\n**Status:** 🔴 Closed\n📄 Transcript saved\n\n*Staff can reopen this ticket if further assistance is needed.*`,color:0xe34d59,footer:{text:"Support ticket • Closed"}}]};
    await fetch(`https://discord.com/api/v10/channels/${row.channelId}/messages`,{method:"POST",headers:botHeaders(env,true),body:JSON.stringify(closed)}).catch(()=>null);
+   await postTicketTranscript(env,guildId,ticketId,row.channelId).catch(()=>false);
   }
   return json({ok:true,action,archived});
  }
