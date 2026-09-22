@@ -622,3 +622,9 @@ input,select,textarea,button{font-size:11px}
 .announcementHead>button:hover,.announcementButtons>div:first-child>button:hover{background:linear-gradient(180deg,rgba(116,87,255,.22),rgba(116,87,255,.11))!important;border-color:rgba(145,122,255,.62)!important;color:#fff!important;transform:translateY(-1px)}
 .announcementHead>button:active,.announcementButtons>div:first-child>button:active{transform:translateY(0)}
 .announcementButtons>div:first-child>button:disabled{opacity:.4!important;transform:none!important}
+
+/* Announcement link remove button */
+.announcementButtonRow .announcementRemoveButton{display:inline-flex!important;align-items:center!important;justify-content:center!important;width:38px!important;height:38px!important;min-height:38px!important;padding:0!important;border-radius:10px!important;border:1px solid rgba(248,113,113,.16)!important;background:rgba(248,113,113,.045)!important;color:#7f8ca3!important;box-shadow:none!important;transition:color .15s ease,background .15s ease,border-color .15s ease,transform .15s ease!important}
+.announcementButtonRow .announcementRemoveButton svg{width:16px!important;height:16px!important;stroke-width:1.8!important}
+.announcementButtonRow .announcementRemoveButton:hover{color:#ff8e8e!important;background:rgba(248,113,113,.11)!important;border-color:rgba(248,113,113,.35)!important;transform:translateY(-1px)}
+.announcementButtonRow .announcementRemoveButton:active{transform:translateY(0)}
