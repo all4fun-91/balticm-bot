@@ -832,3 +832,10 @@ input,select,textarea,button{font-size:11px}
 .supportChatStatus.closed{color:#94a3b8;border-color:#94a3b82e;background:#94a3b80a}
 .supportChatComposer textarea:disabled{opacity:.55;cursor:not-allowed}
 @media(max-width:520px){.supportChatStatus{font-size:7px;padding:3px 5px}}
+
+
+/* Refined floating Support launcher */
+.supportChatLauncher{right:22px!important;bottom:22px!important;height:50px!important;padding:0 19px 0 16px!important;gap:10px!important;border:1px solid #a78bfa66!important;border-radius:16px!important;background:linear-gradient(135deg,#7c3aed 0%,#5b21b6 100%)!important;box-shadow:0 12px 30px #4c1d9545,0 0 0 1px #ffffff08 inset!important;font-size:12px!important;letter-spacing:.01em;transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease}
+.supportChatLauncher:hover{transform:translateY(-2px);border-color:#c4b5fd99!important;box-shadow:0 16px 36px #4c1d9560,0 0 0 1px #ffffff10 inset!important}
+.supportChatLauncher svg{width:20px!important;height:20px!important;stroke-width:2!important}
+.supportUnreadBadge{right:-7px!important;top:-7px!important;min-width:21px!important;height:21px!important;padding:0 5px!important;border:2px solid #080d17!important;background:#f04455!important;font-size:10px!important;box-shadow:0 5px 14px #0008!important}
