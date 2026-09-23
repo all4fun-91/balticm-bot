@@ -781,3 +781,9 @@ input,select,textarea,button{font-size:11px}
 .settingsWideModal .moduleMaster>div>span{gap:5px}
 .settingsWideModal .moduleMaster b{display:block}
 .settingsWideModal .moduleMaster small{display:block}
+
+/* Settings modal: keep actions visible while content scrolls */
+.settingsWideModal{display:flex;flex-direction:column;overflow:hidden}
+.settingsWideModal .settingsModalHead{flex:0 0 auto}
+.settingsWideModal .settingsModalBody{flex:1 1 auto;min-height:0;overflow-y:auto}
+.settingsWideModal .settingsModalFoot{flex:0 0 auto;position:sticky;bottom:0;z-index:5;background:#080e19;border-top:1px solid #ffffff10;box-shadow:0 -12px 24px #050912cc}
