@@ -1,0 +1,13 @@
+.musicPlayback{display:flex;flex-direction:column;align-items:stretch;gap:16px}
+.musicPlaybackSearch,.musicPlaybackControls,.musicQueueHead,.musicQueueActions{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.musicPlaybackSearch input{flex:1;min-width:180px;background:rgba(255,255,255,.03);color:inherit;border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:12px;font:inherit}
+.musicPlaybackControls label{display:flex;align-items:center;gap:8px}
+.musicPlaybackControls input{max-width:130px;accent-color:#9475ff}
+.musicQueueHead{justify-content:space-between}
+.musicQueueActions{justify-content:flex-end}
+.musicLoopControl{display:flex;align-items:center;gap:8px}.musicLoopControl>span{font-size:11px;font-weight:800;letter-spacing:.12em;color:var(--muted)}
+.musicQueueList{margin:0;padding-left:24px}
+.musicQueueList li{padding:12px 0;border-top:1px solid rgba(255,255,255,.08)}
+.musicQueueList li>span{display:inline-flex;flex-direction:column;gap:4px;max-width:calc(100% - 90px);overflow-wrap:anywhere}
+.musicQueueList li>button{float:right}
+.musicPlayback h3{overflow-wrap:anywhere}
