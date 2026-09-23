@@ -71,14 +71,15 @@ async function ensureSupportChatTables(env){
  await env.BALTICM_DB.prepare("CREATE TABLE IF NOT EXISTS bot_support_messages (id TEXT PRIMARY KEY,thread_id TEXT NOT NULL,sender_type TEXT NOT NULL,sender_id TEXT DEFAULT '',sender_name TEXT DEFAULT '',message TEXT NOT NULL,created_at TEXT NOT NULL)").run();
  await env.BALTICM_DB.prepare("CREATE INDEX IF NOT EXISTS idx_bot_support_messages_thread_created ON bot_support_messages(thread_id,created_at ASC)").run();
 }
-async function supportChatState(env,user){
+async function supportChatState(req,env,user){
  try{
   await ensureSupportChatTables(env);
   const thread=await env.BALTICM_DB.prepare("SELECT id,user_id AS userId,user_name AS userName,guild_id AS guildId,guild_name AS guildName,status,unread_user AS unreadUser,unread_staff AS unreadStaff,created_at AS createdAt,updated_at AS updatedAt FROM bot_support_threads WHERE user_id=? ORDER BY updated_at DESC LIMIT 1").bind(String(user.id)).first();
   if(!thread)return json({thread:null,messages:[]});
   const rows=await env.BALTICM_DB.prepare("SELECT id,thread_id AS threadId,sender_type AS senderType,sender_id AS senderId,sender_name AS senderName,message,created_at AS createdAt FROM bot_support_messages WHERE thread_id=? ORDER BY created_at ASC LIMIT 300").bind(thread.id).all();
-  if(Number(thread.unreadUser)>0)await env.BALTICM_DB.prepare("UPDATE bot_support_threads SET unread_user=0 WHERE id=? AND user_id=?").bind(thread.id,String(user.id)).run();
-  return json({thread:{...thread,unreadUser:0},messages:rows.results||[]});
+  const markRead=new URL(req.url).searchParams.get("read")==="1";
+  if(markRead&&Number(thread.unreadUser)>0)await env.BALTICM_DB.prepare("UPDATE bot_support_threads SET unread_user=0 WHERE id=? AND user_id=?").bind(thread.id,String(user.id)).run();
+  return json({thread:{...thread,unreadUser:markRead?0:Number(thread.unreadUser||0)},messages:rows.results||[]});
  }catch(e){return json({error:String(e.message||e)},500)}
 }
 async function supportChatSend(req,env,user){
@@ -1077,7 +1078,7 @@ if(p==="/api/admin/support/threads"&&req.method==="GET")return adminSupportThrea
 if(p==="/api/admin/support/thread"&&req.method==="GET")return adminSupportThread(req,env,user);
 if(p==="/api/admin/support/reply"&&req.method==="POST")return adminSupportReply(req,env,user);
 if(p==="/api/admin/support/status"&&req.method==="POST")return adminSupportStatus(req,env,user);
-if(p==="/api/support-chat"){if(req.method==="GET")return supportChatState(env,user);if(req.method==="POST")return supportChatSend(req,env,user);return json({error:"Method not allowed"},405);}
+if(p==="/api/support-chat"){if(req.method==="GET")return supportChatState(req,env,user);if(req.method==="POST")return supportChatSend(req,env,user);return json({error:"Method not allowed"},405);}
 if(p==="/api/notifications")return json({notifications:await publicNotifications(env)});if(p==="/api/status")return json({ok:true,user:{id:user.id,username:user.username},configured:{discordClientSecret:!!env.DISCORD_CLIENT_SECRET,sessionSecret:!!env.SESSION_SECRET,discordBotToken:!!env.DISCORD_BOT_TOKEN}});if(p==="/api/discord/guild"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return discordGuild(env,guildId);}
 if(p==="/api/music/config"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return req.method==="POST"?saveMusicConfig(req,env,guildId):musicConfigState(env,guildId);}
 if(p==="/api/music"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);if(req.method!=="GET")return json({error:"Method not allowed"},405);return musicProxy(req,env,guildId,"state");}
