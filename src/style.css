@@ -771,8 +771,8 @@ input,select,textarea,button{font-size:11px}
 
 /* Control Center shared typography */
 :root{--cc-label:9px;--cc-title:13px;--cc-body:10px;--cc-meta:10px;--cc-button:9px}
-.settingsCard h3,.settingsIntegration b,.settingsWideModal .moduleMaster b,.settingsWideModal .settingsInfoBanner b,.settingsWideModal .settingsToggleList b{font-size:var(--cc-title)}
-.settingsCard small,.settingsSection small,.settingsIntegration small,.settingsWideModal .settingsModalHead small,.settingsWideModal .settingsModalBody>label>small,.settingsWideModal .moduleMaster small,.settingsWideModal .settingsInfoBanner small,.settingsWideModal .settingsToggleList small{font-size:var(--cc-body);line-height:1.4}
-.settingsWideModal .settingsModalBody>label>span,.settingsWideModal .eyebrow{font-size:var(--cc-label)}
-.settingsCard button,.settingsWideModal .settingsCancel,.settingsWideModal .settingsSave{font-size:var(--cc-button)}
+.eyebrow,.settingsServer,.ticketServer,.serverState,.rrServer,.featureServer,.activityLogFilters label>span,.createRoleForm label>span,.roleEditGrid>label>span,.modSetupForm label>span,.rrFields label>span,.giveawayEditor>label{font-size:var(--cc-label)!important}
+.settingsCard h3,.settingsIntegration b,.settingsWideModal .moduleMaster b,.settingsWideModal .settingsInfoBanner b,.settingsWideModal .settingsToggleList b,.serverSectionHead b,.modActionsHead h3,.modHistoryHead h3,.botServiceHead h3,.activityLogHead h3,.memberPanelHead h3,.rrToolbar h3,.featureToolbar h3{font-size:var(--cc-title)!important}
+.settingsCard small,.settingsSection small,.settingsIntegration small,.settingsWideModal .settingsModalHead small,.settingsWideModal .settingsModalBody>label>small,.settingsWideModal .moduleMaster small,.settingsWideModal .settingsInfoBanner small,.settingsWideModal .settingsToggleList small,.memberPanelHead small,.serverSectionHead small,.modActionsHead small,.modHistoryHead small,.rrToolbar small,.featureToolbar small,.botServiceInfo span,.activityLogEmpty span,.ticketEmpty span{font-size:var(--cc-body)!important;line-height:1.4}
+.settingsCard button,.settingsWideModal .settingsCancel,.settingsWideModal .settingsSave,.memberPanelHead>button,.createRoleForm>button,.ticketFilters button,.featureToolbar button,.giveawayCardActions button{font-size:var(--cc-button)!important}
 .settingsWideModal .settingsToggleList>button{padding:11px;min-height:50px}
