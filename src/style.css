@@ -814,3 +814,6 @@ input,select,textarea,button{font-size:11px}
 
 /* Larger support greeting wave */
 .supportChatWelcome .supportWave{width:30px!important;min-width:30px!important;height:30px!important;font-size:22px!important;line-height:30px!important;padding:0!important;transform:translateY(-1px)}
+
+/* Owner-only Admin Panel account link */
+.accountMenu .adminMenuLink{color:#b9a7ff}.accountMenu .adminMenuLink svg{color:#8b6cff}
