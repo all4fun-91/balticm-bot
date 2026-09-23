@@ -817,3 +817,8 @@ input,select,textarea,button{font-size:11px}
 
 /* Owner-only Admin Panel account link */
 .accountMenu .adminMenuLink{color:#b9a7ff}.accountMenu .adminMenuLink svg{color:#8b6cff}
+
+
+/* Support unread badge */
+.supportChatLauncher{position:relative}
+.supportUnreadBadge{position:absolute!important;right:-6px!important;top:-7px!important;display:grid!important;place-items:center!important;min-width:20px!important;height:20px!important;padding:0 5px!important;border:2px solid #070b14!important;border-radius:999px!important;background:#ef4444!important;color:#fff!important;font-size:10px!important;font-weight:800!important;font-style:normal!important;line-height:1!important;box-shadow:0 4px 12px #0006!important}
