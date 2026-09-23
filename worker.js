@@ -744,16 +744,39 @@ const premiumPlanKey=guildId=>"premium-plan:"+guildId;
 const FREE_BOT_NICKNAME="BalticM.Eu";
 const FREE_BOT_AVATAR_URL="https://media.balticm.eu/media/site/1789353600524-63dc7873-b363-4d93-a68c-4451208f096d.png";
 async function premiumPlanState(env,guildId){
- let plan="free";
- if(env.BALTICM_DB){
-  await env.BALTICM_DB.prepare("CREATE TABLE IF NOT EXISTS bot_config (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL)").run();
-  const row=await env.BALTICM_DB.prepare("SELECT value FROM bot_config WHERE key=?").bind(premiumPlanKey(guildId)).first();
-  if(row?.value)try{const v=JSON.parse(row.value);plan=String(v.plan||"free")}catch{}
- }
- const premium=plan!=="free";
- return {plan,premium};
+ if(env.BALTICM_DB)await env.BALTICM_DB.prepare("CREATE TABLE IF NOT EXISTS bot_config (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL)").run();
+ return premiumGrantState(env,guildId);
 }
-async function giveawayBrandingFooter(env,guildId){const state=await premiumPlanState(env,guildId);return state.premium?{}:{footer:{text:"BalticM.eu Giveaway"}}}\nasync function enforceFreeBotNickname(env,guildId){
+async function giveawayBrandingFooter(env,guildId){const state=await premiumPlanState(env,guildId);return state.premium?{}:{footer:{text:"BalticM.eu Giveaway"}}}\nasync function ensureRedeemTables(env){
+ if(!env.BALTICM_DB)throw new Error("BALTICM_DB binding is not configured");
+ await env.BALTICM_DB.prepare("CREATE TABLE IF NOT EXISTS redeem_codes (code TEXT PRIMARY KEY, plan TEXT NOT NULL DEFAULT 'vip', duration_days INTEGER NOT NULL DEFAULT 30, max_uses INTEGER NOT NULL DEFAULT 1, uses INTEGER NOT NULL DEFAULT 0, active INTEGER NOT NULL DEFAULT 1, expires_at TEXT, created_at TEXT NOT NULL)").run();
+ await env.BALTICM_DB.prepare("CREATE TABLE IF NOT EXISTS redeem_uses (code TEXT NOT NULL, guild_id TEXT NOT NULL, user_id TEXT NOT NULL, redeemed_at TEXT NOT NULL, PRIMARY KEY(code,guild_id))").run();
+}
+async function premiumGrantState(env,guildId){
+ let plan="free",source="",startsAt="",expiresAt="";
+ if(env.BALTICM_DB){const row=await env.BALTICM_DB.prepare("SELECT value FROM bot_config WHERE key=?").bind(premiumPlanKey(guildId)).first();if(row?.value)try{const v=JSON.parse(row.value);plan=String(v.plan||"free");source=String(v.source||"");startsAt=String(v.startsAt||"");expiresAt=String(v.expiresAt||"")}catch{}}
+ if(plan!=="free"&&expiresAt&&Date.parse(expiresAt)<=Date.now())return {plan:"free",premium:false,source:"expired",startsAt,expiresAt};
+ return {plan,premium:plan!=="free",source,startsAt,expiresAt};
+}
+async function redeemCode(req,env,user,guildId){
+ try{
+  await ensureRedeemTables(env);
+  const body=await req.json().catch(()=>({})),code=String(body.code||"").trim().toUpperCase().replace(/\s+/g,"");
+  if(!code)return json({error:"Enter a redeem code."},400);
+  const row=await env.BALTICM_DB.prepare("SELECT code,plan,duration_days AS durationDays,max_uses AS maxUses,uses,active,expires_at AS expiresAt FROM redeem_codes WHERE code=?").bind(code).first();
+  if(!row||!Number(row.active))return json({error:"Invalid or inactive redeem code."},400);
+  if(row.expiresAt&&Date.parse(row.expiresAt)<=Date.now())return json({error:"This redeem code has expired."},400);
+  if(Number(row.maxUses)>0&&Number(row.uses)>=Number(row.maxUses))return json({error:"This redeem code has reached its use limit."},400);
+  const used=await env.BALTICM_DB.prepare("SELECT code FROM redeem_uses WHERE code=? AND guild_id=?").bind(code,guildId).first();
+  if(used)return json({error:"This code has already been redeemed for this server."},409);
+  const current=await premiumGrantState(env,guildId),now=new Date(),base=current.premium&&current.expiresAt&&Date.parse(current.expiresAt)>now.getTime()?new Date(current.expiresAt):now,days=Math.max(1,Math.min(3650,Number(row.durationDays)||30)),expiresAt=new Date(base.getTime()+days*86400000).toISOString(),value={plan:String(row.plan||"vip"),source:"redeem_code",code,startsAt:current.premium&&current.startsAt?current.startsAt:now.toISOString(),expiresAt};
+  await env.BALTICM_DB.prepare("INSERT INTO redeem_uses (code,guild_id,user_id,redeemed_at) VALUES (?,?,?,?)").bind(code,guildId,String(user.id),now.toISOString()).run();
+  await env.BALTICM_DB.prepare("UPDATE redeem_codes SET uses=uses+1 WHERE code=?").bind(code).run();
+  await env.BALTICM_DB.prepare("INSERT INTO bot_config (key,value,updated_at) VALUES (?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at").bind(premiumPlanKey(guildId),JSON.stringify(value),now.toISOString()).run();
+  return json({ok:true,plan:value.plan,premium:true,source:value.source,expiresAt,days});
+ }catch(e){return json({error:String(e.message||e)},500)}
+}
+async function enforceFreeBotNickname(env,guildId){
  try{
   const state=await premiumPlanState(env,guildId);
   if(state.premium)return {ok:true,skipped:true,plan:state.plan};
@@ -1021,7 +1044,7 @@ const ttp=p.match(/^\/api\/tickets\/types\/(support|report)\/publish$/);if(ttp&&
 if(p==="/api/tickets/config"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return req.method==="POST"?saveTicketConfig(req,env,guildId):ticketConfigState(env,guildId);}
 if(p==="/api/tickets/publish"&&req.method==="POST"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return publishTicketPanel(env,guildId);}
 const ta=p.match(/^\/api\/tickets\/([^/]+)$/);if(ta&&req.method==="POST"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return ticketAction(req,env,user,guildId,decodeURIComponent(ta[1]));}
-if(p==="/api/premium"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);const state=await premiumPlanState(env,guildId);if(!state.premium)ctx.waitUntil(enforceFreeBotNickname(env,guildId));return json({ok:true,...state});}
+if(p==="/api/premium/redeem"&&req.method==="POST"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return redeemCode(req,env,user,guildId);}\nif(p==="/api/premium"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);const state=await premiumPlanState(env,guildId);if(!state.premium)ctx.waitUntil(enforceFreeBotNickname(env,guildId));return json({ok:true,...state});}
 if(p==="/api/settings/notifications"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return req.method==="POST"?saveNotificationSettings(req,env,guildId):json(await notificationSettingsState(env,guildId));}
 if(p==="/api/settings/modules"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return req.method==="POST"?saveModuleSettings(req,env,guildId):json({config:await moduleSettingsState(env,guildId)});}
 if(p==="/api/settings/access"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);if(req.method==="POST")return saveAccessSettings(req,env,guildId);try{const state=await accessSettingsState(env,guildId);if(state.error)return json({error:state.error},state.status||502);return json(state)}catch(e){return json({error:String(e.message||e)},500)}}
