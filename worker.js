@@ -687,6 +687,39 @@ async function moderationState(env,guildId){
  }catch(e){return json({error:String(e.message||e)},503)}
 }
 const accessSettingsKey=guildId=>"access-settings:"+guildId;
+const notificationSettingsKey=guildId=>"notification-settings:"+guildId;
+const moduleSettingsKey=guildId=>"module-settings:"+guildId;
+const MODULE_KEYS=["direct_messages","tickets","members_roles","moderation","reaction_roles","giveaways","announcements","voice_create","music_bot"];
+const NOTIFICATION_KEYS=["moderation","tickets","giveaways","service_status","errors","management"];
+async function readBotConfig(env,key,fallback){
+ if(!env.BALTICM_DB)return fallback;
+ await env.BALTICM_DB.prepare("CREATE TABLE IF NOT EXISTS bot_config (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL)").run();
+ const row=await env.BALTICM_DB.prepare("SELECT value FROM bot_config WHERE key=?").bind(key).first();
+ if(row?.value)try{return {...fallback,...JSON.parse(row.value)}}catch{}
+ return fallback;
+}
+async function writeBotConfig(env,key,value){
+ if(!env.BALTICM_DB)throw new Error("BALTICM_DB binding is not configured");
+ await env.BALTICM_DB.prepare("CREATE TABLE IF NOT EXISTS bot_config (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL)").run();
+ await env.BALTICM_DB.prepare("INSERT INTO bot_config (key,value,updated_at) VALUES (?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at").bind(key,JSON.stringify(value),new Date().toISOString()).run();
+}
+async function notificationSettingsState(env,guildId){
+ const config=await readBotConfig(env,notificationSettingsKey(guildId),{channelId:"",enabled:true,events:Object.fromEntries(NOTIFICATION_KEYS.map(k=>[k,true]))});
+ const r=await fetch(`https://discord.com/api/v10/guilds/${guildId}/channels`,{headers:botHeaders(env)});
+ const channels=r.ok?(await r.json()).filter(x=>[0,5].includes(x.type)).map(x=>({id:x.id,name:x.name,type:x.type,parentId:x.parent_id||null})):[];
+ return {config,channels};
+}
+async function saveNotificationSettings(req,env,guildId){
+ try{const b=await req.json(),events={};for(const k of NOTIFICATION_KEYS)events[k]=b.events?.[k]!==false;const config={channelId:String(b.channelId||""),enabled:b.enabled!==false,events};await writeBotConfig(env,notificationSettingsKey(guildId),config);return json({ok:true,config})}catch(e){return json({error:String(e.message||e)},500)}
+}
+async function moduleSettingsState(env,guildId){
+ return await readBotConfig(env,moduleSettingsKey(guildId),{modules:Object.fromEntries(MODULE_KEYS.map(k=>[k,true]))});
+}
+async function saveModuleSettings(req,env,guildId){
+ try{const b=await req.json(),modules={};for(const k of MODULE_KEYS)modules[k]=b.modules?.[k]!==false;const config={modules};await writeBotConfig(env,moduleSettingsKey(guildId),config);return json({ok:true,config})}catch(e){return json({error:String(e.message||e)},500)}
+}
+async function moduleEnabled(env,guildId,key){if(!MODULE_KEYS.includes(key))return true;const c=await moduleSettingsState(env,guildId);return c.modules?.[key]!==false}
+
 const ACCESS_KEYS=["dashboard","servers","premium","direct_messages","tickets","members_roles","moderation","reaction_roles","giveaways","announcements","voice_create","music_bot","bot_status","logs","settings"];
 async function accessSettingsState(env,guildId){
  if(!env.BALTICM_DB)throw new Error("BALTICM_DB binding is not configured");
@@ -972,7 +1005,7 @@ export default{async scheduled(event,env,ctx){ctx.waitUntil(Promise.all([finishD
 const guildIdForAccess=u.searchParams.get("guildId");
 if(guildIdForAccess){
  const routeKey=p.startsWith("/api/music")?"music_bot":p.startsWith("/api/voice-create")?"voice_create":p.startsWith("/api/tickets")?"tickets":p.startsWith("/api/moderation")?"moderation":p.startsWith("/api/members")||p.startsWith("/api/roles")?"members_roles":p.startsWith("/api/reaction-roles")?"reaction_roles":p.startsWith("/api/giveaways")?"giveaways":p.startsWith("/api/announcements")?"announcements":p.startsWith("/api/logs")?"logs":p.startsWith("/api/status")?"bot_status":p.startsWith("/api/premium")?"premium":p.startsWith("/api/settings")?"settings":null;
- if(routeKey){const denied=await requireControlAccess(env,user,guildIdForAccess,routeKey);if(denied)return denied}
+ if(routeKey){const denied=await requireControlAccess(env,user,guildIdForAccess,routeKey);if(denied)return denied;if(MODULE_KEYS.includes(routeKey)&&!await moduleEnabled(env,guildIdForAccess,routeKey))return json({error:"Feature module is disabled",module:routeKey},403)}
 }
 if(p==="/api/notifications")return json({notifications:await publicNotifications(env)});if(p==="/api/status")return json({ok:true,user:{id:user.id,username:user.username},configured:{discordClientSecret:!!env.DISCORD_CLIENT_SECRET,sessionSecret:!!env.SESSION_SECRET,discordBotToken:!!env.DISCORD_BOT_TOKEN}});if(p==="/api/discord/guild"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return discordGuild(env,guildId);}
 if(p==="/api/music/config"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return req.method==="POST"?saveMusicConfig(req,env,guildId):musicConfigState(env,guildId);}
@@ -989,6 +1022,8 @@ if(p==="/api/tickets/config"){const guildId=u.searchParams.get("guildId");if(!gu
 if(p==="/api/tickets/publish"&&req.method==="POST"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return publishTicketPanel(env,guildId);}
 const ta=p.match(/^\/api\/tickets\/([^/]+)$/);if(ta&&req.method==="POST"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return ticketAction(req,env,user,guildId,decodeURIComponent(ta[1]));}
 if(p==="/api/premium"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);const state=await premiumPlanState(env,guildId);if(!state.premium)ctx.waitUntil(enforceFreeBotNickname(env,guildId));return json({ok:true,...state});}
+if(p==="/api/settings/notifications"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return req.method==="POST"?saveNotificationSettings(req,env,guildId):json(await notificationSettingsState(env,guildId));}
+if(p==="/api/settings/modules"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return req.method==="POST"?saveModuleSettings(req,env,guildId):json({config:await moduleSettingsState(env,guildId)});}
 if(p==="/api/settings/access"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);if(req.method==="POST")return saveAccessSettings(req,env,guildId);try{const state=await accessSettingsState(env,guildId);if(state.error)return json({error:state.error},state.status||502);return json(state)}catch(e){return json({error:String(e.message||e)},500)}}
 if(p==="/api/settings/general"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return req.method==="POST"?saveGeneralSettings(req,env,guildId):generalSettingsState(env,guildId);}
 if(p==="/api/moderation/settings"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return req.method==="POST"?saveModerationSettings(req,env,guildId):moderationSettingsState(env,guildId);}
