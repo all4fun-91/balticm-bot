@@ -122,6 +122,24 @@ async function discordGuild(env,id){
 
 function botHeaders(env,jsonBody=false){return{Authorization:`Bot ${env.DISCORD_BOT_TOKEN}`,...(jsonBody?{"Content-Type":"application/json"}:{})}}
 function canManageGuild(user,guildId){return(user.guilds||[]).some(g=>g.id===guildId)}
+async function controlAccess(env,user,guildId,key){
+ const sessionGuild=(user.guilds||[]).find(g=>g.id===guildId);
+ if(sessionGuild?.owner)return true;
+ if(!env.DISCORD_BOT_TOKEN||!env.BALTICM_DB)return false;
+ try{
+  const [gr,mr]=await Promise.all([fetch(`https://discord.com/api/v10/guilds/${guildId}`,{headers:botHeaders(env)}),fetch(`https://discord.com/api/v10/guilds/${guildId}/members/${user.id}`,{headers:botHeaders(env)})]);
+  if(!gr.ok||!mr.ok)return false;
+  const guild=await gr.json();if(String(guild.owner_id)===String(user.id))return true;
+  const member=await mr.json();
+  await env.BALTICM_DB.prepare("CREATE TABLE IF NOT EXISTS bot_config (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL)").run();
+  const row=await env.BALTICM_DB.prepare("SELECT value FROM bot_config WHERE key=?").bind(accessSettingsKey(guildId)).first();
+  let config={roles:[]};if(row?.value)try{config={roles:[],...JSON.parse(row.value)}}catch{}
+  const roleIds=new Set((member.roles||[]).map(String));
+  return (config.roles||[]).some(r=>r.enabled!==false&&roleIds.has(String(r.roleId))&&(r.permissions||[]).includes(key));
+ }catch{return false}
+}
+async function requireControlAccess(env,user,guildId,key){return await controlAccess(env,user,guildId,key)?null:json({error:"Forbidden",requiredPermission:key},403)}
+
 async function discordMembers(env,guildId){
  if(!env.DISCORD_BOT_TOKEN)return json({error:"DISCORD_BOT_TOKEN is not configured"},503);
  const r=await fetch(`https://discord.com/api/v10/guilds/${guildId}/members?limit=1000`,{headers:botHeaders(env)});
@@ -950,7 +968,13 @@ export default{async scheduled(event,env,ctx){ctx.waitUntil(Promise.all([finishD
  if(p==="/api/auth/callback")return callback(req,env);
  if(p==="/api/auth/logout")return new Response(null,{status:302,headers:{Location:u.origin+"/","Set-Cookie":`${COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`}});
  if(p==="/api/auth/me"){const user=await session(req,env);return user?json({authenticated:true,user}):json({authenticated:false},401)}
- if(p.startsWith("/api/")){const user=await session(req,env);if(!user)return json({error:"Unauthorized"},401);if(p==="/api/notifications")return json({notifications:await publicNotifications(env)});if(p==="/api/status")return json({ok:true,user:{id:user.id,username:user.username},configured:{discordClientSecret:!!env.DISCORD_CLIENT_SECRET,sessionSecret:!!env.SESSION_SECRET,discordBotToken:!!env.DISCORD_BOT_TOKEN}});if(p==="/api/discord/guild"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return discordGuild(env,guildId);}
+ if(p.startsWith("/api/")){const user=await session(req,env);if(!user)return json({error:"Unauthorized"},401);if(p==="/api/control-access"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);const keys=ACCESS_KEYS,permissions={};for(const k of keys)permissions[k]=await controlAccess(env,user,guildId,k);return json({permissions});}
+const guildIdForAccess=u.searchParams.get("guildId");
+if(guildIdForAccess){
+ const routeKey=p.startsWith("/api/music")?"music_bot":p.startsWith("/api/voice-create")?"voice_create":p.startsWith("/api/tickets")?"tickets":p.startsWith("/api/moderation")?"moderation":p.startsWith("/api/members")||p.startsWith("/api/roles")?"members_roles":p.startsWith("/api/reaction-roles")?"reaction_roles":p.startsWith("/api/giveaways")?"giveaways":p.startsWith("/api/announcements")?"announcements":p.startsWith("/api/logs")?"logs":p.startsWith("/api/status")?"bot_status":p.startsWith("/api/premium")?"premium":p.startsWith("/api/settings")?"settings":null;
+ if(routeKey){const denied=await requireControlAccess(env,user,guildIdForAccess,routeKey);if(denied)return denied}
+}
+if(p==="/api/notifications")return json({notifications:await publicNotifications(env)});if(p==="/api/status")return json({ok:true,user:{id:user.id,username:user.username},configured:{discordClientSecret:!!env.DISCORD_CLIENT_SECRET,sessionSecret:!!env.SESSION_SECRET,discordBotToken:!!env.DISCORD_BOT_TOKEN}});if(p==="/api/discord/guild"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return discordGuild(env,guildId);}
 if(p==="/api/music/config"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return req.method==="POST"?saveMusicConfig(req,env,guildId):musicConfigState(env,guildId);}
 if(p==="/api/music"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);if(req.method!=="GET")return json({error:"Method not allowed"},405);return musicProxy(req,env,guildId,"state");}
 if(p==="/api/music/connect"&&req.method==="POST"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return musicProxy(req,env,guildId,"connect");}
