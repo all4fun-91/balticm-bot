@@ -776,3 +776,8 @@ input,select,textarea,button{font-size:11px}
 .settingsCard small,.settingsSection small,.settingsIntegration small,.settingsWideModal .settingsModalHead small,.settingsWideModal .settingsModalBody>label>small,.settingsWideModal .moduleMaster small,.settingsWideModal .settingsInfoBanner small,.settingsWideModal .settingsToggleList small,.memberPanelHead small,.serverSectionHead small,.modActionsHead small,.modHistoryHead small,.rrToolbar small,.featureToolbar small,.botServiceInfo span,.activityLogEmpty span,.ticketEmpty span{font-size:var(--cc-body)!important;line-height:1.4}
 .settingsCard button,.settingsWideModal .settingsCancel,.settingsWideModal .settingsSave,.memberPanelHead>button,.createRoleForm>button,.ticketFilters button,.featureToolbar button,.giveawayCardActions button{font-size:var(--cc-button)!important}
 .settingsWideModal .settingsToggleList>button{padding:11px;min-height:50px}
+
+/* Keep notification master title and helper text visually separated */
+.settingsWideModal .moduleMaster>div>span{gap:5px}
+.settingsWideModal .moduleMaster b{display:block}
+.settingsWideModal .moduleMaster small{display:block}
