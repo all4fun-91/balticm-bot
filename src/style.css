@@ -822,3 +822,13 @@ input,select,textarea,button{font-size:11px}
 /* Support unread badge */
 .supportChatLauncher{position:fixed}
 .supportUnreadBadge{position:absolute!important;right:-6px!important;top:-7px!important;display:grid!important;place-items:center!important;min-width:20px!important;height:20px!important;padding:0 5px!important;border:2px solid #070b14!important;border-radius:999px!important;background:#ef4444!important;color:#fff!important;font-size:10px!important;font-weight:800!important;font-style:normal!important;line-height:1!important;box-shadow:0 4px 12px #0006!important}
+
+
+/* Customer support conversation status */
+.supportChatStatus{margin-left:auto;padding:4px 7px;border:1px solid #ffffff18;border-radius:7px;font-size:8px;font-weight:800;letter-spacing:.05em;white-space:nowrap;color:#9aa7ba}
+.supportChatStatus.waiting_staff{color:#fbbf24;border-color:#fbbf2445;background:#fbbf240b}
+.supportChatStatus.waiting_customer{color:#60a5fa;border-color:#60a5fa45;background:#60a5fa0b}
+.supportChatStatus.open{color:#34d399;border-color:#34d39945;background:#34d3990b}
+.supportChatStatus.closed{color:#94a3b8;border-color:#94a3b82e;background:#94a3b80a}
+.supportChatComposer textarea:disabled{opacity:.55;cursor:not-allowed}
+@media(max-width:520px){.supportChatStatus{font-size:7px;padding:3px 5px}}
