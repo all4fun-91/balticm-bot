@@ -747,7 +747,8 @@ async function premiumPlanState(env,guildId){
  if(env.BALTICM_DB)await env.BALTICM_DB.prepare("CREATE TABLE IF NOT EXISTS bot_config (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL)").run();
  return premiumGrantState(env,guildId);
 }
-async function giveawayBrandingFooter(env,guildId){const state=await premiumPlanState(env,guildId);return state.premium?{}:{footer:{text:"BalticM.eu Giveaway"}}}\nasync function ensureRedeemTables(env){
+async function giveawayBrandingFooter(env,guildId){const state=await premiumPlanState(env,guildId);return state.premium?{}:{footer:{text:"BalticM.eu Giveaway"}}}
+async function ensureRedeemTables(env){
  if(!env.BALTICM_DB)throw new Error("BALTICM_DB binding is not configured");
  await env.BALTICM_DB.prepare("CREATE TABLE IF NOT EXISTS redeem_codes (code TEXT PRIMARY KEY, plan TEXT NOT NULL DEFAULT 'vip', duration_days INTEGER NOT NULL DEFAULT 30, max_uses INTEGER NOT NULL DEFAULT 1, uses INTEGER NOT NULL DEFAULT 0, active INTEGER NOT NULL DEFAULT 1, expires_at TEXT, created_at TEXT NOT NULL)").run();
  await env.BALTICM_DB.prepare("CREATE TABLE IF NOT EXISTS redeem_uses (code TEXT NOT NULL, guild_id TEXT NOT NULL, user_id TEXT NOT NULL, redeemed_at TEXT NOT NULL, PRIMARY KEY(code,guild_id))").run();
