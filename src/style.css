@@ -769,13 +769,10 @@ input,select,textarea,button{font-size:11px}
 
 .settingsWideModal{width:min(650px,94vw);max-height:90vh}.settingsWideModal .settingsModalBody{overflow:auto}.moduleMaster,.settingsInfoBanner{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px;border:1px solid #7657ff35;border-radius:11px;background:#7657ff0a}.moduleMaster>div,.settingsInfoBanner{justify-content:flex-start}.moduleMaster>div,.settingsInfoBanner span{display:flex;align-items:center;gap:10px}.moduleMaster>div>span,.settingsInfoBanner span{flex-direction:column;align-items:flex-start;gap:3px}.moduleMaster svg,.settingsInfoBanner>svg{width:20px;color:#9b7cff}.moduleMaster b,.settingsInfoBanner b{font-size:10px}.moduleMaster small,.settingsInfoBanner small{font-size:8px;color:#7485a3}.settingsToggleList{display:grid;gap:7px;margin-top:12px}.settingsToggleList>button{display:flex;align-items:center;gap:10px;width:100%;padding:11px;border:1px solid #ffffff0e;border-radius:9px;background:#07101c;color:#e9edf7;text-align:left;cursor:pointer}.settingsToggleList>button:disabled{opacity:.5;cursor:not-allowed}.settingsToggleList>button>svg{width:18px;color:#9b7cff}.settingsToggleList>button>span:nth-of-type(1){display:flex;flex:1;flex-direction:column;gap:2px}.settingsToggleList b{font-size:9px}.settingsToggleList small{font-size:8px;color:#71819e}.settingsModalBody select{width:100%;box-sizing:border-box;margin-top:7px;padding:12px;border:1px solid #ffffff14;border-radius:10px;background:#050a13;color:#e9edf7;outline:none}.settingsModalBody select:focus{border-color:#7657ff70}.settingsInfoBanner{margin-bottom:12px}
 
-/* Settings readability pass */
-.settingsWideModal .settingsModalHead small{font-size:11px!important;line-height:1.35;color:#8e9db7!important}
-.settingsWideModal .settingsModalBody>label>span{font-size:10px!important;letter-spacing:.14em}
-.settingsWideModal .settingsModalBody>label>small{font-size:11px!important;line-height:1.4;color:#8797b3!important}
-.settingsWideModal .moduleMaster b,.settingsWideModal .settingsInfoBanner b{font-size:12px!important}
-.settingsWideModal .moduleMaster small,.settingsWideModal .settingsInfoBanner small{font-size:10px!important;line-height:1.35;color:#8797b3!important}
-.settingsWideModal .settingsToggleList b{font-size:11px!important;line-height:1.25}
-.settingsWideModal .settingsToggleList small{font-size:10px!important;line-height:1.35;color:#8797b3!important}
-.settingsWideModal .settingsToggleList>button{padding:12px 13px;min-height:52px}
-.settingsWideModal .settingsToggleList>button>svg{width:19px;height:19px;flex:0 0 19px}
+/* Control Center shared typography */
+:root{--cc-label:9px;--cc-title:13px;--cc-body:10px;--cc-meta:10px;--cc-button:9px}
+.settingsCard h3,.settingsIntegration b,.settingsWideModal .moduleMaster b,.settingsWideModal .settingsInfoBanner b,.settingsWideModal .settingsToggleList b{font-size:var(--cc-title)}
+.settingsCard small,.settingsSection small,.settingsIntegration small,.settingsWideModal .settingsModalHead small,.settingsWideModal .settingsModalBody>label>small,.settingsWideModal .moduleMaster small,.settingsWideModal .settingsInfoBanner small,.settingsWideModal .settingsToggleList small{font-size:var(--cc-body);line-height:1.4}
+.settingsWideModal .settingsModalBody>label>span,.settingsWideModal .eyebrow{font-size:var(--cc-label)}
+.settingsCard button,.settingsWideModal .settingsCancel,.settingsWideModal .settingsSave{font-size:var(--cc-button)}
+.settingsWideModal .settingsToggleList>button{padding:11px;min-height:50px}
