@@ -811,3 +811,6 @@ input,select,textarea,button{font-size:11px}
 
 /* Support greeting: keep emoji fully inside the row */
 .supportChatWelcome b{width:100%;box-sizing:border-box;padding:0 10px;flex-wrap:nowrap!important;overflow:visible!important}.supportChatWelcome b>span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.supportChatWelcome .supportWave{display:inline-flex!important;align-items:center;justify-content:center;width:24px;min-width:24px;height:24px;margin:0!important;padding:0 2px!important;font-size:16px!important;line-height:24px!important;overflow:visible!important}
+
+/* Larger support greeting wave */
+.supportChatWelcome .supportWave{width:30px!important;min-width:30px!important;height:30px!important;font-size:22px!important;line-height:30px!important;padding:0!important;transform:translateY(-1px)}
