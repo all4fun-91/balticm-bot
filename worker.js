@@ -64,6 +64,40 @@ async function health(req){
  }));
  return json({ok:services.every(x=>x.ok),checkedAt:new Date().toISOString(),services});
 }
+async function ensureSupportChatTables(env){
+ if(!env.BALTICM_DB)throw new Error("BALTICM_DB binding is not configured");
+ await env.BALTICM_DB.prepare("CREATE TABLE IF NOT EXISTS bot_support_threads (id TEXT PRIMARY KEY,user_id TEXT NOT NULL,user_name TEXT DEFAULT '',guild_id TEXT DEFAULT '',guild_name TEXT DEFAULT '',status TEXT NOT NULL DEFAULT 'open',unread_user INTEGER NOT NULL DEFAULT 0,unread_staff INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,updated_at TEXT NOT NULL)").run();
+ await env.BALTICM_DB.prepare("CREATE INDEX IF NOT EXISTS idx_bot_support_threads_user_updated ON bot_support_threads(user_id,updated_at DESC)").run();
+ await env.BALTICM_DB.prepare("CREATE TABLE IF NOT EXISTS bot_support_messages (id TEXT PRIMARY KEY,thread_id TEXT NOT NULL,sender_type TEXT NOT NULL,sender_id TEXT DEFAULT '',sender_name TEXT DEFAULT '',message TEXT NOT NULL,created_at TEXT NOT NULL)").run();
+ await env.BALTICM_DB.prepare("CREATE INDEX IF NOT EXISTS idx_bot_support_messages_thread_created ON bot_support_messages(thread_id,created_at ASC)").run();
+}
+async function supportChatState(env,user){
+ try{
+  await ensureSupportChatTables(env);
+  const thread=await env.BALTICM_DB.prepare("SELECT id,user_id AS userId,user_name AS userName,guild_id AS guildId,guild_name AS guildName,status,unread_user AS unreadUser,unread_staff AS unreadStaff,created_at AS createdAt,updated_at AS updatedAt FROM bot_support_threads WHERE user_id=? ORDER BY updated_at DESC LIMIT 1").bind(String(user.id)).first();
+  if(!thread)return json({thread:null,messages:[]});
+  const rows=await env.BALTICM_DB.prepare("SELECT id,thread_id AS threadId,sender_type AS senderType,sender_id AS senderId,sender_name AS senderName,message,created_at AS createdAt FROM bot_support_messages WHERE thread_id=? ORDER BY created_at ASC LIMIT 300").bind(thread.id).all();
+  if(Number(thread.unreadUser)>0)await env.BALTICM_DB.prepare("UPDATE bot_support_threads SET unread_user=0 WHERE id=? AND user_id=?").bind(thread.id,String(user.id)).run();
+  return json({thread:{...thread,unreadUser:0},messages:rows.results||[]});
+ }catch(e){return json({error:String(e.message||e)},500)}
+}
+async function supportChatSend(req,env,user){
+ try{
+  await ensureSupportChatTables(env);
+  const body=await req.json().catch(()=>({})),message=String(body.message||"").trim(),guildId=String(body.guildId||"").trim();
+  if(!message)return json({error:"Message is required"},400);
+  if(message.length>2000)return json({error:"Message is too long"},400);
+  let guildName="";
+  if(guildId){const g=(user.guilds||[]).find(x=>String(x.id)===guildId);if(!g)return json({error:"Invalid server"},403);guildName=String(g.name||"")}
+  let thread=await env.BALTICM_DB.prepare("SELECT id,status FROM bot_support_threads WHERE user_id=? AND status!='closed' ORDER BY updated_at DESC LIMIT 1").bind(String(user.id)).first();
+  const now=new Date().toISOString(),userName=String(user.global_name||user.username||"Discord user");
+  if(!thread){thread={id:crypto.randomUUID(),status:"open"};await env.BALTICM_DB.prepare("INSERT INTO bot_support_threads (id,user_id,user_name,guild_id,guild_name,status,unread_user,unread_staff,created_at,updated_at) VALUES (?,?,?,?,?,'open',0,1,?,?)").bind(thread.id,String(user.id),userName,guildId,guildName,now,now).run()}
+  else await env.BALTICM_DB.prepare("UPDATE bot_support_threads SET guild_id=?,guild_name=?,user_name=?,unread_staff=unread_staff+1,updated_at=? WHERE id=? AND user_id=?").bind(guildId,guildName,userName,now,thread.id,String(user.id)).run();
+  const item={id:crypto.randomUUID(),threadId:thread.id,senderType:"user",senderId:String(user.id),senderName:userName,message,createdAt:now};
+  await env.BALTICM_DB.prepare("INSERT INTO bot_support_messages (id,thread_id,sender_type,sender_id,sender_name,message,created_at) VALUES (?,?,?,?,?,?,?)").bind(item.id,item.threadId,item.senderType,item.senderId,item.senderName,item.message,item.createdAt).run();
+  return json({ok:true,threadId:thread.id,message:item});
+ }catch(e){return json({error:String(e.message||e)},500)}
+}
 async function ensureActivityLogTable(env){await env.BALTICM_DB.prepare("CREATE TABLE IF NOT EXISTS activity_logs (id TEXT PRIMARY KEY,guild_id TEXT NOT NULL,actor_id TEXT DEFAULT '',actor_name TEXT DEFAULT '',action TEXT NOT NULL,target TEXT DEFAULT '',source TEXT NOT NULL,details TEXT DEFAULT '',created_at TEXT NOT NULL)").run();await env.BALTICM_DB.prepare("CREATE INDEX IF NOT EXISTS idx_activity_logs_guild_created ON activity_logs(guild_id,created_at DESC)").run()}
 async function addActivityLog(env,guildId,{actorId="",actorName="",action,target="",source="BALTICM",details=""}){try{await ensureActivityLogTable(env);await env.BALTICM_DB.prepare("INSERT INTO activity_logs (id,guild_id,actor_id,actor_name,action,target,source,details,created_at) VALUES (?,?,?,?,?,?,?,?,?)").bind(crypto.randomUUID(),guildId,String(actorId||""),String(actorName||""),String(action||""),String(target||""),String(source||"BALTICM").toUpperCase(),String(details||""),new Date().toISOString()).run()}catch(e){}}
 async function syncDiscordAuditLogs(env,guildId){
@@ -1031,6 +1065,7 @@ if(guildIdForAccess){
  const routeKey=p.startsWith("/api/music")?"music_bot":p.startsWith("/api/voice-create")?"voice_create":p.startsWith("/api/tickets")?"tickets":p.startsWith("/api/moderation")?"moderation":p.startsWith("/api/members")||p.startsWith("/api/roles")?"members_roles":p.startsWith("/api/reaction-roles")?"reaction_roles":p.startsWith("/api/giveaways")?"giveaways":p.startsWith("/api/announcements")?"announcements":p.startsWith("/api/logs")?"logs":p.startsWith("/api/status")?"bot_status":p.startsWith("/api/premium")?"premium":p.startsWith("/api/settings")?"settings":null;
  if(routeKey){const denied=await requireControlAccess(env,user,guildIdForAccess,routeKey);if(denied)return denied;if(MODULE_KEYS.includes(routeKey)&&!await moduleEnabled(env,guildIdForAccess,routeKey))return json({error:"Feature module is disabled",module:routeKey},403)}
 }
+if(p==="/api/support-chat"){if(req.method==="GET")return supportChatState(env,user);if(req.method==="POST")return supportChatSend(req,env,user);return json({error:"Method not allowed"},405);}
 if(p==="/api/notifications")return json({notifications:await publicNotifications(env)});if(p==="/api/status")return json({ok:true,user:{id:user.id,username:user.username},configured:{discordClientSecret:!!env.DISCORD_CLIENT_SECRET,sessionSecret:!!env.SESSION_SECRET,discordBotToken:!!env.DISCORD_BOT_TOKEN}});if(p==="/api/discord/guild"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return discordGuild(env,guildId);}
 if(p==="/api/music/config"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return req.method==="POST"?saveMusicConfig(req,env,guildId):musicConfigState(env,guildId);}
 if(p==="/api/music"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);if(req.method!=="GET")return json({error:"Method not allowed"},405);return musicProxy(req,env,guildId,"state");}
