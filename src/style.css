@@ -808,3 +808,6 @@ input,select,textarea,button{font-size:11px}
 
 /* Keep support welcome wave visible */
 .supportChatWelcome b{display:flex!important;align-items:center;justify-content:center;gap:7px;flex-wrap:wrap}.supportChatWelcome .supportWave{display:inline-block;flex:0 0 auto;line-height:1;font-size:17px;margin-left:1px;overflow:visible}
+
+/* Support greeting: keep emoji fully inside the row */
+.supportChatWelcome b{width:100%;box-sizing:border-box;padding:0 10px;flex-wrap:nowrap!important;overflow:visible!important}.supportChatWelcome b>span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.supportChatWelcome .supportWave{display:inline-flex!important;align-items:center;justify-content:center;width:24px;min-width:24px;height:24px;margin:0!important;padding:0 2px!important;font-size:16px!important;line-height:24px!important;overflow:visible!important}
