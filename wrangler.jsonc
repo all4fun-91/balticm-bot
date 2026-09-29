@@ -2,6 +2,9 @@
   "name": "balticm-bot",
   "main": "worker.js",
   "compatibility_date": "2026-09-18",
+  "vars": {
+    "PUBLIC_APP_URL": "https://bot.balticm.eu"
+  },
   "d1_databases": [
     {
       "binding": "BALTICM_DB",
@@ -9,6 +12,12 @@
       "database_id": "5e931203-de82-4a16-9446-d5ec8ab872c2"
     }
   ],
+  "ai": {
+    "binding": "AI"
+  },
+  "images": {
+    "binding": "IMAGES"
+  },
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",
