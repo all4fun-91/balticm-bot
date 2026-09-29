@@ -228,6 +228,7 @@ footer{display:flex;justify-content:space-between;align-items:center;gap:12px;ma
 .legalModalHead>div{display:grid;gap:4px;min-width:0;flex:1}
 .legalModalHead .eyebrow{margin:0}
 .legalModalHead h3{margin:0;font-size:var(--cc-dialog);line-height:1.25}
+.legalModalHead small{margin:0;font-size:calc(12px * var(--type-scale));color:var(--text-secondary)}
 .legalModalBody{padding:16px 18px 20px;overflow:auto;min-height:0}
 .legalContentCompact .legalLead{margin:0 0 16px}
 @media(max-width:700px){

@@ -1,4 +1,5 @@
 import React,{useEffect,useRef,useState}from"react";
+import {Activity,Bell,CheckCircle2,ChevronDown,ExternalLink,Pencil,Plus,Radio,Search,Trash2,Users,Wifi,X}from"lucide-react";
 import { streamingProfileNoticeFromSearch, strippedStreamingOAuthSearch } from "../streaming-oauth.js";
 
 const PLATFORM_LABEL={twitch:"Twitch",youtube:"YouTube",kick:"Kick",tiktok:"TikTok"};

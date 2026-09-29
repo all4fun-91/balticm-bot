@@ -256,6 +256,9 @@ test("worker polls streamers and UI mounts under STUDIO", () => {
   assert.match(streamersUi, /TicketOptionSelect id="st-channel"/);
   assert.match(streamersUi, /search flip/);
   assert.match(streamersUi, /StreamerSelfService/);
+  assert.match(streamersUi, /from"lucide-react"/);
+  assert.match(streamersUi, /Radio/);
+  assert.match(streamersUi, /ExternalLink/);
   assert.match(streamersUi, /AUTO — PREMIUM/);
   assert.match(streamersUi, /OWNER ADDED/);
   assert.match(streamersUi, /Connect \{label\}/);

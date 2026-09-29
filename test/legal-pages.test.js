@@ -42,22 +42,32 @@ test("terms of service cover product use without invented company registry detai
 
 test("footer legal links open shared modal without leaving the current route", () => {
   assert.match(mainSrc, /PLAY TOGETHER • MANAGE SMARTER/);
-  assert.match(mainSrc, /openLegalModal\("Privacy"\)/);
-  assert.match(mainSrc, /openLegalModal\("Terms"\)/);
+  assert.match(mainSrc, /openFooterLegal\("Privacy"\)/);
+  assert.match(mainSrc, /openFooterLegal\("Terms"\)/);
+  assert.match(mainSrc, /openFooterLegal=doc=>\{if\(isPublicPage\(page\)\)/);
+  assert.match(mainSrc, /openLegalModal\(doc\)/);
   assert.match(mainSrc, /legalModal&&!isPublicPage\(page\)&&<LegalModal/);
   assert.match(legalSrc, /export function LegalModal/);
   assert.match(legalSrc, /export function LegalContent/);
   assert.match(legalSrc, /aria-modal="true"/);
+  assert.match(legalSrc, /Last updated \{doc\.updated\}/);
+  assert.match(legalSrc, /onMouseDown=\{\(e\) => \{ if \(e\.target === e\.currentTarget\) onClose\(\); \}\}/);
+  assert.match(legalSrc, /if \(e\.key === "Escape"\) onClose\(\)/);
   assert.doesNotMatch(mainSrc, /onClick=\{e=>\{e\.preventDefault\(\);openPage\("Privacy"\)\}\}/);
+  assert.doesNotMatch(mainSrc, /openLegalModal=doc=>\{[^}]*history\./);
 });
 
 test("standalone /privacy and /terms still render LegalPages from shared content", () => {
   assert.match(mainSrc, /isPublicPage\(page\)\?<LegalPages page=\{page\}/);
   assert.match(legalSrc, /export default function LegalPages/);
   assert.match(legalSrc, /LegalContent page=\{page\}/);
+  assert.match(legalSrc, /onOpenPrivacy=\{onOpenPrivacy\}/);
+  assert.match(legalSrc, /onOpenTerms=\{onOpenTerms\}/);
 });
 
-test("navigation strips consumed streaming OAuth query params without removing other query values", () => {
+test("opening the legal modal does not rewrite the URL or OAuth query string", () => {
+  assert.match(mainSrc, /const openLegalModal=doc=>\{setLegalModal\(doc\);setOpen\(false\);setAccountOpen\(false\);setServerOpen\(false\);setNotificationsOpen\(false\)\}/);
+  assert.doesNotMatch(mainSrc, /openLegalModal=doc=>\{[\s\S]{0,120}history\./);
   assert.equal(strippedStreamingOAuthSearch("?streaming_error=The+connection+could+not+be+completed.&tab=1"), "tab=1");
   assert.equal(strippedStreamingOAuthSearch("?streaming=connected&platform=youtube&x=1"), "x=1");
   assert.equal(strippedStreamingOAuthSearch("?streaming_success=ok"), "");

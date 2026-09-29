@@ -242,12 +242,7 @@ export function LegalContent({ page, compact = false, onOpenPrivacy, onOpenTerms
           <small>Last updated {doc.updated}</small>
         </header>
       )}
-      {compact && (
-        <p className="legalLead">
-          {doc.lead}
-          <small>Last updated {doc.updated}</small>
-        </p>
-      )}
+      {compact && <p className="legalLead">{doc.lead}</p>}
       {doc.sections.map(section => (
         <section key={section.id} className="legalSection" id={section.id}>
           <h3>{section.title}</h3>
@@ -294,6 +289,7 @@ export function LegalModal({ page, onClose, onOpenPrivacy, onOpenTerms }) {
           <div>
             <span className="eyebrow">LEGAL</span>
             <h3 id="legal-modal-title">{doc.title}</h3>
+            <small>Last updated {doc.updated}</small>
           </div>
           <button type="button" className="settingsClose" aria-label="Close" onClick={onClose}>×</button>
         </div>
