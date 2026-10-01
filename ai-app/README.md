@@ -4,7 +4,7 @@ A first production-shaped MVP for a private ChatGPT-style engineering assistant.
 
 ## Deploy to Vercel
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fall4fun-91%2Fbalticm-bot%2Ftree%2Ffeature%2Fbalticm-ai-mvp&root-directory=ai-app&project-name=balticm-ai&env=OPENAI_API_KEY&env=GITHUB_TOKEN&env=GITHUB_ALLOWED_REPOS&envDescription=OPENAI_API_KEY+is+required.+GITHUB_TOKEN+and+GITHUB_ALLOWED_REPOS+enable+Agent+mode.&envLink=https%3A%2F%2Fplatform.openai.com%2Fapi-keys)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fall4fun-91%2Fbalticm-bot%2Ftree%2Fbalticm-ai-mvp%2Fai-app&repository-name=balticm-ai&project-name=balticm-ai&env=OPENAI_API_KEY&env=GITHUB_TOKEN&env=GITHUB_ALLOWED_REPOS&envDescription=OPENAI_API_KEY+is+required.+GITHUB_TOKEN+and+GITHUB_ALLOWED_REPOS+enable+Agent+mode.&envLink=https%3A%2F%2Fplatform.openai.com%2Fapi-keys)
 
 The deploy flow is preconfigured with:
 
