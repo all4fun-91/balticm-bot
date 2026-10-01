@@ -1,0 +1,47 @@
+name: BalticM AI CI
+
+on:
+  push:
+    branches:
+      - feature/balticm-ai-mvp
+    paths:
+      - "ai-app/**"
+      - ".github/workflows/balticm-ai-ci.yml"
+  pull_request:
+    paths:
+      - "ai-app/**"
+      - ".github/workflows/balticm-ai-ci.yml"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ai-app
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ai-app/package-lock.json
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Syntax check server code
+        run: |
+          node --check lib/openai.js
+          node --check lib/github.js
+          node --check lib/prompts.js
+          node --check app/api/chat/route.js
+          node --check app/api/agent/route.js
+          node --check app/api/status/route.js
+
+      - name: Build
+        run: npm run build
