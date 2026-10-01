@@ -92,9 +92,11 @@ export async function POST(request) {
     const messages = normalizeMessages(body.messages);
     const trace = [];
 
+    const instructions = buildInstructions({ projectMemory: body.projectMemory, agent: true, allowWrites });
+
     let response = await callAgent({
       model,
-      instructions: buildInstructions({ projectMemory: body.projectMemory, agent: true, allowWrites }),
+      instructions,
       input: messages,
     });
 
@@ -122,6 +124,7 @@ export async function POST(request) {
 
       response = await callAgent({
         model,
+        instructions,
         previous_response_id: response.id,
         input: outputs,
       });
