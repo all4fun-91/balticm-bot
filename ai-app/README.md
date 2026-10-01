@@ -2,6 +2,23 @@
 
 A first production-shaped MVP for a private ChatGPT-style engineering assistant.
 
+## Deploy to Vercel
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fall4fun-91%2Fbalticm-bot%2Ftree%2Ffeature%2Fbalticm-ai-mvp&root-directory=ai-app&project-name=balticm-ai&env=OPENAI_API_KEY&env=GITHUB_TOKEN&env=GITHUB_ALLOWED_REPOS&envDescription=OPENAI_API_KEY+is+required.+GITHUB_TOKEN+and+GITHUB_ALLOWED_REPOS+enable+Agent+mode.&envLink=https%3A%2F%2Fplatform.openai.com%2Fapi-keys)
+
+The deploy flow is preconfigured with:
+
+- Root Directory: `ai-app`
+- Project name: `balticm-ai`
+- Required secret: `OPENAI_API_KEY`
+- Optional Agent secrets: `GITHUB_TOKEN`, `GITHUB_ALLOWED_REPOS`
+
+Use the **BalticM** Vercel team. For `GITHUB_ALLOWED_REPOS`, start with:
+
+```
+all4fun-91/balticm-bot
+```
+
 ## What is included
 
 - Streaming chat through the OpenAI Responses API.
@@ -28,6 +45,10 @@ npm run dev
 ```
 
 Open `http://localhost:3000`.
+
+## Verification
+
+GitHub Actions runs `npm install`, server-side syntax checks, and `npm run build` for this branch and pull request.
 
 ## Security design
 
