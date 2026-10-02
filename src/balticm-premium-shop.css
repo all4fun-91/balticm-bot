@@ -587,7 +587,7 @@
   color:#9fdaba
 }
 
-/* CHECKOUT — FULL WIDTH */
+/* CHECKOUT */
 
 .bmCheckoutBackdrop{
   position:fixed;
@@ -670,7 +670,7 @@
   display:block;
   width:100%;
   min-height:720px;
-  overflow:auto;
+  overflow:hidden;
   background:#12100e
 }
 
@@ -683,6 +683,7 @@
 }
 
 .bmTebexHost{
+  position:relative;
   display:block;
   width:100%;
   max-width:none;
@@ -691,16 +692,26 @@
   height:720px;
   margin:0;
   padding:0;
+  overflow:hidden;
   background:#12100e
 }
+
+/*
+  Tebex iekšējais checkout tiek pacelts uz augšu.
+  +90px height kompensē -90px nobīdi.
+*/
 
 .bmTebexHost>iframe{
   display:block;
   width:100% !important;
   max-width:none !important;
   min-width:100% !important;
-  height:100% !important;
+
+  height:calc(100% + 90px) !important;
+
   margin:0 !important;
+  margin-top:-90px !important;
+
   border:0 !important
 }
 
@@ -818,13 +829,24 @@
   .bmCheckoutGrid{
     min-height:calc(100dvh - 61px);
     height:calc(100dvh - 61px);
-    overflow:auto
+    overflow:hidden
   }
 
-  .bmCheckoutPayment,
+  .bmCheckoutPayment{
+    min-height:760px;
+    height:760px;
+    overflow:hidden
+  }
+
   .bmTebexHost{
     min-height:760px;
-    height:760px
+    height:760px;
+    overflow:hidden
+  }
+
+  .bmTebexHost>iframe{
+    height:calc(100% + 90px) !important;
+    margin-top:-90px !important
   }
 
   .bmCheckoutError{
