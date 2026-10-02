@@ -1203,27 +1203,6 @@ a.premiumBuy{border:0;min-height:44px;padding:0 18px;font-size:calc(14px * var(-
 .shell .topbar{background:#0e0c0a}
 .shell .side{background:linear-gradient(90deg,rgba(14,12,10,0) 0%,rgba(14,12,10,0) 38%,rgba(14,12,10,.28) 62%,rgba(14,12,10,.7) 84%,#0e0c0a 100%),radial-gradient(ellipse 160% 640px at 42% 40px,#140c06 0%,rgba(20,12,6,.7) 32%,rgba(20,12,6,.28) 55%,rgba(14,12,10,0) 78%),#0e0c0a}
 .shell .activeServerMenu,.shell .accountMenu,.shell .notificationMenu{background:rgba(28,22,16,.94);backdrop-filter:blur(18px)}
-.tebexCheckoutOverlay{position:fixed;inset:0;z-index:12000;display:flex;align-items:center;justify-content:center;padding:16px;background:#02060fcc;backdrop-filter:blur(8px)}
-.tebexCheckoutModal{width:min(1380px,100%);max-height:calc(100vh - 32px);height:auto;display:flex;flex-direction:column;overflow:hidden;border:1px solid #ffffff12;border-radius:16px;background:#1A1A1A;box-shadow:0 28px 80px #00000088}
-.tebexCheckoutBody{display:flex;align-items:stretch;flex:1 1 auto;min-height:0;height:auto;min-width:0}
-.tebexOrderPerks{margin:0;padding:0;min-width:0}
-.tebexVipTitle{margin:0 0 4px;font:700 10px/1.25 Orbitron,sans-serif;letter-spacing:.08em;color:#f3f3f3}
-.tebexVipLead{margin:0 0 8px;font-size:11px;line-height:1.35;color:#9a9a9a}
-.tebexOrderPerks ul{margin:0;padding:0;list-style:none;display:grid;grid-template-columns:1fr 1fr;gap:7px 16px}
-.tebexOrderPerks li{display:grid;grid-template-columns:14px minmax(0,1fr);column-gap:8px;align-items:start;min-width:0}
-.tebexVipCheck{width:14px;height:14px;margin-top:1px;border-radius:50%;background:rgba(232,137,44,.18);display:grid;place-items:center}
-.tebexVipCheck:before{content:"";width:6px;height:3px;border-left:1.5px solid #e8892c;border-bottom:1.5px solid #e8892c;transform:rotate(-45deg) translateY(-1px)}
-.tebexOrderPerks strong{display:block;font-size:12px;line-height:1.25;font-weight:650;color:#f4f4f4}
-.tebexOrderPerks small{display:block;margin-top:1px;font-size:10.5px;line-height:1.3;color:#8b8b8b}
-.tebexOrderNote{margin:8px 0 0;font-size:10px;line-height:1.35;color:#7a7a7a}
-.tebexCheckoutPayPane{min-width:0;min-height:0;height:min(780px,calc(100vh - 48px));background:#1A1A1A;display:flex;overflow:visible;flex:1;position:relative}
-.tebexCheckoutPay{flex:1;min-width:0;min-height:720px;width:100%;height:100%;overflow:visible;position:relative}
-.tebexCheckoutPay iframe{display:block;width:100%!important;height:100%!important;min-height:720px;max-height:none!important;border:0;position:absolute;inset:0}
-.tebexCheckoutPayPane{container-type:inline-size}
-.tebexCheckoutLogoMask{position:absolute;z-index:5;top:38px;left:16px;width:100px;height:66px;background:#1A1A1A;pointer-events:none}
-@container (min-width:1280px){.tebexCheckoutLogoMask{left:calc(50% - 604px);width:112px}}
-@container (max-width:959px){.tebexCheckoutLogoMask{top:46px;left:50%;width:84px;height:66px;transform:translateX(-50%)}}
-/* Order|Payment separator: Tebex Sidebar is body*0.5 (md+); stop above 60px footer */
 .membersFunctional .memberDirectory,.membersFunctional .roleDirectory{gap:8px}
 .membersFunctional .memberRow{align-items:center;padding:8px 12px;border-radius:12px}
 .membersFunctional .memberIdentity{justify-content:flex-start;flex:1;gap:10px}
@@ -1299,12 +1278,6 @@ a.premiumBuy{border:0;min-height:44px;padding:0 18px;font-size:calc(14px * var(-
   .membersFunctional .roleEditActions{position:sticky;top:calc(var(--header) + 6px);z-index:6;flex-wrap:wrap;padding:8px;border:1px solid rgba(232,176,120,.22);border-radius:10px;background:rgba(18,13,10,.96)}
   .membersFunctional .roleEdit .saveRole,.membersFunctional .roleEdit .deleteRole{flex:1}
 }
-.tebexCheckoutPay::after{content:"";position:absolute;left:50%;top:0;bottom:60px;width:1px;background:#ffffff0a;pointer-events:none;z-index:1}
-/* Wrapper only: sits below Tebex product/price; text sections are normal flex flow (not absolute) */
-.tebexOrderInfoOverlay{position:absolute;left:0;top:220px;bottom:356px;width:50%;box-sizing:border-box;padding:0 28px 0 32px;overflow:hidden;pointer-events:none;z-index:2;color:#e8e8e8;display:flex;flex-direction:column;justify-content:flex-start;align-items:stretch}
-.tebexCheckoutPayError{flex:1;min-height:720px;display:flex;align-items:center;justify-content:center;padding:28px;text-align:center}
-.tebexCheckoutPayError p{margin:0;max-width:280px;color:#c5c5c5;font-size:14px;line-height:1.5}
-@media(max-width:820px){.tebexCheckoutModal{max-height:calc(100vh - 24px);height:auto;overflow-x:hidden;overflow-y:auto}.tebexCheckoutBody{flex-direction:column;height:auto}.tebexCheckoutPayPane{flex-direction:column;height:auto;overflow-x:hidden}.tebexOrderInfoOverlay{position:relative;left:auto;top:auto;bottom:auto;width:100%;max-width:100%;order:-1;padding:16px 20px 12px;overflow:visible;justify-content:flex-start}.tebexOrderPerks ul{grid-template-columns:1fr;gap:8px}.tebexCheckoutPay{anchor-name:--tebexPay}.tebexCheckoutLogoMask{position-anchor:--tebexPay;top:calc(anchor(top) + 46px);left:anchor(center);width:84px;height:66px;transform:translateX(-50%);background:#000}.tebexCheckoutPayPane,.tebexCheckoutPay{min-height:720px;height:min(780px,calc(100vh - 120px));width:100%;max-width:100%}.tebexCheckoutPay{order:1}.tebexCheckoutPay iframe{width:100%!important;height:100%!important;inset:0}.tebexCheckoutPay::after{display:none}}
 .moderationPage .modSetup h3,.moderationPage .modActions h3,.moderationPage .modHistory h3{margin:0;font-size:var(--cc-title);line-height:1.25}
 .moderationPage .modSetupForm{display:flex;align-items:flex-end;flex-wrap:wrap;gap:10px;margin-top:10px}
 .moderationPage>.botServiceHead>.modServer,.ticketsPage>.botServiceHead>.ticketServer{flex:0 0 auto;align-self:center;white-space:nowrap}

@@ -4,13 +4,11 @@ import{
  CheckCircle2,
  Crown,
  CreditCard,
- ExternalLink,
  Gift,
  Loader2,
  LockKeyhole,
  Server,
  Shield,
- X,
  Zap
 }from"lucide-react";
 import"./balticm-premium-shop.css";
@@ -139,11 +137,7 @@ export default function BalticMPremiumShop({
 
  const[notice,setNotice]=useState("");
  const[starting,setStarting]=useState(false);
- const[checkout,setCheckout]=useState(null);
- const[checkoutError,setCheckoutError]=useState("");
-
- const hostRef=useRef(null);
- const cleanupsRef=useRef([]);
+ const checkoutListenersRef=useRef([]);
 
  const refreshPlan=()=>{
   if(!user||!selectedGuild){
@@ -226,161 +220,17 @@ export default function BalticMPremiumShop({
   selectedGuild
  ]);
 
- const closeCheckout=()=>{
+ const clearCheckoutListeners=()=>{
   try{
-   cleanupsRef.current.forEach(
+   checkoutListenersRef.current.forEach(
     fn=>typeof fn==="function"&&fn()
    );
   }catch{}
 
-  cleanupsRef.current=[];
-
-  try{
-   if(hostRef.current){
-    hostRef.current.innerHTML="";
-   }
-  }catch{}
-
-  setCheckout(null);
-  setCheckoutError("");
+  checkoutListenersRef.current=[];
  };
 
- useEffect(()=>{
-  if(
-   !checkout?.basketIdent||
-   !hostRef.current
-  ){
-   return;
-  }
-
-  let cancelled=false;
-
-  const mount=async()=>{
-   setCheckoutError("");
-
-   try{
-    const Tebex=await loadTebex();
-
-    if(
-     cancelled||
-     !hostRef.current
-    ){
-     return;
-    }
-
-    cleanupsRef.current.forEach(fn=>{
-     try{
-      fn?.();
-     }catch{}
-    });
-
-    cleanupsRef.current=[];
-    hostRef.current.innerHTML="";
-
-    Tebex.checkout.init({
-     ident:checkout.basketIdent,
-     theme:"dark",
-     locale:"en_US",
-     popupOnMobile:false,
-     closeOnPaymentComplete:true,
-     colors:[
-      {
-       name:"primary",
-       color:"#e8892c"
-      },
-      {
-       name:"secondary",
-       color:"#f3a35b"
-      },
-      {
-       name:"surface",
-       color:"#12100e"
-      }
-     ]
-    });
-
-    try{
-     const offComplete=Tebex.checkout.on?.(
-      "payment:complete",
-      ()=>{
-       setNotice(
-        "Payment received — Premium activates when Tebex confirms the payment."
-       );
-
-       closeCheckout();
-
-       setTimeout(()=>{
-        refreshPlan();
-
-        try{
-         window.dispatchEvent(
-          new CustomEvent(
-           "balticm-premium-refresh",
-           {
-            detail:{
-             guildId:selectedGuild
-            }
-           }
-          )
-         );
-        }catch{}
-       },1200);
-      }
-     );
-
-     const offClose=Tebex.checkout.on?.(
-      "close",
-      ()=>closeCheckout()
-     );
-
-     if(typeof offComplete==="function"){
-      cleanupsRef.current.push(
-       offComplete
-      );
-     }
-
-     if(typeof offClose==="function"){
-      cleanupsRef.current.push(
-       offClose
-      );
-     }
-    }catch{}
-
-    const width=Math.max(
-     760,
-     hostRef.current.clientWidth||760
-    );
-
-    const height=720;
-
-    await Tebex.checkout.render(
-     hostRef.current,
-     width,
-     height,
-     false
-    );
-   }catch(e){
-    if(!cancelled){
-     setCheckoutError(
-      e?.message||
-      "Payment form did not load"
-     );
-    }
-   }
-  };
-
-  requestAnimationFrame(
-   ()=>requestAnimationFrame(
-    mount
-   )
-  );
-
-  return()=>{
-   cancelled=true;
-  };
- },[
-  checkout?.basketIdent
- ]);
+ useEffect(()=>()=>clearCheckoutListeners(),[]);
 
  const startCheckout=async()=>{
   if(!user){
@@ -399,7 +249,6 @@ export default function BalticMPremiumShop({
 
   setStarting(true);
   setNotice("");
-  setCheckoutError("");
 
   try{
    const r=await fetch(
@@ -430,15 +279,81 @@ export default function BalticMPremiumShop({
     );
    }
 
-   setCheckout({
-    basketIdent:String(
-     j.basketIdent
-    ),
-    checkoutUrl:String(
-     j.checkoutUrl||""
-    ),
-    basket:j.basket||{}
+   const Tebex=await loadTebex();
+
+   clearCheckoutListeners();
+
+   Tebex.checkout.init({
+    ident:String(j.basketIdent),
+    locale:"en_US",
+    theme:"dark",
+    closeOnPaymentComplete:true,
+    colors:[
+     {
+      name:"primary",
+      color:"#e8892c"
+     },
+     {
+      name:"secondary",
+      color:"#f3a35b"
+     }
+    ]
    });
+
+   try{
+    const offComplete=Tebex.checkout.on?.(
+     "payment:complete",
+     ()=>{
+      setNotice(
+       "Payment received — Premium activates when Tebex confirms the payment."
+      );
+
+      clearCheckoutListeners();
+
+      setTimeout(()=>{
+       refreshPlan();
+
+       try{
+        window.dispatchEvent(
+         new CustomEvent(
+          "balticm-premium-refresh",
+          {
+           detail:{
+            guildId:selectedGuild
+           }
+          }
+         )
+        );
+       }catch{}
+      },1200);
+     }
+    );
+
+    const offClose=Tebex.checkout.on?.(
+     "close",
+     ()=>clearCheckoutListeners()
+    );
+
+    if(typeof offComplete==="function"){
+     checkoutListenersRef.current.push(
+      offComplete
+     );
+    }
+
+    if(typeof offClose==="function"){
+     checkoutListenersRef.current.push(
+      offClose
+     );
+    }
+   }catch{}
+
+   if(typeof Tebex.checkout.launch!=="function"){
+    throw new Error(
+     "Tebex popup checkout is unavailable"
+    );
+   }
+
+   await Tebex.checkout.launch();
   }catch(e){
    setNotice(
     e?.message||
@@ -816,91 +731,6 @@ export default function BalticMPremiumShop({
      <div className="bmShopNotice">
       <Shield/>
       <span>{notice}</span>
-     </div>
-    )
-   }
-
-   {
-    checkout&&(
-     <div
-      className="bmCheckoutBackdrop"
-      role="presentation"
-     >
-
-      <div
-       className="bmCheckoutModal"
-       role="dialog"
-       aria-modal="true"
-       aria-label="BalticM Premium checkout"
-      >
-
-       <div className="bmCheckoutHeader">
-
-        <div>
-         <span>BALTICM PREMIUM</span>
-         <b>Secure checkout</b>
-        </div>
-
-        <button
-         type="button"
-         onClick={closeCheckout}
-         aria-label="Close checkout"
-        >
-         <X/>
-        </button>
-
-       </div>
-
-       <div className="bmCheckoutGrid">
-
-        <div className="bmCheckoutPayment">
-
-         {
-          checkoutError
-           ?(
-            <div className="bmCheckoutError">
-
-             <Shield/>
-
-             <b>
-              Payment form did not load
-             </b>
-
-             <span>
-              {checkoutError}
-             </span>
-
-             {
-              checkout.checkoutUrl
-               ?(
-                <a
-                 href={checkout.checkoutUrl}
-                 target="_blank"
-                 rel="noreferrer"
-                >
-                 Open Tebex checkout
-                 <ExternalLink/>
-                </a>
-               )
-               :null
-             }
-
-            </div>
-           )
-           :(
-            <div
-             className="bmTebexHost"
-             ref={hostRef}
-            />
-           )
-         }
-
-        </div>
-
-       </div>
-
-      </div>
-
      </div>
     )
    }
