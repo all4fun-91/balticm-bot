@@ -49,11 +49,6 @@
   gap:16px
 }
 
-.bmShopPriceCard{
-  position:relative;
-  z-index:1
-}
-
 .bmShopKicker{
   display:inline-flex;
   align-items:center;
@@ -126,6 +121,8 @@
 }
 
 .bmShopPriceCard{
+  position:relative;
+  z-index:1;
   display:grid;
   align-content:center;
   gap:10px;
@@ -193,8 +190,7 @@
   color:#160d06;
   font-weight:850;
   letter-spacing:.03em;
-  box-shadow:
-    0 9px 22px rgba(216,121,34,.18);
+  box-shadow:0 9px 22px rgba(216,121,34,.18);
   transition:.18s ease
 }
 
@@ -219,54 +215,56 @@
   margin-top:10px
 }
 
-/* Discord login button */
+/* DISCORD LOGIN BUTTON */
+
 .bmShopLogin{
   display:flex;
   align-items:center;
   justify-content:center;
-  gap:9px;
+  gap:10px;
   width:100%;
   min-height:44px;
-  padding:0 15px;
-  border:1px solid rgba(88,101,242,.55);
+  margin-top:2px;
+  padding:0 16px;
+  border:1px solid #5865F2;
   border-radius:11px;
-  background:
-    linear-gradient(
-      180deg,
-      rgba(88,101,242,.22),
-      rgba(88,101,242,.12)
-    );
-  color:#eef0ff;
+  background:#5865F2;
+  color:#fff;
   font-size:11px;
   font-weight:800;
-  letter-spacing:.04em;
+  letter-spacing:.045em;
   text-decoration:none;
   box-shadow:
-    0 8px 20px rgba(88,101,242,.10);
+    0 8px 22px rgba(88,101,242,.28);
   transition:
-    transform .18s ease,
     background .18s ease,
-    border-color .18s ease
+    border-color .18s ease,
+    transform .18s ease,
+    box-shadow .18s ease
 }
 
 .bmShopLogin:hover{
+  background:#4752C4;
+  border-color:#4752C4;
+  color:#fff;
   transform:translateY(-1px);
-  border-color:rgba(88,101,242,.85);
-  background:
-    linear-gradient(
-      180deg,
-      rgba(88,101,242,.34),
-      rgba(88,101,242,.20)
-    );
+  box-shadow:
+    0 10px 28px rgba(88,101,242,.38)
+}
+
+.bmShopLogin:active{
+  transform:translateY(0)
+}
+
+.bmDiscordLogo{
+  display:block;
+  width:20px;
+  height:16px;
+  flex:0 0 auto;
   color:#fff
 }
 
-.bmShopLogin svg{
-  width:16px;
-  height:16px;
-  flex:0 0 auto;
-  color:#aeb6ff
-}
+/* SERVER */
 
 .bmShopServerBar{
   display:flex;
@@ -366,6 +364,8 @@
   opacity:.7
 }
 
+/* PLANS */
+
 .bmShopCompare{
   display:grid;
   grid-template-columns:repeat(2,minmax(0,1fr));
@@ -409,8 +409,7 @@
   display:grid;
   gap:2px;
   padding-bottom:13px;
-  border-bottom:
-    1px solid rgba(232,176,120,.11)
+  border-bottom:1px solid rgba(232,176,120,.11)
 }
 
 .bmShopPlanHead span{
@@ -465,6 +464,8 @@
   color:#e8892c
 }
 
+/* FEATURES */
+
 .bmShopFeatures{
   padding:18px;
   border:1px solid rgba(232,176,120,.14);
@@ -500,8 +501,7 @@
 
 .bmShopFeatureGrid{
   display:grid;
-  grid-template-columns:
-    repeat(3,minmax(0,1fr));
+  grid-template-columns:repeat(3,minmax(0,1fr));
   gap:10px
 }
 
@@ -509,8 +509,7 @@
   display:grid;
   gap:6px;
   padding:13px;
-  border:
-    1px solid rgba(232,176,120,.11);
+  border:1px solid rgba(232,176,120,.11);
   border-radius:13px;
   background:rgba(15,11,9,.58)
 }
@@ -541,14 +540,15 @@
   line-height:1.45
 }
 
+/* NOTES */
+
 .bmShopFooterNote,
 .bmShopNotice{
   display:flex;
   align-items:flex-start;
   gap:10px;
   padding:13px 15px;
-  border:
-    1px solid rgba(232,176,120,.14);
+  border:1px solid rgba(232,176,120,.14);
   border-radius:14px;
   background:rgba(15,12,10,.75)
 }
@@ -589,6 +589,8 @@
   color:#9fdaba
 }
 
+/* CHECKOUT */
+
 .bmCheckoutBackdrop{
   position:fixed;
   inset:0;
@@ -605,12 +607,10 @@
   width:min(1160px,96vw);
   max-height:94vh;
   overflow:hidden;
-  border:
-    1px solid rgba(232,176,120,.26);
+  border:1px solid rgba(232,176,120,.26);
   border-radius:18px;
   background:#0d0b09;
-  box-shadow:
-    0 30px 100px rgba(0,0,0,.62)
+  box-shadow:0 30px 100px rgba(0,0,0,.62)
 }
 
 .bmCheckoutHeader{
@@ -619,8 +619,7 @@
   justify-content:space-between;
   gap:14px;
   padding:13px 15px;
-  border-bottom:
-    1px solid rgba(232,176,120,.14);
+  border-bottom:1px solid rgba(232,176,120,.14);
   background:#100e0c
 }
 
@@ -645,8 +644,7 @@
   width:34px;
   height:34px;
   padding:0;
-  border:
-    1px solid rgba(232,176,120,.15);
+  border:1px solid rgba(232,176,120,.15);
   border-radius:9px;
   background:rgba(255,255,255,.025);
   color:#cbb9aa
@@ -664,8 +662,7 @@
 
 .bmCheckoutGrid{
   display:grid;
-  grid-template-columns:
-    330px minmax(0,1fr);
+  grid-template-columns:330px minmax(0,1fr);
   min-height:700px;
   overflow:auto
 }
@@ -675,8 +672,7 @@
   align-content:start;
   gap:13px;
   padding:19px;
-  border-right:
-    1px solid rgba(232,176,120,.12);
+  border-right:1px solid rgba(232,176,120,.12);
   background:
     linear-gradient(
       180deg,
@@ -691,8 +687,7 @@
   gap:7px;
   width:max-content;
   padding:5px 8px;
-  border:
-    1px solid rgba(232,137,44,.25);
+  border:1px solid rgba(232,137,44,.25);
   border-radius:999px;
   background:rgba(232,137,44,.08);
   color:#e99b4d;
@@ -725,8 +720,7 @@
   display:grid;
   gap:7px;
   padding:12px;
-  border:
-    1px solid rgba(232,176,120,.12);
+  border:1px solid rgba(232,176,120,.12);
   border-radius:12px;
   background:rgba(0,0,0,.18)
 }
@@ -750,8 +744,7 @@
 .bmCheckoutTotals .total{
   margin-top:3px;
   padding-top:8px;
-  border-top:
-    1px solid rgba(232,176,120,.11);
+  border-top:1px solid rgba(232,176,120,.11);
   font-size:12px
 }
 
@@ -787,16 +780,14 @@
 
 .bmCoupon input{
   min-height:38px;
-  border-color:
-    rgba(232,176,120,.15);
+  border-color:rgba(232,176,120,.15);
   background:#090807
 }
 
 .bmCoupon button{
   min-height:38px;
   padding:0 11px;
-  border:
-    1px solid rgba(232,137,44,.28);
+  border:1px solid rgba(232,137,44,.28);
   border-radius:9px;
   background:rgba(232,137,44,.10);
   color:#e89b50;
@@ -882,8 +873,7 @@
 }
 
 .spin{
-  animation:
-    bmSpin .85s linear infinite
+  animation:bmSpin .85s linear infinite
 }
 
 @keyframes bmSpin{
@@ -892,19 +882,21 @@
   }
 }
 
+/* TABLET */
+
 @media(max-width:1000px){
 
   .bmShopFeatureGrid{
-    grid-template-columns:
-      repeat(2,minmax(0,1fr))
+    grid-template-columns:repeat(2,minmax(0,1fr))
   }
 
   .bmCheckoutGrid{
-    grid-template-columns:
-      290px minmax(0,1fr)
+    grid-template-columns:290px minmax(0,1fr)
   }
 
 }
+
+/* MOBILE */
 
 @media(max-width:760px){
 
@@ -944,6 +936,10 @@
     align-self:flex-start
   }
 
+  .bmShopLogin{
+    min-height:46px
+  }
+
   .bmCheckoutBackdrop{
     padding:0
   }
@@ -963,8 +959,7 @@
 
   .bmCheckoutSummary{
     border-right:0;
-    border-bottom:
-      1px solid rgba(232,176,120,.12)
+    border-bottom:1px solid rgba(232,176,120,.12)
   }
 
   .bmCheckoutPayment,
