@@ -33,23 +33,6 @@ const FREE_FEATURES=[
  "BalticM.Eu bot identity"
 ];
 
-function money(value,currency="EUR"){
- const n=Number(value);
-
- if(!Number.isFinite(n)){
-  return null;
- }
-
- try{
-  return new Intl.NumberFormat(undefined,{
-   style:"currency",
-   currency:String(currency||"EUR")
-  }).format(n);
- }catch{
-  return`${n.toFixed(2)} ${currency||"EUR"}`;
- }
-}
-
 function expiryLabel(value){
  if(!value){
   return"";
@@ -294,7 +277,6 @@ export default function BalticMPremiumShop({
     });
 
     cleanupsRef.current=[];
-
     hostRef.current.innerHTML="";
 
     Tebex.checkout.init({
@@ -370,9 +352,12 @@ export default function BalticMPremiumShop({
      }
     }catch{}
 
-    const width=Math.max(
-     760,
-     hostRef.current.clientWidth||760
+    const width=Math.min(
+     1020,
+     Math.max(
+      760,
+      hostRef.current.clientWidth||760
+     )
     );
 
     const height=Math.max(
@@ -609,6 +594,7 @@ export default function BalticMPremiumShop({
          href="/api/auth/login?return=/premium"
         >
          <DiscordLogo/>
+
          <span>
           LOGIN WITH DISCORD
          </span>
@@ -710,27 +696,13 @@ export default function BalticMPremiumShop({
     <div className="bmShopPlan free">
 
      <div className="bmShopPlanHead">
-
-      <span>
-       COMMUNITY
-      </span>
-
-      <b>
-       Free
-      </b>
-
-      <strong>
-       €0
-      </strong>
-
-      <small>
-       Always available
-      </small>
-
+      <span>COMMUNITY</span>
+      <b>Free</b>
+      <strong>€0</strong>
+      <small>Always available</small>
      </div>
 
      <ul>
-
       {
        FREE_FEATURES.map(
         x=>(
@@ -741,7 +713,6 @@ export default function BalticMPremiumShop({
         )
        )
       }
-
      </ul>
 
     </div>
@@ -753,27 +724,15 @@ export default function BalticMPremiumShop({
      </div>
 
      <div className="bmShopPlanHead">
-
-      <span>
-       PREMIUM
-      </span>
-
-      <b>
-       VIP
-      </b>
-
-      <strong>
-       €7.99
-      </strong>
-
+      <span>PREMIUM</span>
+      <b>VIP</b>
+      <strong>€7.99</strong>
       <small>
        30 days · one Discord server
       </small>
-
      </div>
 
      <ul>
-
       {
        VIP_FEATURES
         .slice(0,6)
@@ -781,14 +740,11 @@ export default function BalticMPremiumShop({
          ([title])=>(
           <li key={title}>
            <CheckCircle2/>
-           <span>
-            {title}
-           </span>
+           <span>{title}</span>
           </li>
          )
         )
       }
-
      </ul>
 
      <button
@@ -800,7 +756,6 @@ export default function BalticMPremiumShop({
        (!selectedGuild&&!!user)
       }
      >
-
       <Crown/>
 
       {
@@ -808,7 +763,6 @@ export default function BalticMPremiumShop({
         ?"EXTEND VIP"
         :"GET VIP"
       }
-
      </button>
 
     </div>
@@ -820,7 +774,6 @@ export default function BalticMPremiumShop({
     <div className="bmShopSectionHead">
 
      <div>
-
       <span>
        WHAT VIP UNLOCKS
       </span>
@@ -828,7 +781,6 @@ export default function BalticMPremiumShop({
       <h4>
        Everything that makes BalticM easier to run
       </h4>
-
      </div>
 
      <Crown/>
@@ -843,7 +795,6 @@ export default function BalticMPremiumShop({
         <article key={title}>
 
          <div className="bmShopFeatureIcon">
-
           {
            i===0
             ?<Crown/>
@@ -857,7 +808,6 @@ export default function BalticMPremiumShop({
                 ?<Shield/>
                 :<Gift/>
           }
-
          </div>
 
          <b>
@@ -900,6 +850,7 @@ export default function BalticMPremiumShop({
     notice&&(
      <div className="bmShopNotice">
       <Shield/>
+
       <span>
        {notice}
       </span>
