@@ -351,10 +351,7 @@ export default function BalticMPremiumShop({
      hostRef.current.clientWidth||760
     );
 
-    const height=Math.max(
-     810,
-     hostRef.current.clientHeight||810
-    );
+    const height=720;
 
     await Tebex.checkout.render(
      hostRef.current,
@@ -515,15 +512,8 @@ export default function BalticMPremiumShop({
      </span>
 
      <div className="bmShopPrice">
-
-      <strong>
-       €7.99
-      </strong>
-
-      <small>
-       / 30 days
-      </small>
-
+      <strong>€7.99</strong>
+      <small>/ 30 days</small>
      </div>
 
      <p>
@@ -620,16 +610,10 @@ export default function BalticMPremiumShop({
        </div>
 
        <div>
-
-        <span>
-         SELECTED SERVER
-        </span>
+        <span>SELECTED SERVER</span>
 
         <b>
-         {
-          guild?.name||
-          "Select a server"
-         }
+         {guild?.name||"Select a server"}
         </b>
 
         <small>
@@ -639,7 +623,6 @@ export default function BalticMPremiumShop({
            :"Choose a server from the top-right server selector."
          }
         </small>
-
        </div>
 
       </div>
@@ -765,9 +748,7 @@ export default function BalticMPremiumShop({
     <div className="bmShopSectionHead">
 
      <div>
-      <span>
-       WHAT VIP UNLOCKS
-      </span>
+      <span>WHAT VIP UNLOCKS</span>
 
       <h4>
        Everything that makes BalticM easier to run
@@ -801,13 +782,8 @@ export default function BalticMPremiumShop({
           }
          </div>
 
-         <b>
-          {title}
-         </b>
-
-         <p>
-          {copy}
-         </p>
+         <b>{title}</b>
+         <p>{copy}</p>
 
         </article>
        )
@@ -839,10 +815,7 @@ export default function BalticMPremiumShop({
     notice&&(
      <div className="bmShopNotice">
       <Shield/>
-
-      <span>
-       {notice}
-      </span>
+      <span>{notice}</span>
      </div>
     )
    }
@@ -864,13 +837,8 @@ export default function BalticMPremiumShop({
        <div className="bmCheckoutHeader">
 
         <div>
-         <span>
-          BALTICM PREMIUM
-         </span>
-
-         <b>
-          Secure checkout
-         </b>
+         <span>BALTICM PREMIUM</span>
+         <b>Secure checkout</b>
         </div>
 
         <button
