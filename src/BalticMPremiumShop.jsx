@@ -34,9 +34,7 @@ const FREE_FEATURES=[
 ];
 
 function expiryLabel(value){
- if(!value){
-  return"";
- }
+ if(!value)return"";
 
  const d=new Date(value);
 
@@ -335,29 +333,22 @@ export default function BalticMPremiumShop({
       ()=>closeCheckout()
      );
 
-     if(
-      typeof offComplete==="function"
-     ){
+     if(typeof offComplete==="function"){
       cleanupsRef.current.push(
        offComplete
       );
      }
 
-     if(
-      typeof offClose==="function"
-     ){
+     if(typeof offClose==="function"){
       cleanupsRef.current.push(
        offClose
       );
      }
     }catch{}
 
-    const width=Math.min(
-     1020,
-     Math.max(
-      760,
-      hostRef.current.clientWidth||760
-     )
+    const width=Math.max(
+     760,
+     hostRef.current.clientWidth||760
     );
 
     const height=Math.max(
@@ -832,7 +823,6 @@ export default function BalticMPremiumShop({
     <LockKeyhole/>
 
     <div>
-
      <b>
       Checkout and billing are handled by Tebex
      </b>
@@ -841,7 +831,6 @@ export default function BalticMPremiumShop({
       BalticM creates the basket for the selected server.
       Premium activates only after Tebex confirms the successful payment.
      </span>
-
     </div>
 
    </div>
@@ -875,7 +864,6 @@ export default function BalticMPremiumShop({
        <div className="bmCheckoutHeader">
 
         <div>
-
          <span>
           BALTICM PREMIUM
          </span>
@@ -883,7 +871,6 @@ export default function BalticMPremiumShop({
          <b>
           Secure checkout
          </b>
-
         </div>
 
         <button
