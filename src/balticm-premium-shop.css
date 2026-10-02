@@ -576,20 +576,27 @@
   z-index:1500;
   display:grid;
   place-items:center;
-  padding:20px;
+  padding:18px;
   background:rgba(0,0,0,.82);
   backdrop-filter:blur(9px)
 }
 
 .bmCheckoutModal{
   display:grid;
-  width:min(1180px,96vw);
-  max-height:94vh;
+  grid-template-rows:auto 1fr;
+
+  width:min(1180px,94vw);
+  height:min(860px,92vh);
+
   overflow:hidden;
+
   border:1px solid rgba(232,176,120,.26);
   border-radius:18px;
+
   background:#0d0b09;
-  box-shadow:0 30px 100px rgba(0,0,0,.62)
+
+  box-shadow:
+    0 30px 100px rgba(0,0,0,.62)
 }
 
 .bmCheckoutHeader{
@@ -597,8 +604,12 @@
   align-items:center;
   justify-content:space-between;
   gap:14px;
-  padding:14px 16px;
+
+  min-height:58px;
+  padding:10px 16px;
+
   border-bottom:1px solid rgba(232,176,120,.14);
+
   background:#100e0c
 }
 
@@ -615,19 +626,23 @@
 }
 
 .bmCheckoutHeader b{
-  font-size:13px;
-  color:#fff
+  color:#fff;
+  font-size:13px
 }
 
 .bmCheckoutHeader button{
   display:grid;
   place-items:center;
+
   width:36px;
   height:36px;
   padding:0;
+
   border:1px solid rgba(232,176,120,.15);
   border-radius:9px;
+
   background:rgba(232,137,44,.06);
+
   color:#cbb9aa;
   cursor:pointer
 }
@@ -645,49 +660,67 @@
 
 .bmCheckoutGrid{
   display:block;
+
   width:100%;
-  min-height:720px;
+  height:100%;
+  min-height:0;
+
   overflow:hidden;
+
   background:#12100e
 }
 
 .bmCheckoutPayment{
   display:block;
+
   width:100%;
+  height:100%;
+
   min-width:0;
+  min-height:0;
+
   overflow:hidden;
+
   background:#12100e
 }
 
 .bmTebexHost{
   position:relative;
+
   display:block;
+
   width:100%;
+  height:100%;
+
   min-width:100%;
-  min-height:720px;
-  height:720px;
+  min-height:0;
+
   margin:0;
   padding:0;
+
   overflow:hidden;
+
   background:#12100e
 }
 
 /*
-  SVARĪGI:
-  Tebex render paliek 720px.
-  Mēs nepārrēķinām viņa layout ar lielāku render height.
-  Tikai vizuāli pārbīdām pašu iframe uz augšu.
+  Tebex augšējais tukšums tiek nogriezts ar -80px.
+  Papildu 80px iframe augstumā saglabā checkout apakšu.
 */
 
 .bmTebexHost iframe{
   display:block !important;
+
   width:100% !important;
   min-width:100% !important;
   max-width:none !important;
 
-  height:800px !important;
+  height:calc(100% + 80px) !important;
+  min-height:850px !important;
 
   margin:0 !important;
+  padding:0 !important;
+
   border:0 !important;
 
   transform:translateY(-80px) !important;
@@ -698,9 +731,14 @@
   display:grid;
   place-items:center;
   align-content:center;
+
   gap:9px;
-  min-height:720px;
+
+  height:100%;
+  min-height:600px;
+
   padding:30px;
+
   text-align:center;
   color:#9e8d80
 }
@@ -788,42 +826,36 @@
   }
 
   .bmCheckoutBackdrop{
-    padding:0
+    padding:8px
   }
 
   .bmCheckoutModal{
-    width:100vw;
-    max-height:100dvh;
-    height:100dvh;
-    border:0;
-    border-radius:0
+    width:calc(100vw - 16px);
+    height:calc(100dvh - 16px);
+    border-radius:14px
   }
 
   .bmCheckoutHeader{
-    padding:12px 14px
+    min-height:56px;
+    padding:10px 14px
   }
 
   .bmCheckoutGrid{
-    min-height:calc(100dvh - 61px);
-    height:calc(100dvh - 61px);
-    overflow:hidden
+    height:calc(100% - 0px)
   }
 
   .bmCheckoutPayment{
-    min-height:760px;
-    height:760px;
-    overflow:hidden
+    height:100%
   }
 
   .bmTebexHost{
-    min-height:760px;
-    height:760px;
-    overflow:hidden
+    height:100%
   }
 
   .bmTebexHost iframe{
-    height:840px !important;
-    transform:translateY(-80px) !important
+    height:calc(100% + 40px) !important;
+    min-height:820px !important;
+    transform:translateY(-40px) !important
   }
 
   .bmCheckoutError{
