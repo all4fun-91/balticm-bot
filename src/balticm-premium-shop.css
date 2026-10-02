@@ -663,7 +663,6 @@
   position:relative;
   display:block;
   width:100%;
-  max-width:none;
   min-width:100%;
   min-height:720px;
   height:720px;
@@ -673,18 +672,26 @@
   background:#12100e
 }
 
-.bmTebexHost>iframe{
-  display:block;
-  width:100% !important;
-  max-width:none !important;
-  min-width:100% !important;
+/*
+  SVARĪGI:
+  Tebex render paliek 720px.
+  Mēs nepārrēķinām viņa layout ar lielāku render height.
+  Tikai vizuāli pārbīdām pašu iframe uz augšu.
+*/
 
-  height:calc(100% + 150px) !important;
+.bmTebexHost iframe{
+  display:block !important;
+  width:100% !important;
+  min-width:100% !important;
+  max-width:none !important;
+
+  height:800px !important;
 
   margin:0 !important;
-  margin-top:-150px !important;
+  border:0 !important;
 
-  border:0 !important
+  transform:translateY(-80px) !important;
+  transform-origin:top center !important
 }
 
 .bmCheckoutError{
@@ -814,9 +821,9 @@
     overflow:hidden
   }
 
-  .bmTebexHost>iframe{
-    height:calc(100% + 150px) !important;
-    margin-top:-150px !important
+  .bmTebexHost iframe{
+    height:840px !important;
+    transform:translateY(-80px) !important
   }
 
   .bmCheckoutError{
