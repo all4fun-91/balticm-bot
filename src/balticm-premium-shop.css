@@ -21,7 +21,8 @@
       rgba(12,9,7,.2)
     ),
     #100e0c;
-  box-shadow:0 18px 40px rgba(0,0,0,.24)
+  box-shadow:
+    0 18px 40px rgba(0,0,0,.24)
 }
 
 .bmShopHeroGlow{
@@ -190,7 +191,8 @@
   color:#160d06;
   font-weight:850;
   letter-spacing:.03em;
-  box-shadow:0 9px 22px rgba(216,121,34,.18);
+  box-shadow:
+    0 9px 22px rgba(216,121,34,.18);
   transition:.18s ease
 }
 
@@ -215,7 +217,7 @@
   margin-top:10px
 }
 
-/* LOGIN WITH DISCORD — BALTICM STYLE */
+/* DISCORD LOGIN */
 
 .bmShopLogin{
   display:flex;
@@ -226,51 +228,30 @@
   min-height:44px;
   margin-top:2px;
   padding:0 16px;
-
-  border:1px solid rgba(255,173,92,.32);
+  border:1px solid #5865f2;
   border-radius:11px;
-
-  background:
-    linear-gradient(
-      180deg,
-      rgba(232,137,44,.16),
-      rgba(216,121,34,.08)
-    );
-
-  color:#f3d0af;
-
+  background:#5865f2;
+  color:#fff;
   font-size:11px;
   font-weight:800;
   letter-spacing:.045em;
   text-decoration:none;
-
   box-shadow:
-    inset 0 1px rgba(255,255,255,.025),
-    0 8px 22px rgba(216,121,34,.10);
-
+    0 8px 22px rgba(88,101,242,.28);
   transition:
     background .18s ease,
     border-color .18s ease,
-    color .18s ease,
     transform .18s ease,
     box-shadow .18s ease
 }
 
 .bmShopLogin:hover{
-  background:
-    linear-gradient(
-      180deg,
-      #ec953e,
-      #d87922
-    );
-
-  border-color:rgba(255,173,92,.60);
-  color:#160d06;
-
+  background:#4752c4;
+  border-color:#4752c4;
+  color:#fff;
   transform:translateY(-1px);
-
   box-shadow:
-    0 10px 26px rgba(216,121,34,.24)
+    0 10px 28px rgba(88,101,242,.38)
 }
 
 .bmShopLogin:active{
@@ -282,7 +263,7 @@
   width:20px;
   height:16px;
   flex:0 0 auto;
-  color:currentColor
+  color:#fff
 }
 
 /* SERVER */
@@ -430,7 +411,8 @@
   display:grid;
   gap:2px;
   padding-bottom:13px;
-  border-bottom:1px solid rgba(232,176,120,.11)
+  border-bottom:
+    1px solid rgba(232,176,120,.11)
 }
 
 .bmShopPlanHead span{
@@ -522,7 +504,8 @@
 
 .bmShopFeatureGrid{
   display:grid;
-  grid-template-columns:repeat(3,minmax(0,1fr));
+  grid-template-columns:
+    repeat(3,minmax(0,1fr));
   gap:10px
 }
 
@@ -530,7 +513,8 @@
   display:grid;
   gap:6px;
   padding:13px;
-  border:1px solid rgba(232,176,120,.11);
+  border:
+    1px solid rgba(232,176,120,.11);
   border-radius:13px;
   background:rgba(15,11,9,.58)
 }
@@ -569,7 +553,8 @@
   align-items:flex-start;
   gap:10px;
   padding:13px 15px;
-  border:1px solid rgba(232,176,120,.14);
+  border:
+    1px solid rgba(232,176,120,.14);
   border-radius:14px;
   background:rgba(15,12,10,.75)
 }
@@ -598,8 +583,10 @@
 }
 
 .bmShopNotice{
-  border-color:rgba(61,190,134,.24);
-  background:rgba(61,190,134,.07)
+  border-color:
+    rgba(61,190,134,.24);
+  background:
+    rgba(61,190,134,.07)
 }
 
 .bmShopNotice>svg{
@@ -619,19 +606,21 @@
   display:grid;
   place-items:center;
   padding:20px;
-  background:rgba(0,0,0,.78);
+  background:rgba(0,0,0,.82);
   backdrop-filter:blur(9px)
 }
 
 .bmCheckoutModal{
   display:grid;
-  width:min(1160px,96vw);
+  width:min(1180px,96vw);
   max-height:94vh;
   overflow:hidden;
-  border:1px solid rgba(232,176,120,.26);
+  border:
+    1px solid rgba(232,176,120,.26);
   border-radius:18px;
   background:#0d0b09;
-  box-shadow:0 30px 100px rgba(0,0,0,.62)
+  box-shadow:
+    0 30px 100px rgba(0,0,0,.62)
 }
 
 .bmCheckoutHeader{
@@ -639,13 +628,15 @@
   align-items:center;
   justify-content:space-between;
   gap:14px;
-  padding:13px 15px;
-  border-bottom:1px solid rgba(232,176,120,.14);
+  padding:14px 16px;
+  border-bottom:
+    1px solid rgba(232,176,120,.14);
   background:#100e0c
 }
 
 .bmCheckoutHeader>div{
-  display:grid
+  display:grid;
+  gap:2px
 }
 
 .bmCheckoutHeader span{
@@ -656,23 +647,27 @@
 }
 
 .bmCheckoutHeader b{
-  font-size:13px
+  font-size:13px;
+  color:#fff
 }
 
 .bmCheckoutHeader button{
   display:grid;
   place-items:center;
-  width:34px;
-  height:34px;
+  width:36px;
+  height:36px;
   padding:0;
-  border:1px solid rgba(232,176,120,.15);
+  border:
+    1px solid rgba(232,176,120,.15);
   border-radius:9px;
-  background:rgba(255,255,255,.025);
-  color:#cbb9aa
+  background:rgba(232,137,44,.06);
+  color:#cbb9aa;
+  cursor:pointer
 }
 
 .bmCheckoutHeader button:hover{
-  background:rgba(232,137,44,.10);
+  background:rgba(232,137,44,.14);
+  border-color:rgba(232,137,44,.35);
   color:#fff
 }
 
@@ -682,190 +677,33 @@
 }
 
 .bmCheckoutGrid{
-  display:grid;
-  grid-template-columns:330px minmax(0,1fr);
-  min-height:700px;
-  overflow:auto
-}
-
-.bmCheckoutSummary{
-  display:grid;
-  align-content:start;
-  gap:13px;
-  padding:19px;
-  border-right:1px solid rgba(232,176,120,.12);
-  background:
-    linear-gradient(
-      180deg,
-      rgba(232,137,44,.06),
-      rgba(12,9,7,.82)
-    )
-}
-
-.bmCheckoutBadge{
-  display:flex;
-  align-items:center;
-  gap:7px;
-  width:max-content;
-  padding:5px 8px;
-  border:1px solid rgba(232,137,44,.25);
-  border-radius:999px;
-  background:rgba(232,137,44,.08);
-  color:#e99b4d;
-  font-size:9px;
-  font-weight:850;
-  letter-spacing:.08em
-}
-
-.bmCheckoutBadge svg{
-  width:12px;
-  height:12px
-}
-
-.bmCheckoutSummary h4{
-  margin:0;
-  font-size:18px
-}
-
-.bmCheckoutSummary>p{
-  margin:0;
-  color:#98897c;
-  font-size:11px
-}
-
-.bmCheckoutSummary>p strong{
-  color:#d8c8bb
-}
-
-.bmCheckoutTotals{
-  display:grid;
-  gap:7px;
-  padding:12px;
-  border:1px solid rgba(232,176,120,.12);
-  border-radius:12px;
-  background:rgba(0,0,0,.18)
-}
-
-.bmCheckoutTotals>div{
-  display:flex;
-  justify-content:space-between;
-  gap:12px;
-  color:#97887d;
-  font-size:10px
-}
-
-.bmCheckoutTotals b{
-  color:#d9c8b9
-}
-
-.bmCheckoutTotals .discount b{
-  color:#6ed09f
-}
-
-.bmCheckoutTotals .total{
-  margin-top:3px;
-  padding-top:8px;
-  border-top:1px solid rgba(232,176,120,.11);
-  font-size:12px
-}
-
-.bmCheckoutTotals .total b{
-  color:#fff;
-  font-size:16px
-}
-
-.bmCoupon{
-  display:grid;
-  gap:6px
-}
-
-.bmCoupon label{
-  display:flex;
-  align-items:center;
-  gap:6px;
-  color:#a89688;
-  font-size:9px;
-  font-weight:800;
-  letter-spacing:.06em
-}
-
-.bmCoupon label svg{
-  width:13px
-}
-
-.bmCoupon>div{
-  display:grid;
-  grid-template-columns:1fr auto;
-  gap:7px
-}
-
-.bmCoupon input{
-  min-height:38px;
-  border-color:rgba(232,176,120,.15);
-  background:#090807
-}
-
-.bmCoupon button{
-  min-height:38px;
-  padding:0 11px;
-  border:1px solid rgba(232,137,44,.28);
-  border-radius:9px;
-  background:rgba(232,137,44,.10);
-  color:#e89b50;
-  font-size:10px;
-  font-weight:850
-}
-
-.bmCoupon small{
-  color:#e58a7f;
-  font-size:9px
-}
-
-.bmCheckoutSafe{
-  display:flex;
-  align-items:flex-start;
-  gap:7px;
-  color:#7f7268;
-  font-size:9px
-}
-
-.bmCheckoutSafe svg{
-  width:13px;
-  height:13px;
-  flex:0 0 auto;
-  color:#6dc99f
-}
-
-.bmCheckoutFallback{
-  display:inline-flex;
-  align-items:center;
-  gap:6px;
-  color:#c79e7a;
-  font-size:9px;
-  text-decoration:none
-}
-
-.bmCheckoutFallback svg{
-  width:12px
+  display:block;
+  width:100%;
+  min-height:720px;
+  overflow:auto;
+  background:#12100e
 }
 
 .bmCheckoutPayment{
+  width:100%;
   min-width:0;
   background:#12100e
 }
 
 .bmTebexHost{
+  display:block;
   width:100%;
-  min-height:700px;
-  height:100%
+  min-height:720px;
+  height:100%;
+  background:#12100e
 }
 
 .bmCheckoutError{
   display:grid;
   place-items:center;
   align-content:center;
-  gap:8px;
-  min-height:700px;
+  gap:9px;
+  min-height:720px;
   padding:30px;
   text-align:center;
   color:#9e8d80
@@ -893,8 +731,11 @@
   width:13px
 }
 
+/* SPINNER */
+
 .spin{
-  animation:bmSpin .85s linear infinite
+  animation:
+    bmSpin .85s linear infinite
 }
 
 @keyframes bmSpin{
@@ -908,11 +749,8 @@
 @media(max-width:1000px){
 
   .bmShopFeatureGrid{
-    grid-template-columns:repeat(2,minmax(0,1fr))
-  }
-
-  .bmCheckoutGrid{
-    grid-template-columns:290px minmax(0,1fr)
+    grid-template-columns:
+      repeat(2,minmax(0,1fr))
   }
 
 }
@@ -973,19 +811,19 @@
     border-radius:0
   }
 
-  .bmCheckoutGrid{
-    grid-template-columns:1fr;
-    overflow:auto
+  .bmCheckoutHeader{
+    padding:12px 14px
   }
 
-  .bmCheckoutSummary{
-    border-right:0;
-    border-bottom:1px solid rgba(232,176,120,.12)
+  .bmCheckoutGrid{
+    min-height:calc(100dvh - 61px);
+    height:calc(100dvh - 61px);
+    overflow:auto
   }
 
   .bmCheckoutPayment,
   .bmTebexHost{
-    min-height:720px
+    min-height:760px
   }
 
   .bmCheckoutError{
