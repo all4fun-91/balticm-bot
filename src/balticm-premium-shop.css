@@ -215,7 +215,7 @@
   margin-top:10px
 }
 
-/* DISCORD LOGIN BUTTON */
+/* LOGIN WITH DISCORD — BALTICM STYLE */
 
 .bmShopLogin{
   display:flex;
@@ -226,30 +226,51 @@
   min-height:44px;
   margin-top:2px;
   padding:0 16px;
-  border:1px solid #5865F2;
+
+  border:1px solid rgba(255,173,92,.32);
   border-radius:11px;
-  background:#5865F2;
-  color:#fff;
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(232,137,44,.16),
+      rgba(216,121,34,.08)
+    );
+
+  color:#f3d0af;
+
   font-size:11px;
   font-weight:800;
   letter-spacing:.045em;
   text-decoration:none;
+
   box-shadow:
-    0 8px 22px rgba(88,101,242,.28);
+    inset 0 1px rgba(255,255,255,.025),
+    0 8px 22px rgba(216,121,34,.10);
+
   transition:
     background .18s ease,
     border-color .18s ease,
+    color .18s ease,
     transform .18s ease,
     box-shadow .18s ease
 }
 
 .bmShopLogin:hover{
-  background:#4752C4;
-  border-color:#4752C4;
-  color:#fff;
+  background:
+    linear-gradient(
+      180deg,
+      #ec953e,
+      #d87922
+    );
+
+  border-color:rgba(255,173,92,.60);
+  color:#160d06;
+
   transform:translateY(-1px);
+
   box-shadow:
-    0 10px 28px rgba(88,101,242,.38)
+    0 10px 26px rgba(216,121,34,.24)
 }
 
 .bmShopLogin:active{
@@ -261,7 +282,7 @@
   width:20px;
   height:16px;
   flex:0 0 auto;
-  color:#fff
+  color:currentColor
 }
 
 /* SERVER */
