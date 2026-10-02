@@ -352,8 +352,8 @@ export default function BalticMPremiumShop({
     );
 
     const height=Math.max(
-     720,
-     hostRef.current.clientHeight||720
+     810,
+     hostRef.current.clientHeight||810
     );
 
     await Tebex.checkout.render(
