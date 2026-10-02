@@ -10,7 +10,6 @@ import{
  LockKeyhole,
  Server,
  Shield,
- TicketPercent,
  X,
  Zap
 }from"lucide-react";
@@ -36,7 +35,10 @@ const FREE_FEATURES=[
 
 function money(value,currency="EUR"){
  const n=Number(value);
- if(!Number.isFinite(n))return null;
+
+ if(!Number.isFinite(n)){
+  return null;
+ }
 
  try{
   return new Intl.NumberFormat(undefined,{
@@ -49,11 +51,15 @@ function money(value,currency="EUR"){
 }
 
 function expiryLabel(value){
- if(!value)return"";
+ if(!value){
+  return"";
+ }
 
  const d=new Date(value);
 
- if(Number.isNaN(d.getTime()))return"";
+ if(Number.isNaN(d.getTime())){
+  return"";
+ }
 
  return d.toLocaleDateString(undefined,{
   year:"numeric",
@@ -123,9 +129,11 @@ function loadTebex(){
     );
   };
 
-  s.onerror=()=>reject(
-   new Error("Could not load Tebex checkout")
-  );
+  s.onerror=()=>{
+   reject(
+    new Error("Could not load Tebex checkout")
+   );
+  };
 
   document.head.appendChild(s);
  });
@@ -152,10 +160,6 @@ export default function BalticMPremiumShop({
  const[starting,setStarting]=useState(false);
  const[checkout,setCheckout]=useState(null);
  const[checkoutError,setCheckoutError]=useState("");
- const[coupon,setCoupon]=useState("");
- const[couponBusy,setCouponBusy]=useState(false);
- const[couponError,setCouponError]=useState("");
- const[mountVersion,setMountVersion]=useState(0);
 
  const hostRef=useRef(null);
  const cleanupsRef=useRef([]);
@@ -174,18 +178,24 @@ export default function BalticMPremiumShop({
    return Promise.resolve();
   }
 
-  setPlan(p=>({...p,loading:true}));
+  setPlan(p=>({
+   ...p,
+   loading:true
+  }));
 
   return fetch(
    `/api/premium?guildId=${encodeURIComponent(selectedGuild)}`,
-   {cache:"no-store"}
+   {
+    cache:"no-store"
+   }
   )
    .then(async r=>{
     const j=await r.json().catch(()=>({}));
 
     if(!r.ok){
      throw new Error(
-      j.error||"Could not load Premium status"
+      j.error||
+      "Could not load Premium status"
      );
     }
 
@@ -202,13 +212,19 @@ export default function BalticMPremiumShop({
     });
    })
    .catch(()=>{
-    setPlan(p=>({...p,loading:false}));
+    setPlan(p=>({
+     ...p,
+     loading:false
+    }));
    });
  };
 
  useEffect(()=>{
   refreshPlan();
- },[user,selectedGuild]);
+ },[
+  user,
+  selectedGuild
+ ]);
 
  useEffect(()=>{
   const fn=()=>refreshPlan();
@@ -224,7 +240,10 @@ export default function BalticMPremiumShop({
     fn
    );
   };
- },[user,selectedGuild]);
+ },[
+  user,
+  selectedGuild
+ ]);
 
  const closeCheckout=()=>{
   try{
@@ -243,12 +262,13 @@ export default function BalticMPremiumShop({
 
   setCheckout(null);
   setCheckoutError("");
-  setCoupon("");
-  setCouponError("");
  };
 
  useEffect(()=>{
-  if(!checkout?.basketIdent||!hostRef.current){
+  if(
+   !checkout?.basketIdent||
+   !hostRef.current
+  ){
    return;
   }
 
@@ -260,7 +280,10 @@ export default function BalticMPremiumShop({
    try{
     const Tebex=await loadTebex();
 
-    if(cancelled||!hostRef.current){
+    if(
+     cancelled||
+     !hostRef.current
+    ){
      return;
     }
 
@@ -271,6 +294,7 @@ export default function BalticMPremiumShop({
     });
 
     cleanupsRef.current=[];
+
     hostRef.current.innerHTML="";
 
     Tebex.checkout.init({
@@ -329,23 +353,31 @@ export default function BalticMPremiumShop({
       ()=>closeCheckout()
      );
 
-     if(typeof offComplete==="function"){
-      cleanupsRef.current.push(offComplete);
+     if(
+      typeof offComplete==="function"
+     ){
+      cleanupsRef.current.push(
+       offComplete
+      );
      }
 
-     if(typeof offClose==="function"){
-      cleanupsRef.current.push(offClose);
+     if(
+      typeof offClose==="function"
+     ){
+      cleanupsRef.current.push(
+       offClose
+      );
      }
     }catch{}
 
     const width=Math.max(
-     640,
-     hostRef.current.clientWidth||640
+     760,
+     hostRef.current.clientWidth||760
     );
 
     const height=Math.max(
-     700,
-     hostRef.current.clientHeight||700
+     720,
+     hostRef.current.clientHeight||720
     );
 
     await Tebex.checkout.render(
@@ -365,32 +397,36 @@ export default function BalticMPremiumShop({
   };
 
   requestAnimationFrame(
-   ()=>requestAnimationFrame(mount)
+   ()=>requestAnimationFrame(
+    mount
+   )
   );
 
   return()=>{
    cancelled=true;
   };
  },[
-  checkout?.basketIdent,
-  mountVersion
+  checkout?.basketIdent
  ]);
 
  const startCheckout=async()=>{
   if(!user){
    window.location.href=
     "/api/auth/login?return=/premium";
+
    return;
   }
 
-  if(!selectedGuild||starting){
+  if(
+   !selectedGuild||
+   starting
+  ){
    return;
   }
 
   setStarting(true);
   setNotice("");
   setCheckoutError("");
-  setCouponError("");
 
   try{
    const r=await fetch(
@@ -404,11 +440,14 @@ export default function BalticMPremiumShop({
     }
    );
 
-   const j=await r.json().catch(()=>({}));
+   const j=await r.json().catch(
+    ()=>({})
+   );
 
    if(!r.ok){
     throw new Error(
-     j.error||"Could not start checkout"
+     j.error||
+     "Could not start checkout"
     );
    }
 
@@ -419,8 +458,12 @@ export default function BalticMPremiumShop({
    }
 
    setCheckout({
-    basketIdent:String(j.basketIdent),
-    checkoutUrl:String(j.checkoutUrl||""),
+    basketIdent:String(
+     j.basketIdent
+    ),
+    checkoutUrl:String(
+     j.checkoutUrl||""
+    ),
     basket:j.basket||{}
    });
   }catch(e){
@@ -433,90 +476,10 @@ export default function BalticMPremiumShop({
   }
  };
 
- const applyCoupon=async e=>{
-  e?.preventDefault?.();
-
-  const code=String(coupon||"").trim();
-
-  if(
-   !code||
-   !checkout?.basketIdent||
-   couponBusy
-  ){
-   return;
-  }
-
-  setCouponBusy(true);
-  setCouponError("");
-
-  try{
-   const r=await fetch(
-    `/api/premium/tebex/coupon?guildId=${encodeURIComponent(selectedGuild)}`,
-    {
-     method:"POST",
-     headers:{
-      "Content-Type":"application/json"
-     },
-     cache:"no-store",
-     body:JSON.stringify({
-      basketIdent:checkout.basketIdent,
-      couponCode:code
-     })
-    }
-   );
-
-   const j=await r.json().catch(()=>({}));
-
-   if(!r.ok){
-    throw new Error(
-     j.error||
-     "Invalid coupon code"
-    );
-   }
-
-   setCheckout(x=>x?{
-    ...x,
-    basket:j.basket||x.basket
-   }:x);
-
-   setCoupon("");
-   setMountVersion(v=>v+1);
-  }catch(e){
-   setCouponError(
-    e?.message||
-    "Invalid coupon code"
-   );
-  }finally{
-   setCouponBusy(false);
-  }
- };
-
  const vipActive=!!plan.premium;
- const expires=expiryLabel(plan.expiresAt);
-
- const basket=checkout?.basket||{};
-
- const checkoutTotal=
-  money(
-   basket.totalPrice,
-   basket.currency
-  )||
-  money(
-   basket.productPrice,
-   basket.currency
-  )||
-  "€7.99";
-
- const listPrice=
-  money(
-   basket.basePrice,
-   basket.currency
-  )||
-  money(
-   basket.productPrice,
-   basket.currency
-  )||
-  "€7.99";
+ const expires=expiryLabel(
+  plan.expiresAt
+ );
 
  return(
   <div className="bmShop">
@@ -537,6 +500,7 @@ export default function BalticMPremiumShop({
 
      <h3>
       Upgrade the server.
+
       <span>
        Keep the Control Center.
       </span>
@@ -575,8 +539,15 @@ export default function BalticMPremiumShop({
      </span>
 
      <div className="bmShopPrice">
-      <strong>€7.99</strong>
-      <small>/ 30 days</small>
+
+      <strong>
+       €7.99
+      </strong>
+
+      <small>
+       / 30 days
+      </small>
+
      </div>
 
      <p>
@@ -604,6 +575,7 @@ export default function BalticMPremiumShop({
        (!selectedGuild&&!!user)
       }
      >
+
       {
        starting
         ?(
@@ -615,15 +587,18 @@ export default function BalticMPremiumShop({
         :(
          <>
           <Crown/>
+
           {
            vipActive
             ?"EXTEND VIP"
             :"BUY VIP"
           }
+
           <ArrowRight/>
          </>
         )
       }
+
      </button>
 
      {
@@ -634,7 +609,9 @@ export default function BalticMPremiumShop({
          href="/api/auth/login?return=/premium"
         >
          <DiscordLogo/>
-         <span>LOGIN WITH DISCORD</span>
+         <span>
+          LOGIN WITH DISCORD
+         </span>
         </a>
        )
        :null
@@ -651,6 +628,7 @@ export default function BalticMPremiumShop({
       <div className="bmShopServerIdentity">
 
        <div className="bmShopServerIcon">
+
         {
          guild?.icon
           ?(
@@ -661,13 +639,20 @@ export default function BalticMPremiumShop({
           )
           :<Server/>
         }
+
        </div>
 
        <div>
-        <span>SELECTED SERVER</span>
+
+        <span>
+         SELECTED SERVER
+        </span>
 
         <b>
-         {guild?.name||"Select a server"}
+         {
+          guild?.name||
+          "Select a server"
+         }
         </b>
 
         <small>
@@ -677,6 +662,7 @@ export default function BalticMPremiumShop({
            :"Choose a server from the top-right server selector."
          }
         </small>
+
        </div>
 
       </div>
@@ -688,6 +674,7 @@ export default function BalticMPremiumShop({
          :"free"
        }`}
       >
+
        <CheckCircle2/>
 
        <span>
@@ -711,6 +698,7 @@ export default function BalticMPremiumShop({
          )
          :null
        }
+
       </div>
 
      </div>
@@ -722,21 +710,38 @@ export default function BalticMPremiumShop({
     <div className="bmShopPlan free">
 
      <div className="bmShopPlanHead">
-      <span>COMMUNITY</span>
-      <b>Free</b>
-      <strong>€0</strong>
-      <small>Always available</small>
+
+      <span>
+       COMMUNITY
+      </span>
+
+      <b>
+       Free
+      </b>
+
+      <strong>
+       €0
+      </strong>
+
+      <small>
+       Always available
+      </small>
+
      </div>
 
      <ul>
+
       {
-       FREE_FEATURES.map(x=>(
-        <li key={x}>
-         <CheckCircle2/>
-         <span>{x}</span>
-        </li>
-       ))
+       FREE_FEATURES.map(
+        x=>(
+         <li key={x}>
+          <CheckCircle2/>
+          <span>{x}</span>
+         </li>
+        )
+       )
       }
+
      </ul>
 
     </div>
@@ -748,25 +753,42 @@ export default function BalticMPremiumShop({
      </div>
 
      <div className="bmShopPlanHead">
-      <span>PREMIUM</span>
-      <b>VIP</b>
-      <strong>€7.99</strong>
+
+      <span>
+       PREMIUM
+      </span>
+
+      <b>
+       VIP
+      </b>
+
+      <strong>
+       €7.99
+      </strong>
+
       <small>
        30 days · one Discord server
       </small>
+
      </div>
 
      <ul>
+
       {
        VIP_FEATURES
         .slice(0,6)
-        .map(([title])=>(
-         <li key={title}>
-          <CheckCircle2/>
-          <span>{title}</span>
-         </li>
-        ))
+        .map(
+         ([title])=>(
+          <li key={title}>
+           <CheckCircle2/>
+           <span>
+            {title}
+           </span>
+          </li>
+         )
+        )
       }
+
      </ul>
 
      <button
@@ -778,12 +800,15 @@ export default function BalticMPremiumShop({
        (!selectedGuild&&!!user)
       }
      >
+
       <Crown/>
+
       {
        vipActive
         ?"EXTEND VIP"
         :"GET VIP"
       }
+
      </button>
 
     </div>
@@ -795,6 +820,7 @@ export default function BalticMPremiumShop({
     <div className="bmShopSectionHead">
 
      <div>
+
       <span>
        WHAT VIP UNLOCKS
       </span>
@@ -802,6 +828,7 @@ export default function BalticMPremiumShop({
       <h4>
        Everything that makes BalticM easier to run
       </h4>
+
      </div>
 
      <Crown/>
@@ -816,6 +843,7 @@ export default function BalticMPremiumShop({
         <article key={title}>
 
          <div className="bmShopFeatureIcon">
+
           {
            i===0
             ?<Crown/>
@@ -829,10 +857,16 @@ export default function BalticMPremiumShop({
                 ?<Shield/>
                 :<Gift/>
           }
+
          </div>
 
-         <b>{title}</b>
-         <p>{copy}</p>
+         <b>
+          {title}
+         </b>
+
+         <p>
+          {copy}
+         </p>
 
         </article>
        )
@@ -848,6 +882,7 @@ export default function BalticMPremiumShop({
     <LockKeyhole/>
 
     <div>
+
      <b>
       Checkout and billing are handled by Tebex
      </b>
@@ -856,6 +891,7 @@ export default function BalticMPremiumShop({
       BalticM creates the basket for the selected server.
       Premium activates only after Tebex confirms the successful payment.
      </span>
+
     </div>
 
    </div>
@@ -864,7 +900,9 @@ export default function BalticMPremiumShop({
     notice&&(
      <div className="bmShopNotice">
       <Shield/>
-      <span>{notice}</span>
+      <span>
+       {notice}
+      </span>
      </div>
     )
    }
@@ -886,8 +924,15 @@ export default function BalticMPremiumShop({
        <div className="bmCheckoutHeader">
 
         <div>
-         <span>BALTICM PREMIUM</span>
-         <b>Secure checkout</b>
+
+         <span>
+          BALTICM PREMIUM
+         </span>
+
+         <b>
+          Secure checkout
+         </b>
+
         </div>
 
         <button
@@ -901,132 +946,6 @@ export default function BalticMPremiumShop({
        </div>
 
        <div className="bmCheckoutGrid">
-
-        <aside className="bmCheckoutSummary">
-
-         <div className="bmCheckoutBadge">
-          <Crown/>
-          VIP · 30 DAYS
-         </div>
-
-         <h4>
-          {
-           basket.productName||
-           "BalticM Bot VIP — 30 Days"
-          }
-         </h4>
-
-         <p>
-          Premium for{" "}
-          <strong>
-           {
-            guild?.name||
-            "selected Discord server"
-           }
-          </strong>.
-         </p>
-
-         <div className="bmCheckoutTotals">
-
-          <div>
-           <span>Package</span>
-           <b>{listPrice}</b>
-          </div>
-
-          {
-           Number(basket.discount)>0
-            ?(
-             <div className="discount">
-              <span>Discount</span>
-              <b>
-               −{
-                money(
-                 basket.discount,
-                 basket.currency
-                )
-               }
-              </b>
-             </div>
-            )
-            :null
-          }
-
-          <div className="total">
-           <span>Total</span>
-           <b>{checkoutTotal}</b>
-          </div>
-
-         </div>
-
-         <form
-          className="bmCoupon"
-          onSubmit={applyCoupon}
-         >
-
-          <label>
-           <TicketPercent/>
-           Coupon / discount code
-          </label>
-
-          <div>
-
-           <input
-            value={coupon}
-            onChange={
-             e=>setCoupon(e.target.value)
-            }
-            placeholder="Enter code"
-            autoComplete="off"
-           />
-
-           <button
-            type="submit"
-            disabled={
-             couponBusy||
-             !coupon.trim()
-            }
-           >
-            {
-             couponBusy
-              ?"APPLYING…"
-              :"APPLY"
-            }
-           </button>
-
-          </div>
-
-          {
-           couponError
-            ?<small>{couponError}</small>
-            :null
-          }
-
-         </form>
-
-         <div className="bmCheckoutSafe">
-          <LockKeyhole/>
-          <span>
-           Payment details are processed by Tebex, not BalticM.
-          </span>
-         </div>
-
-         {
-          checkout.checkoutUrl
-           ?(
-            <a
-             className="bmCheckoutFallback"
-             href={checkout.checkoutUrl}
-             target="_blank"
-             rel="noreferrer"
-            >
-             Open secure checkout in new tab
-             <ExternalLink/>
-            </a>
-           )
-           :null
-         }
-
-        </aside>
 
         <div className="bmCheckoutPayment">
 
@@ -1065,7 +984,6 @@ export default function BalticMPremiumShop({
            :(
             <div
              className="bmTebexHost"
-             key={mountVersion}
              ref={hostRef}
             />
            )
