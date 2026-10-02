@@ -217,8 +217,6 @@
   margin-top:10px
 }
 
-/* DISCORD LOGIN */
-
 .bmShopLogin{
   display:flex;
   align-items:center;
@@ -265,8 +263,6 @@
   flex:0 0 auto;
   color:#fff
 }
-
-/* SERVER */
 
 .bmShopServerBar{
   display:flex;
@@ -365,8 +361,6 @@
 .bmShopStatus small{
   opacity:.7
 }
-
-/* PLANS */
 
 .bmShopCompare{
   display:grid;
@@ -467,8 +461,6 @@
   color:#e8892c
 }
 
-/* FEATURES */
-
 .bmShopFeatures{
   padding:18px;
   border:1px solid rgba(232,176,120,.14);
@@ -545,8 +537,6 @@
   line-height:1.45
 }
 
-/* NOTES */
-
 .bmShopFooterNote,
 .bmShopNotice{
   display:flex;
@@ -612,7 +602,7 @@
 
 .bmCheckoutModal{
   display:grid;
-  width:min(1180px,96vw);
+  width:min(1040px,96vw);
   max-height:94vh;
   overflow:hidden;
   border:
@@ -693,6 +683,8 @@
 .bmTebexHost{
   display:block;
   width:100%;
+  max-width:1020px;
+  margin:0 auto;
   min-height:720px;
   height:100%;
   background:#12100e
@@ -731,8 +723,6 @@
   width:13px
 }
 
-/* SPINNER */
-
 .spin{
   animation:
     bmSpin .85s linear infinite
@@ -744,8 +734,6 @@
   }
 }
 
-/* TABLET */
-
 @media(max-width:1000px){
 
   .bmShopFeatureGrid{
@@ -754,8 +742,6 @@
   }
 
 }
-
-/* MOBILE */
 
 @media(max-width:760px){
 
