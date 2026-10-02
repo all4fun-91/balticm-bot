@@ -8,7 +8,6 @@ import{
  Gift,
  Loader2,
  LockKeyhole,
- MessageCircle,
  Server,
  Shield,
  TicketPercent,
@@ -23,7 +22,7 @@ const VIP_FEATURES=[
  ["Advanced Direct Messages","Multi-select recipients, bulk send, templates, embeds and preview."],
  ["Voice Create","Configure up to 5 temporary Voice Create channels."],
  ["Premium Server Features","Unlock additional management features inside BalticM Control Center."],
- ["Per-server Premium","Premium is isolated to the Discord server you choose."],
+ ["Per-server Premium","Premium is isolated to the Discord server you choose."]
 ];
 
 const FREE_FEATURES=[
@@ -63,6 +62,21 @@ function expiryLabel(value){
  });
 }
 
+function DiscordLogo(){
+ return(
+  <svg
+   className="bmDiscordLogo"
+   viewBox="0 0 127.14 96.36"
+   aria-hidden="true"
+  >
+   <path
+    fill="currentColor"
+    d="M107.7 8.07A105.15 105.15 0 0 0 81.47 0a72.06 72.06 0 0 0-3.36 6.83A97.68 97.68 0 0 0 49 6.83 72.37 72.37 0 0 0 45.64 0 105.89 105.89 0 0 0 19.39 8.09C2.79 32.65-1.71 56.6.54 80.21A105.73 105.73 0 0 0 32.71 96.36a77.7 77.7 0 0 0 6.89-8.76 68.42 68.42 0 0 1-10.86-5.18c.91-.66 1.8-1.34 2.66-2a75.57 75.57 0 0 0 64.32 0c.87.71 1.76 1.39 2.67 2a68.68 68.68 0 0 1-10.87 5.19 77 77 0 0 0 6.89 8.75A105.25 105.25 0 0 0 126.6 80.22C129.24 52.84 122.09 29.11 107.7 8.07ZM42.45 65.69C36.18 65.69 31 60 31 53s5-12.72 11.43-12.72S54 46 53.89 53 48.84 65.69 42.45 65.69Zm42.24 0C78.41 65.69 73.25 60 73.25 53s5-12.72 11.44-12.72S96.23 46 96.12 53 91.08 65.69 84.69 65.69Z"
+   />
+  </svg>
+ );
+}
+
 function loadTebex(){
  if(window.Tebex?.checkout){
   return Promise.resolve(window.Tebex);
@@ -82,7 +96,9 @@ function loadTebex(){
     }
 
     if(++ticks>160){
-     return reject(new Error("Tebex checkout timed out"));
+     return reject(
+      new Error("Tebex checkout timed out")
+     );
     }
 
     setTimeout(wait,50);
@@ -102,7 +118,9 @@ function loadTebex(){
   s.onload=()=>{
    window.Tebex?.checkout
     ?resolve(window.Tebex)
-    :reject(new Error("Tebex checkout did not load"));
+    :reject(
+     new Error("Tebex checkout did not load")
+    );
   };
 
   s.onerror=()=>reject(
@@ -200,10 +218,12 @@ export default function BalticMPremiumShop({
    fn
   );
 
-  return()=>window.removeEventListener(
-   "balticm-premium-refresh",
-   fn
-  );
+  return()=>{
+   window.removeEventListener(
+    "balticm-premium-refresh",
+    fn
+   );
+  };
  },[user,selectedGuild]);
 
  const closeCheckout=()=>{
@@ -251,7 +271,6 @@ export default function BalticMPremiumShop({
     });
 
     cleanupsRef.current=[];
-
     hostRef.current.innerHTML="";
 
     Tebex.checkout.init({
@@ -389,8 +408,7 @@ export default function BalticMPremiumShop({
 
    if(!r.ok){
     throw new Error(
-     j.error||
-     "Could not start checkout"
+     j.error||"Could not start checkout"
     );
    }
 
@@ -525,10 +543,8 @@ export default function BalticMPremiumShop({
      </h3>
 
      <p>
-      Unlock the complete BalticM Bot
-      experience for one Discord server.
-      No separate store theme, no
-      disconnected flow.
+      Unlock the complete BalticM Bot experience for one Discord server.
+      No separate store theme, no disconnected flow.
      </p>
 
      <div className="bmShopTrust">
@@ -559,13 +575,8 @@ export default function BalticMPremiumShop({
      </span>
 
      <div className="bmShopPrice">
-      <strong>
-       €7.99
-      </strong>
-
-      <small>
-       / 30 days
-      </small>
+      <strong>€7.99</strong>
+      <small>/ 30 days</small>
      </div>
 
      <p>
@@ -593,7 +604,6 @@ export default function BalticMPremiumShop({
        (!selectedGuild&&!!user)
       }
      >
-
       {
        starting
         ?(
@@ -614,7 +624,6 @@ export default function BalticMPremiumShop({
          </>
         )
       }
-
      </button>
 
      {
@@ -624,8 +633,8 @@ export default function BalticMPremiumShop({
          className="bmShopLogin"
          href="/api/auth/login?return=/premium"
         >
-         <MessageCircle/>
-         LOGIN WITH DISCORD
+         <DiscordLogo/>
+         <span>LOGIN WITH DISCORD</span>
         </a>
        )
        :null
@@ -655,16 +664,10 @@ export default function BalticMPremiumShop({
        </div>
 
        <div>
-
-        <span>
-         SELECTED SERVER
-        </span>
+        <span>SELECTED SERVER</span>
 
         <b>
-         {
-          guild?.name||
-          "Select a server"
-         }
+         {guild?.name||"Select a server"}
         </b>
 
         <small>
@@ -674,7 +677,6 @@ export default function BalticMPremiumShop({
            :"Choose a server from the top-right server selector."
          }
         </small>
-
        </div>
 
       </div>
@@ -686,7 +688,6 @@ export default function BalticMPremiumShop({
          :"free"
        }`}
       >
-
        <CheckCircle2/>
 
        <span>
@@ -710,7 +711,6 @@ export default function BalticMPremiumShop({
          )
          :null
        }
-
       </div>
 
      </div>
@@ -800,8 +800,7 @@ export default function BalticMPremiumShop({
       </span>
 
       <h4>
-       Everything that makes BalticM
-       easier to run
+       Everything that makes BalticM easier to run
       </h4>
      </div>
 
@@ -832,13 +831,8 @@ export default function BalticMPremiumShop({
           }
          </div>
 
-         <b>
-          {title}
-         </b>
-
-         <p>
-          {copy}
-         </p>
+         <b>{title}</b>
+         <p>{copy}</p>
 
         </article>
        )
@@ -854,19 +848,14 @@ export default function BalticMPremiumShop({
     <LockKeyhole/>
 
     <div>
-
      <b>
-      Checkout and billing are handled
-      by Tebex
+      Checkout and billing are handled by Tebex
      </b>
 
      <span>
-      BalticM creates the basket for the
-      selected server. Premium activates
-      only after Tebex confirms the
-      successful payment.
+      BalticM creates the basket for the selected server.
+      Premium activates only after Tebex confirms the successful payment.
      </span>
-
     </div>
 
    </div>
@@ -897,13 +886,8 @@ export default function BalticMPremiumShop({
        <div className="bmCheckoutHeader">
 
         <div>
-         <span>
-          BALTICM PREMIUM
-         </span>
-
-         <b>
-          Secure checkout
-         </b>
+         <span>BALTICM PREMIUM</span>
+         <b>Secure checkout</b>
         </div>
 
         <button
@@ -1022,8 +1006,7 @@ export default function BalticMPremiumShop({
          <div className="bmCheckoutSafe">
           <LockKeyhole/>
           <span>
-           Payment details are processed
-           by Tebex, not BalticM.
+           Payment details are processed by Tebex, not BalticM.
           </span>
          </div>
 
