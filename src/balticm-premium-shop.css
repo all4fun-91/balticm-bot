@@ -1,7 +1,7 @@
 .bmShop{
   display:grid;
   gap:16px;
-  min-width:0
+  min-width:0;
 }
 
 .bmShopHero{
@@ -21,7 +21,7 @@
       rgba(12,9,7,.2)
     ),
     #100e0c;
-  box-shadow:0 18px 40px rgba(0,0,0,.24)
+  box-shadow:0 18px 40px rgba(0,0,0,.24);
 }
 
 .bmShopHeroGlow{
@@ -37,7 +37,7 @@
       rgba(232,137,44,.22),
       rgba(232,137,44,0) 70%
     );
-  pointer-events:none
+  pointer-events:none;
 }
 
 .bmShopHeroCopy{
@@ -46,7 +46,7 @@
   display:flex;
   flex-direction:column;
   align-items:flex-start;
-  gap:16px
+  gap:16px;
 }
 
 .bmShopKicker{
@@ -61,12 +61,12 @@
   color:#f0a55c;
   font-size:11px;
   font-weight:800;
-  letter-spacing:.08em
+  letter-spacing:.08em;
 }
 
 .bmShopKicker svg{
   width:14px;
-  height:14px
+  height:14px;
 }
 
 .bmShopHero h3{
@@ -77,13 +77,13 @@
   gap:8px;
   font-size:34px;
   line-height:1.08;
-  letter-spacing:-.035em
+  letter-spacing:-.035em;
 }
 
 .bmShopHero h3 span{
   display:block;
   margin:0;
-  color:#e99a4d
+  color:#e99a4d;
 }
 
 .bmShopHeroCopy>p{
@@ -91,14 +91,14 @@
   margin:0;
   color:var(--text-secondary);
   font-size:13px;
-  line-height:1.55
+  line-height:1.55;
 }
 
 .bmShopTrust{
   display:flex;
   flex-wrap:wrap;
   gap:8px;
-  margin-top:4px
+  margin-top:4px;
 }
 
 .bmShopTrust span{
@@ -111,13 +111,13 @@
   background:rgba(255,186,120,.045);
   color:#d7c3b0;
   font-size:11px;
-  font-weight:650
+  font-weight:650;
 }
 
 .bmShopTrust svg{
   width:13px;
   height:13px;
-  color:#e8892c
+  color:#e8892c;
 }
 
 .bmShopPriceCard{
@@ -137,39 +137,39 @@
     );
   box-shadow:
     inset 0 1px rgba(255,255,255,.025),
-    0 10px 28px rgba(0,0,0,.22)
+    0 10px 28px rgba(0,0,0,.22);
 }
 
 .bmShopPriceCard>span{
   color:#e9a563;
   font-size:10px;
   font-weight:800;
-  letter-spacing:.1em
+  letter-spacing:.1em;
 }
 
 .bmShopPrice{
   display:flex;
   align-items:flex-end;
-  gap:6px
+  gap:6px;
 }
 
 .bmShopPrice strong{
   font-size:36px;
   line-height:1;
-  color:#fff
+  color:#fff;
 }
 
 .bmShopPrice small{
   padding-bottom:4px;
   color:var(--text-secondary);
-  font-size:12px
+  font-size:12px;
 }
 
 .bmShopPriceCard p{
   min-height:18px;
   margin:4px 0 0;
   color:#c7b7a9;
-  font-size:11px
+  font-size:11px;
 }
 
 .bmShopCta{
@@ -186,28 +186,28 @@
   font-weight:850;
   letter-spacing:.03em;
   box-shadow:0 9px 22px rgba(216,121,34,.18);
-  transition:.18s ease
+  transition:.18s ease;
 }
 
 .bmShopCta:hover{
   transform:translateY(-1px);
-  filter:brightness(1.06)
+  filter:brightness(1.06);
 }
 
 .bmShopCta:disabled{
   opacity:.55;
   cursor:default;
-  transform:none
+  transform:none;
 }
 
 .bmShopCta svg{
   width:16px;
-  height:16px
+  height:16px;
 }
 
 .bmShopCta.wide{
   width:100%;
-  margin-top:10px
+  margin-top:10px;
 }
 
 .bmShopLogin{
@@ -228,7 +228,7 @@
   letter-spacing:.045em;
   text-decoration:none;
   box-shadow:0 8px 22px rgba(88,101,242,.28);
-  transition:.18s ease
+  transition:.18s ease;
 }
 
 .bmShopLogin:hover{
@@ -236,11 +236,11 @@
   border-color:#4752c4;
   color:#fff;
   transform:translateY(-1px);
-  box-shadow:0 10px 28px rgba(88,101,242,.38)
+  box-shadow:0 10px 28px rgba(88,101,242,.38);
 }
 
 .bmShopLogin:active{
-  transform:translateY(0)
+  transform:translateY(0);
 }
 
 .bmDiscordLogo{
@@ -248,7 +248,7 @@
   width:20px;
   height:16px;
   flex:0 0 auto;
-  color:#fff
+  color:#fff;
 }
 
 .bmShopServerBar{
@@ -259,14 +259,14 @@
   padding:14px 16px;
   border:1px solid rgba(232,176,120,.16);
   border-radius:16px;
-  background:#100e0c
+  background:#100e0c;
 }
 
 .bmShopServerIdentity{
   display:flex;
   align-items:center;
   gap:11px;
-  min-width:0
+  min-width:0;
 }
 
 .bmShopServerIcon{
@@ -278,29 +278,29 @@
   border:1px solid rgba(232,176,120,.22);
   border-radius:12px;
   background:rgba(232,137,44,.09);
-  color:#e8892c
+  color:#e8892c;
 }
 
 .bmShopServerIcon img{
   width:100%;
   height:100%;
-  object-fit:cover
+  object-fit:cover;
 }
 
 .bmShopServerIcon svg{
-  width:19px
+  width:19px;
 }
 
 .bmShopServerIdentity>div:last-child{
   display:grid;
-  min-width:0
+  min-width:0;
 }
 
 .bmShopServerIdentity span{
   color:#a58f7c;
   font-size:9px;
   font-weight:800;
-  letter-spacing:.08em
+  letter-spacing:.08em;
 }
 
 .bmShopServerIdentity b{
@@ -308,12 +308,12 @@
   color:#fff;
   font-size:13px;
   text-overflow:ellipsis;
-  white-space:nowrap
+  white-space:nowrap;
 }
 
 .bmShopServerIdentity small{
   color:#796c62;
-  font-size:10px
+  font-size:10px;
 }
 
 .bmShopStatus{
@@ -325,34 +325,34 @@
   border-radius:999px;
   font-size:10px;
   font-weight:800;
-  white-space:nowrap
+  white-space:nowrap;
 }
 
 .bmShopStatus svg{
   width:13px;
-  height:13px
+  height:13px;
 }
 
 .bmShopStatus.active{
   border-color:rgba(61,190,134,.3);
   background:rgba(61,190,134,.10);
-  color:#58d29a
+  color:#58d29a;
 }
 
 .bmShopStatus.free{
   border-color:rgba(232,176,120,.18);
   background:rgba(255,186,120,.04);
-  color:#bba999
+  color:#bba999;
 }
 
 .bmShopStatus small{
-  opacity:.7
+  opacity:.7;
 }
 
 .bmShopCompare{
   display:grid;
   grid-template-columns:repeat(2,minmax(0,1fr));
-  gap:14px
+  gap:14px;
 }
 
 .bmShopPlan{
@@ -361,7 +361,7 @@
   padding:18px;
   border:1px solid rgba(232,176,120,.14);
   border-radius:17px;
-  background:#100e0c
+  background:#100e0c;
 }
 
 .bmShopPlan.vip{
@@ -371,7 +371,7 @@
       180deg,
       rgba(232,137,44,.085),
       rgba(16,14,12,.98) 46%
-    )
+    );
 }
 
 .bmShopRibbon{
@@ -385,39 +385,39 @@
   text-align:center;
   font-size:8px;
   font-weight:900;
-  letter-spacing:.08em
+  letter-spacing:.08em;
 }
 
 .bmShopPlanHead{
   display:grid;
   gap:2px;
   padding-bottom:13px;
-  border-bottom:1px solid rgba(232,176,120,.11)
+  border-bottom:1px solid rgba(232,176,120,.11);
 }
 
 .bmShopPlanHead span{
   color:#9f8a78;
   font-size:9px;
   font-weight:800;
-  letter-spacing:.09em
+  letter-spacing:.09em;
 }
 
 .bmShopPlan.vip .bmShopPlanHead span{
-  color:#e69a50
+  color:#e69a50;
 }
 
 .bmShopPlanHead b{
-  font-size:17px
+  font-size:17px;
 }
 
 .bmShopPlanHead strong{
   margin-top:3px;
-  font-size:25px
+  font-size:25px;
 }
 
 .bmShopPlanHead small{
   color:#8e7f73;
-  font-size:10px
+  font-size:10px;
 }
 
 .bmShopPlan ul{
@@ -425,7 +425,7 @@
   gap:8px;
   margin:14px 0 0;
   padding:0;
-  list-style:none
+  list-style:none;
 }
 
 .bmShopPlan li{
@@ -433,25 +433,25 @@
   align-items:center;
   gap:8px;
   color:#cdbdaf;
-  font-size:11px
+  font-size:11px;
 }
 
 .bmShopPlan li svg{
   width:14px;
   height:14px;
   flex:0 0 auto;
-  color:#6dc99f
+  color:#6dc99f;
 }
 
 .bmShopPlan.vip li svg{
-  color:#e8892c
+  color:#e8892c;
 }
 
 .bmShopFeatures{
   padding:18px;
   border:1px solid rgba(232,176,120,.14);
   border-radius:17px;
-  background:#100e0c
+  background:#100e0c;
 }
 
 .bmShopSectionHead{
@@ -459,31 +459,31 @@
   align-items:center;
   justify-content:space-between;
   gap:14px;
-  margin-bottom:14px
+  margin-bottom:14px;
 }
 
 .bmShopSectionHead span{
   color:#a48e7b;
   font-size:9px;
   font-weight:800;
-  letter-spacing:.09em
+  letter-spacing:.09em;
 }
 
 .bmShopSectionHead h4{
   margin:3px 0 0;
-  font-size:16px
+  font-size:16px;
 }
 
 .bmShopSectionHead>svg{
   width:24px;
   height:24px;
-  color:#e8892c
+  color:#e8892c;
 }
 
 .bmShopFeatureGrid{
   display:grid;
   grid-template-columns:repeat(3,minmax(0,1fr));
-  gap:10px
+  gap:10px;
 }
 
 .bmShopFeatureGrid article{
@@ -492,7 +492,7 @@
   padding:13px;
   border:1px solid rgba(232,176,120,.11);
   border-radius:13px;
-  background:rgba(15,11,9,.58)
+  background:rgba(15,11,9,.58);
 }
 
 .bmShopFeatureIcon{
@@ -502,23 +502,23 @@
   height:30px;
   border-radius:9px;
   background:rgba(232,137,44,.10);
-  color:#e8892c
+  color:#e8892c;
 }
 
 .bmShopFeatureIcon svg{
   width:15px;
-  height:15px
+  height:15px;
 }
 
 .bmShopFeatureGrid b{
-  font-size:11px
+  font-size:11px;
 }
 
 .bmShopFeatureGrid p{
   margin:0;
   color:#8f8176;
   font-size:10px;
-  line-height:1.45
+  line-height:1.45;
 }
 
 .bmShopFooterNote,
@@ -529,7 +529,7 @@
   padding:13px 15px;
   border:1px solid rgba(232,176,120,.14);
   border-radius:14px;
-  background:rgba(15,12,10,.75)
+  background:rgba(15,12,10,.75);
 }
 
 .bmShopFooterNote>svg,
@@ -537,35 +537,35 @@
   width:16px;
   height:16px;
   flex:0 0 auto;
-  color:#e8892c
+  color:#e8892c;
 }
 
 .bmShopFooterNote div{
   display:grid;
-  gap:2px
+  gap:2px;
 }
 
 .bmShopFooterNote b{
-  font-size:11px
+  font-size:11px;
 }
 
 .bmShopFooterNote span,
 .bmShopNotice span{
   color:#988a7e;
-  font-size:10px
+  font-size:10px;
 }
 
 .bmShopNotice{
   border-color:rgba(61,190,134,.24);
-  background:rgba(61,190,134,.07)
+  background:rgba(61,190,134,.07);
 }
 
 .bmShopNotice>svg{
-  color:#58d29a
+  color:#58d29a;
 }
 
 .bmShopNotice span{
-  color:#9fdaba
+  color:#9fdaba;
 }
 
 /* CHECKOUT */
@@ -578,12 +578,12 @@
   place-items:center;
   padding:18px;
   background:rgba(0,0,0,.82);
-  backdrop-filter:blur(9px)
+  backdrop-filter:blur(9px);
 }
 
 .bmCheckoutModal{
   display:grid;
-  grid-template-rows:auto 1fr;
+  grid-template-rows:auto minmax(0,1fr);
 
   width:min(1180px,94vw);
   height:min(860px,92vh);
@@ -596,7 +596,7 @@
   background:#0d0b09;
 
   box-shadow:
-    0 30px 100px rgba(0,0,0,.62)
+    0 30px 100px rgba(0,0,0,.62);
 }
 
 .bmCheckoutHeader{
@@ -610,24 +610,24 @@
 
   border-bottom:1px solid rgba(232,176,120,.14);
 
-  background:#100e0c
+  background:#100e0c;
 }
 
 .bmCheckoutHeader>div{
   display:grid;
-  gap:2px
+  gap:2px;
 }
 
 .bmCheckoutHeader span{
   color:#e8892c;
   font-size:9px;
   font-weight:900;
-  letter-spacing:.09em
+  letter-spacing:.09em;
 }
 
 .bmCheckoutHeader b{
   color:#fff;
-  font-size:13px
+  font-size:13px;
 }
 
 .bmCheckoutHeader button{
@@ -644,33 +644,21 @@
   background:rgba(232,137,44,.06);
 
   color:#cbb9aa;
-  cursor:pointer
+  cursor:pointer;
 }
 
 .bmCheckoutHeader button:hover{
   background:rgba(232,137,44,.14);
   border-color:rgba(232,137,44,.35);
-  color:#fff
+  color:#fff;
 }
 
 .bmCheckoutHeader svg{
   width:16px;
-  height:16px
+  height:16px;
 }
 
 .bmCheckoutGrid{
-  display:block;
-
-  width:100%;
-  height:100%;
-  min-height:0;
-
-  overflow:hidden;
-
-  background:#12100e
-}
-
-.bmCheckoutPayment{
   display:block;
 
   width:100%;
@@ -681,7 +669,23 @@
 
   overflow:hidden;
 
-  background:#12100e
+  background:#12100e;
+}
+
+.bmCheckoutPayment{
+  position:relative;
+
+  display:block;
+
+  width:100%;
+  height:100%;
+
+  min-width:0;
+  min-height:0;
+
+  overflow:hidden;
+
+  background:#12100e;
 }
 
 .bmTebexHost{
@@ -692,7 +696,7 @@
   width:100%;
   height:100%;
 
-  min-width:100%;
+  min-width:0;
   min-height:0;
 
   margin:0;
@@ -700,31 +704,36 @@
 
   overflow:hidden;
 
-  background:#12100e
+  background:#12100e;
 }
 
 /*
-  Tebex augšējais tukšums tiek nogriezts ar -80px.
-  Papildu 80px iframe augstumā saglabā checkout apakšu.
+  SVARĪGI:
+  vairs NAV translateY.
+  Tebex logo netiek nogriezts.
+  Iframe paliek savā normālajā pozīcijā.
 */
 
 .bmTebexHost iframe{
   display:block !important;
 
   width:100% !important;
-  min-width:100% !important;
-  max-width:none !important;
+  height:100% !important;
 
-  height:calc(100% + 80px) !important;
-  min-height:850px !important;
+  min-width:100% !important;
+  min-height:100% !important;
+
+  max-width:none !important;
 
   margin:0 !important;
   padding:0 !important;
 
   border:0 !important;
 
-  transform:translateY(-80px) !important;
-  transform-origin:top center !important
+  transform:none !important;
+
+  pointer-events:auto !important;
+  touch-action:auto !important;
 }
 
 .bmCheckoutError{
@@ -734,23 +743,25 @@
 
   gap:9px;
 
+  width:100%;
   height:100%;
-  min-height:600px;
+
+  min-height:500px;
 
   padding:30px;
 
   text-align:center;
-  color:#9e8d80
+  color:#9e8d80;
 }
 
 .bmCheckoutError>svg{
   width:32px;
   height:32px;
-  color:#e8892c
+  color:#e8892c;
 }
 
 .bmCheckoutError b{
-  color:#fff
+  color:#fff;
 }
 
 .bmCheckoutError a{
@@ -758,27 +769,27 @@
   align-items:center;
   gap:6px;
   color:#e8a25f;
-  text-decoration:none
+  text-decoration:none;
 }
 
 .bmCheckoutError a svg{
-  width:13px
+  width:13px;
 }
 
 .spin{
-  animation:bmSpin .85s linear infinite
+  animation:bmSpin .85s linear infinite;
 }
 
 @keyframes bmSpin{
   to{
-    transform:rotate(360deg)
+    transform:rotate(360deg);
   }
 }
 
 @media(max-width:1000px){
 
   .bmShopFeatureGrid{
-    grid-template-columns:repeat(2,minmax(0,1fr))
+    grid-template-columns:repeat(2,minmax(0,1fr));
   }
 
 }
@@ -787,79 +798,90 @@
 
   .bmShopHero{
     grid-template-columns:1fr;
-    padding:18px
+    padding:18px;
   }
 
   .bmShopHeroCopy{
-    gap:14px
+    gap:14px;
   }
 
   .bmShopHero h3{
     gap:6px;
     font-size:27px;
-    line-height:1.12
+    line-height:1.12;
   }
 
   .bmShopHero h3 span{
-    margin:0
+    margin:0;
   }
 
   .bmShopCompare{
-    grid-template-columns:1fr
+    grid-template-columns:1fr;
   }
 
   .bmShopFeatureGrid{
-    grid-template-columns:1fr
+    grid-template-columns:1fr;
   }
 
   .bmShopServerBar{
     align-items:flex-start;
-    flex-direction:column
+    flex-direction:column;
   }
 
   .bmShopStatus{
-    align-self:flex-start
+    align-self:flex-start;
   }
 
   .bmShopLogin{
-    min-height:46px
+    min-height:46px;
   }
 
   .bmCheckoutBackdrop{
-    padding:8px
+    padding:8px;
   }
 
   .bmCheckoutModal{
     width:calc(100vw - 16px);
     height:calc(100dvh - 16px);
-    border-radius:14px
+    border-radius:14px;
   }
 
   .bmCheckoutHeader{
     min-height:56px;
-    padding:10px 14px
+    padding:10px 14px;
   }
 
   .bmCheckoutGrid{
-    height:calc(100% - 0px)
+    width:100%;
+    height:100%;
+    min-height:0;
+    overflow:hidden;
   }
 
   .bmCheckoutPayment{
-    height:100%
+    width:100%;
+    height:100%;
+    min-height:0;
+    overflow:hidden;
   }
 
   .bmTebexHost{
-    height:100%
+    width:100%;
+    height:100%;
+    min-height:0;
+    overflow:hidden;
   }
 
   .bmTebexHost iframe{
-    height:calc(100% + 40px) !important;
-    min-height:820px !important;
-    transform:translateY(-40px) !important
+    width:100% !important;
+    height:100% !important;
+    min-width:100% !important;
+    min-height:100% !important;
+    transform:none !important;
   }
 
   .bmCheckoutError{
-    min-height:520px
+    min-height:420px;
   }
 
 }
