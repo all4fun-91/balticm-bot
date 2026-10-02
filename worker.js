@@ -1,4 +1,5 @@
 import { buildPremiumViewModel, buildSubscriptionRow, computeExtendVip, computeGrantVip, computeRevokeVip, dmRecipientLimitError, matchesSubscriptionSearch, reactionRoleLimitError, reactionRoleMaxLinks, voiceCreateLimitError, voiceCreateMaxChannels } from "./admin-subscriptions.js";
+import { DM_BATCH_SIZE, DM_RESULT, discordRequestWithRetry, sendDiscordDirectMessage, summarizeDmResults } from "./direct-messages.js";
 import { assessTempRoomAction, forgetVoiceRoom, isSnowflake, missingVoicePermissions, normalizeVoiceRooms, prepareVoiceProfiles, rememberVoiceRoom, resolveChannelPermissions, runVoiceDiscord, tempRoomPatch, voicePermissionError } from "./voice-create.js";
 import {
   VIP_CODE_ERROR,
@@ -1587,7 +1588,7 @@ async function sendDirectMessages(req,env,guildId){
  const memberIds=[...new Set((Array.isArray(body.memberIds)?body.memberIds:[]).map(x=>String(x||"").trim()).filter(x=>/^\d{16,22}$/.test(x)))];
  const message=repairMojibake(String(body.message||"")).trim().slice(0,1900),embed=!!body.embed,bannerUrl=String(body.bannerUrl||"").trim().slice(0,1000);
  if(!memberIds.length)return json({error:"Select at least one member"},400);
- if(memberIds.length>100)return json({error:"Maximum 100 recipients per send"},400);
+ if(memberIds.length>DM_BATCH_SIZE)return json({error:`Maximum ${DM_BATCH_SIZE} recipients per batch`},400);
  const premiumState=await premiumPlanState(env,guildId);
  const recipientErr=dmRecipientLimitError(premiumState.premium,memberIds);
  if(recipientErr)return json({error:recipientErr,plan:premiumState.displayPlan||"FREE",premium:!!premiumState.premium},403);
@@ -1598,20 +1599,24 @@ async function sendDirectMessages(req,env,guildId){
  const oo=await env.BALTICM_DB.prepare("SELECT user_id AS userId FROM dm_opt_outs WHERE guild_id=?").bind(guildId).all(),blocked=new Set((oo.results||[]).map(x=>x.userId));
  const results=[];
  for(const memberId of memberIds){
-  if(blocked.has(memberId)){results.push({memberId,ok:false,skipped:true,error:"Opted out"});continue}
-  const member=await fetch(`https://discord.com/api/v10/guilds/${guildId}/members/${memberId}`,{headers:botHeaders(env)}).then(async r=>r.ok?r.json():null).catch(()=>null);
-  if(!member||member.user?.bot){results.push({memberId,ok:false,error:"Member unavailable"});continue}
+  if(blocked.has(memberId)){results.push({memberId,ok:false,skipped:true,status:"skipped",error:"Opted out"});continue}
+  const memberResult=await discordRequestWithRetry(`https://discord.com/api/v10/guilds/${guildId}/members/${memberId}`,{headers:botHeaders(env)});
+  if(!memberResult.ok){
+   const item={memberId,ok:false,status:memberResult.classification,error:memberResult.message,discordStatus:memberResult.status,discordCode:memberResult.code,stage:"member_lookup",attempts:memberResult.attempts,rateLimitedRetried:memberResult.rateLimitedRetried,retryAfterMs:memberResult.retryAfterMs||0};
+   console.log(JSON.stringify({component:"direct-messages",event:"recipient-failed",guildId,memberId,...item}));results.push(item);if(item.retryAfterMs)await new Promise(resolve=>setTimeout(resolve,item.retryAfterMs));continue
+  }
+  const member=memberResult.body;
+  if(!member||member.user?.bot){results.push({memberId,ok:false,status:DM_RESULT.OTHER_ERROR,error:"Member unavailable",discordStatus:memberResult.status,discordCode:null,stage:"member_lookup",attempts:memberResult.attempts,rateLimitedRetried:memberResult.rateLimitedRetried});continue}
   const name=member.nick||member.user?.global_name||member.user?.username||memberId;
-  let ok=false;
-  if(embed){
-   const cr=await fetch("https://discord.com/api/v10/users/@me/channels",{method:"POST",headers:botHeaders(env,true),body:JSON.stringify({recipient_id:memberId})});
-   if(cr.ok){const ch=await cr.json(),payload={embeds:[{description:message,color:0x7457ff}],components:[{type:1,components:[{type:2,style:2,label:"Unsubscribe from news",custom_id:`dm_unsubscribe:${guildId}`}]}]};if(bannerUrl)payload.embeds[0].image={url:bannerUrl};const dr=await fetch(`https://discord.com/api/v10/channels/${ch.id}/messages`,{method:"POST",headers:botHeaders(env,true),body:JSON.stringify(payload)});ok=dr.ok}
-  }else{const cr=await fetch("https://discord.com/api/v10/users/@me/channels",{method:"POST",headers:botHeaders(env,true),body:JSON.stringify({recipient_id:memberId})});if(cr.ok){const ch=await cr.json(),payload={content:message,components:[{type:1,components:[{type:2,style:2,label:"Unsubscribe from news",custom_id:`dm_unsubscribe:${guildId}`}]}]};const dr=await fetch(`https://discord.com/api/v10/channels/${ch.id}/messages`,{method:"POST",headers:botHeaders(env,true),body:JSON.stringify(payload)});ok=dr.ok}}
-  results.push({memberId,name,ok,error:ok?null:"DM unavailable"});
-  await new Promise(resolve=>setTimeout(resolve,175));
+  let delivered;try{delivered=await sendDiscordDirectMessage({memberId,guildId,message,embed,bannerUrl,headers:botHeaders(env,true)})}catch(e){delivered={ok:false,classification:DM_RESULT.RETRY_EXHAUSTED,message:"Unexpected Discord request failure",status:0,code:null,stage:"send_message",attempts:0,rateLimitedRetried:false,retryAfterMs:0,bucketDelayMs:0}}
+  const rateLimitedRetried=memberResult.rateLimitedRetried||delivered.rateLimitedRetried,attempts=memberResult.attempts+delivered.attempts;
+  const item={memberId,name,ok:delivered.ok,status:delivered.classification,error:delivered.ok?null:delivered.message,discordStatus:delivered.status,discordCode:delivered.code,stage:delivered.stage,attempts,rateLimitedRetried,retryAfterMs:delivered.retryAfterMs||0};
+  if(!delivered.ok||rateLimitedRetried)console.log(JSON.stringify({component:"direct-messages",event:delivered.ok?"recipient-rate-limit-recovered":"recipient-failed",guildId,memberId,...item}));
+  results.push(item);
+  await new Promise(resolve=>setTimeout(resolve,Math.max(250,memberResult.bucketDelayMs||0,delivered.bucketDelayMs||0,delivered.retryAfterMs||0)));
  }
- const sent=results.filter(x=>x.ok).length,skipped=results.filter(x=>x.skipped).length;
- return json({ok:true,sent,failed:results.length-sent-skipped,skipped,total:results.length,results});
+ const summary=summarizeDmResults(results),failed=summary.dmUnavailable+summary.retryExhausted+summary.otherError;
+ return json({ok:true,...summary,failed,results});
 }
 async function ensureReactionRoleTables(env){
  await env.BALTICM_DB.prepare("CREATE TABLE IF NOT EXISTS reaction_role_panels (id TEXT PRIMARY KEY,guild_id TEXT NOT NULL,channel_id TEXT NOT NULL,title TEXT NOT NULL,description TEXT NOT NULL DEFAULT '',message_id TEXT NOT NULL DEFAULT '',enabled INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,updated_at TEXT NOT NULL)").run();

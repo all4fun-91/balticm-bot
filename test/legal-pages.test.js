@@ -27,7 +27,7 @@ test("privacy policy covers Discord, streaming OAuth, Google Limited Use, and re
   assert.doesNotMatch(legalSrc, /@gmail\.com/);
   assert.doesNotMatch(legalSrc, /support@/);
   assert.match(legalSrc, /href=\{SUPPORT_DISCORD_URL\}/);
-  assert.match(stateSrc, /SUPPORT_DISCORD_URL = "https:\/\/discord\.gg\/4MZUuyAdeM"/);
+  assert.match(stateSrc, /SUPPORT_DISCORD_URL = "https:\/\/discord\.gg\/yMJ7HzCMfc"/);
 });
 
 test("terms of service cover product use without invented company registry details", () => {

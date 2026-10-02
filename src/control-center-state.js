@@ -57,7 +57,7 @@ export const PAGE_PATHS = {
 };
 
 export const PUBLIC_PAGES = ["Privacy", "Terms"];
-export const SUPPORT_DISCORD_URL = "https://discord.gg/4MZUuyAdeM";
+export const SUPPORT_DISCORD_URL = "https://discord.gg/yMJ7HzCMfc";
 
 const PATH_TO_PAGE = {
   "/": "Dashboard",
