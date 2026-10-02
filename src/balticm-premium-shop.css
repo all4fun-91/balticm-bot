@@ -1,4 +1,8 @@
-.bmShop{display:grid;gap:16px;min-width:0}
+.bmShop{
+  display:grid;
+  gap:16px;
+  min-width:0
+}
 
 .bmShopHero{
   position:relative;
@@ -9,7 +13,14 @@
   padding:26px;
   border:1px solid rgba(232,176,120,.22);
   border-radius:20px;
-  background:linear-gradient(135deg,rgba(232,137,44,.10),rgba(232,137,44,.02) 42%,rgba(12,9,7,.2)),#100e0c;
+  background:
+    linear-gradient(
+      135deg,
+      rgba(232,137,44,.10),
+      rgba(232,137,44,.02) 42%,
+      rgba(12,9,7,.2)
+    ),
+    #100e0c;
   box-shadow:0 18px 40px rgba(0,0,0,.24)
 }
 
@@ -20,7 +31,12 @@
   width:420px;
   height:420px;
   border-radius:50%;
-  background:radial-gradient(circle,rgba(232,137,44,.22),rgba(232,137,44,0) 70%);
+  background:
+    radial-gradient(
+      circle,
+      rgba(232,137,44,.22),
+      rgba(232,137,44,0) 70%
+    );
   pointer-events:none
 }
 
@@ -112,12 +128,19 @@
 .bmShopPriceCard{
   display:grid;
   align-content:center;
-  gap:8px;
+  gap:10px;
   padding:20px;
   border:1px solid rgba(232,176,120,.26);
   border-radius:16px;
-  background:linear-gradient(180deg,rgba(232,137,44,.11),rgba(17,13,10,.88));
-  box-shadow:inset 0 1px rgba(255,255,255,.025),0 10px 28px rgba(0,0,0,.22)
+  background:
+    linear-gradient(
+      180deg,
+      rgba(232,137,44,.11),
+      rgba(17,13,10,.88)
+    );
+  box-shadow:
+    inset 0 1px rgba(255,255,255,.025),
+    0 10px 28px rgba(0,0,0,.22)
 }
 
 .bmShopPriceCard>span{
@@ -147,6 +170,7 @@
 
 .bmShopPriceCard p{
   min-height:18px;
+  margin:4px 0 0;
   color:#c7b7a9;
   font-size:11px
 }
@@ -160,11 +184,17 @@
   padding:0 15px;
   border:1px solid rgba(255,173,92,.32);
   border-radius:11px;
-  background:linear-gradient(180deg,#ec953e,#d87922);
+  background:
+    linear-gradient(
+      180deg,
+      #ec953e,
+      #d87922
+    );
   color:#160d06;
   font-weight:850;
   letter-spacing:.03em;
-  box-shadow:0 9px 22px rgba(216,121,34,.18);
+  box-shadow:
+    0 9px 22px rgba(216,121,34,.18);
   transition:.18s ease
 }
 
@@ -189,16 +219,53 @@
   margin-top:10px
 }
 
+/* Discord login button */
 .bmShopLogin{
-  display:block;
-  text-align:center;
-  color:#d9c7b8;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:9px;
+  width:100%;
+  min-height:44px;
+  padding:0 15px;
+  border:1px solid rgba(88,101,242,.55);
+  border-radius:11px;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(88,101,242,.22),
+      rgba(88,101,242,.12)
+    );
+  color:#eef0ff;
   font-size:11px;
-  text-decoration:none
+  font-weight:800;
+  letter-spacing:.04em;
+  text-decoration:none;
+  box-shadow:
+    0 8px 20px rgba(88,101,242,.10);
+  transition:
+    transform .18s ease,
+    background .18s ease,
+    border-color .18s ease
 }
 
 .bmShopLogin:hover{
+  transform:translateY(-1px);
+  border-color:rgba(88,101,242,.85);
+  background:
+    linear-gradient(
+      180deg,
+      rgba(88,101,242,.34),
+      rgba(88,101,242,.20)
+    );
   color:#fff
+}
+
+.bmShopLogin svg{
+  width:16px;
+  height:16px;
+  flex:0 0 auto;
+  color:#aeb6ff
 }
 
 .bmShopServerBar{
@@ -316,7 +383,12 @@
 
 .bmShopPlan.vip{
   border-color:rgba(232,137,44,.34);
-  background:linear-gradient(180deg,rgba(232,137,44,.085),rgba(16,14,12,.98) 46%)
+  background:
+    linear-gradient(
+      180deg,
+      rgba(232,137,44,.085),
+      rgba(16,14,12,.98) 46%
+    )
 }
 
 .bmShopRibbon{
@@ -337,7 +409,8 @@
   display:grid;
   gap:2px;
   padding-bottom:13px;
-  border-bottom:1px solid rgba(232,176,120,.11)
+  border-bottom:
+    1px solid rgba(232,176,120,.11)
 }
 
 .bmShopPlanHead span{
@@ -427,7 +500,8 @@
 
 .bmShopFeatureGrid{
   display:grid;
-  grid-template-columns:repeat(3,minmax(0,1fr));
+  grid-template-columns:
+    repeat(3,minmax(0,1fr));
   gap:10px
 }
 
@@ -435,7 +509,8 @@
   display:grid;
   gap:6px;
   padding:13px;
-  border:1px solid rgba(232,176,120,.11);
+  border:
+    1px solid rgba(232,176,120,.11);
   border-radius:13px;
   background:rgba(15,11,9,.58)
 }
@@ -472,7 +547,8 @@
   align-items:flex-start;
   gap:10px;
   padding:13px 15px;
-  border:1px solid rgba(232,176,120,.14);
+  border:
+    1px solid rgba(232,176,120,.14);
   border-radius:14px;
   background:rgba(15,12,10,.75)
 }
@@ -529,10 +605,12 @@
   width:min(1160px,96vw);
   max-height:94vh;
   overflow:hidden;
-  border:1px solid rgba(232,176,120,.26);
+  border:
+    1px solid rgba(232,176,120,.26);
   border-radius:18px;
   background:#0d0b09;
-  box-shadow:0 30px 100px rgba(0,0,0,.62)
+  box-shadow:
+    0 30px 100px rgba(0,0,0,.62)
 }
 
 .bmCheckoutHeader{
@@ -541,7 +619,8 @@
   justify-content:space-between;
   gap:14px;
   padding:13px 15px;
-  border-bottom:1px solid rgba(232,176,120,.14);
+  border-bottom:
+    1px solid rgba(232,176,120,.14);
   background:#100e0c
 }
 
@@ -566,7 +645,8 @@
   width:34px;
   height:34px;
   padding:0;
-  border:1px solid rgba(232,176,120,.15);
+  border:
+    1px solid rgba(232,176,120,.15);
   border-radius:9px;
   background:rgba(255,255,255,.025);
   color:#cbb9aa
@@ -584,7 +664,8 @@
 
 .bmCheckoutGrid{
   display:grid;
-  grid-template-columns:330px minmax(0,1fr);
+  grid-template-columns:
+    330px minmax(0,1fr);
   min-height:700px;
   overflow:auto
 }
@@ -594,8 +675,14 @@
   align-content:start;
   gap:13px;
   padding:19px;
-  border-right:1px solid rgba(232,176,120,.12);
-  background:linear-gradient(180deg,rgba(232,137,44,.06),rgba(12,9,7,.82))
+  border-right:
+    1px solid rgba(232,176,120,.12);
+  background:
+    linear-gradient(
+      180deg,
+      rgba(232,137,44,.06),
+      rgba(12,9,7,.82)
+    )
 }
 
 .bmCheckoutBadge{
@@ -604,7 +691,8 @@
   gap:7px;
   width:max-content;
   padding:5px 8px;
-  border:1px solid rgba(232,137,44,.25);
+  border:
+    1px solid rgba(232,137,44,.25);
   border-radius:999px;
   background:rgba(232,137,44,.08);
   color:#e99b4d;
@@ -637,7 +725,8 @@
   display:grid;
   gap:7px;
   padding:12px;
-  border:1px solid rgba(232,176,120,.12);
+  border:
+    1px solid rgba(232,176,120,.12);
   border-radius:12px;
   background:rgba(0,0,0,.18)
 }
@@ -661,7 +750,8 @@
 .bmCheckoutTotals .total{
   margin-top:3px;
   padding-top:8px;
-  border-top:1px solid rgba(232,176,120,.11);
+  border-top:
+    1px solid rgba(232,176,120,.11);
   font-size:12px
 }
 
@@ -697,14 +787,16 @@
 
 .bmCoupon input{
   min-height:38px;
-  border-color:rgba(232,176,120,.15);
+  border-color:
+    rgba(232,176,120,.15);
   background:#090807
 }
 
 .bmCoupon button{
   min-height:38px;
   padding:0 11px;
-  border:1px solid rgba(232,137,44,.28);
+  border:
+    1px solid rgba(232,137,44,.28);
   border-radius:9px;
   background:rgba(232,137,44,.10);
   color:#e89b50;
@@ -790,24 +882,32 @@
 }
 
 .spin{
-  animation:bmSpin .85s linear infinite
+  animation:
+    bmSpin .85s linear infinite
 }
 
 @keyframes bmSpin{
-  to{transform:rotate(360deg)}
+  to{
+    transform:rotate(360deg)
+  }
 }
 
 @media(max-width:1000px){
+
   .bmShopFeatureGrid{
-    grid-template-columns:repeat(2,minmax(0,1fr))
+    grid-template-columns:
+      repeat(2,minmax(0,1fr))
   }
 
   .bmCheckoutGrid{
-    grid-template-columns:290px minmax(0,1fr)
+    grid-template-columns:
+      290px minmax(0,1fr)
   }
+
 }
 
 @media(max-width:760px){
+
   .bmShopHero{
     grid-template-columns:1fr;
     padding:18px
@@ -863,7 +963,8 @@
 
   .bmCheckoutSummary{
     border-right:0;
-    border-bottom:1px solid rgba(232,176,120,.12)
+    border-bottom:
+      1px solid rgba(232,176,120,.12)
   }
 
   .bmCheckoutPayment,
@@ -874,4 +975,5 @@
   .bmCheckoutError{
     min-height:520px
   }
+
 }
