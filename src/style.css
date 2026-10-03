@@ -289,6 +289,7 @@ footer{display:flex;justify-content:space-between;align-items:center;gap:12px;ma
 .desktopDownloadMeta>span:not(.desktopDownloadDot){display:inline-flex;align-items:center;min-height:22px;padding:0 8px;border:1px solid rgba(232,176,120,.16);border-radius:999px;background:rgba(255,186,120,.05);color:var(--text-secondary);font-size:calc(12px * var(--type-scale));font-weight:650;letter-spacing:.05em;white-space:nowrap}
 .desktopDownloadMeta span.ok{border-color:rgba(61,190,134,.28);background:rgba(61,190,134,.1);color:var(--success)}
 .desktopDownloadDot{color:rgba(232,176,120,.45);font-size:calc(12px * var(--type-scale));line-height:1}
+.dashboardGrid>.androidDownload{grid-column:1 / -1}
 
 .workspace{display:grid;gap:var(--page-section-gap);align-content:start}
 .workspace>h2,.botPageHead h2{font-size:var(--cc-display)}
