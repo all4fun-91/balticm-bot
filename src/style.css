@@ -150,7 +150,8 @@ main::before{content:"";position:fixed;z-index:-1;pointer-events:none;top:var(--
 .activeServerMenu .activeServerItem>svg{width:16px;height:16px;flex:0 0 16px;color:var(--text-secondary)}
 .activeServerMenu .activeServerItem.selected>svg{color:var(--accent)}
 @media(max-width:767px){
-  .activeServerMenu{width:min(280px,calc(100vw - 16px));right:0}
+  .activeServer{position:static}
+  .activeServerMenu{left:12px;right:12px;width:auto;max-width:none;box-sizing:border-box}
 }
 .accountMenu .accountProfile{display:flex;align-items:center;gap:10px;width:100%;min-height:44px;padding:8px 10px;border:0;border-radius:10px;background:transparent;color:var(--text);text-align:left;cursor:pointer}
 .accountMenu .accountProfile:hover{background:var(--surface-hover)}
@@ -236,7 +237,7 @@ footer{display:flex;justify-content:space-between;align-items:center;gap:12px;ma
   .legalModal{width:100%;max-height:92dvh;border-radius:18px 18px 0 0}
 }
 
-.workspace,.panel,.dashHead,.stats>div,.desktopDownload,.ticketSetup,.featurePage,.announcementStudio,.giveawayStudio{min-width:0}
+.workspace,.panel,.dashHead,.stats>div,.downloadsSection,.downloadCard,.ticketSetup,.featurePage,.announcementStudio,.giveawayStudio{min-width:0}
 .dashHead,.workspace>h2,.featureTop,.ticketTopbar,.settingsTop{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
 .dashHead h2,.workspace h2,.featureTop b,.ticketTopbar b,.settingsTop b,h1,h2{margin:0;font:650 var(--cc-page)/1.2 Inter,system-ui,sans-serif;letter-spacing:-.02em}
 .dashHead p,.workspace p,.featureTop small,.ticketTopbar small,.settingsTop small{margin:6px 0 0;font-size:calc(13px * var(--type-scale));color:var(--text-secondary)}
@@ -277,19 +278,31 @@ footer{display:flex;justify-content:space-between;align-items:center;gap:12px;ma
 .dashboardMini{display:grid;gap:8px;margin-top:14px}
 .dashboardMini div{display:flex;justify-content:space-between;gap:12px;padding:10px 12px;border-radius:10px;background:var(--surface-2);font-size:calc(12px * var(--type-scale))}
 .dashboardMini b{font-size:calc(13px * var(--type-scale))}
-.desktopDownload{display:flex;align-items:center;align-content:center;flex-wrap:wrap;gap:16px;margin-top:0;padding:16px 18px;border:1px solid var(--border);border-radius:20px;background:var(--surface)}
-.desktopDownloadIcon{display:grid;place-items:center;width:42px;height:42px;border-radius:12px;background:var(--accent-soft);color:var(--accent)}
-.desktopDownloadIcon svg{width:20px;height:20px}
-.desktopDownloadCopy{flex:1;min-width:0}
-.desktopDownloadCopy b{display:block;font-size:calc(15px * var(--type-scale))}
-.desktopDownloadCopy small{color:var(--text-secondary);font-size:calc(12px * var(--type-scale))}
-.desktopDownloadBtn,.premiumBuy{display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:0 14px;border-radius:10px;background:var(--accent);color:#fff;text-decoration:none;font-size:calc(14px * var(--type-scale));font-weight:650}
-.desktopDownloadBtn.disabled{opacity:.55}
-.desktopDownloadMeta{display:flex;flex:1 0 100%;flex-wrap:wrap;align-items:center;gap:6px;margin-top:-6px;padding-left:58px}
-.desktopDownloadMeta>span:not(.desktopDownloadDot){display:inline-flex;align-items:center;min-height:22px;padding:0 8px;border:1px solid rgba(232,176,120,.16);border-radius:999px;background:rgba(255,186,120,.05);color:var(--text-secondary);font-size:calc(12px * var(--type-scale));font-weight:650;letter-spacing:.05em;white-space:nowrap}
-.desktopDownloadMeta span.ok{border-color:rgba(61,190,134,.28);background:rgba(61,190,134,.1);color:var(--success)}
-.desktopDownloadDot{color:rgba(232,176,120,.45);font-size:calc(12px * var(--type-scale));line-height:1}
-.dashboardGrid>.androidDownload{grid-column:1 / -1}
+.dashboardGrid>.dashboardControl{grid-column:1 / -1}
+.dashboardGrid>.downloadsSection{grid-column:1 / -1;display:grid;gap:14px;padding:18px;border:1px solid var(--border);border-radius:20px;background:var(--surface);box-shadow:var(--shadow)}
+.downloadsHead{display:grid;gap:4px;min-width:0}
+.downloadsHead .eyebrow{color:var(--accent)}
+.downloadsHead h3{margin:0;font-size:calc(17px * var(--type-scale));font-weight:650;letter-spacing:-.02em}
+.downloadsHead small{color:var(--text-secondary);font-size:calc(12px * var(--type-scale))}
+.downloadsGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;min-width:0}
+.downloadCard{display:flex;flex-direction:column;gap:12px;min-width:0;height:100%;padding:16px;border:1px solid rgba(232,176,120,.16);border-radius:16px;background:linear-gradient(180deg,rgba(255,186,120,.05),rgba(255,186,120,0)),rgba(16,14,12,.92);box-shadow:0 8px 18px rgba(0,0,0,.24)}
+.downloadCardHead{display:flex;align-items:flex-start;gap:12px;min-width:0}
+.downloadCardIcon{display:grid;place-items:center;width:42px;height:42px;flex:0 0 42px;border-radius:12px;background:var(--accent-soft);color:var(--accent)}
+.downloadCardIcon svg{width:20px;height:20px}
+.downloadCardCopy{display:grid;gap:3px;min-width:0}
+.downloadCardCopy .eyebrow{margin-bottom:0}
+.downloadCardCopy b{font-size:calc(15px * var(--type-scale));font-weight:650;line-height:1.3}
+.downloadCardCopy small{color:var(--text-secondary);font-size:calc(12px * var(--type-scale));line-height:1.5}
+.downloadCardMeta{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.downloadCardMeta>span:not(.downloadDot){display:inline-flex;align-items:center;min-height:22px;padding:0 8px;border:1px solid rgba(232,176,120,.16);border-radius:999px;background:rgba(255,186,120,.05);color:var(--text-secondary);font-size:calc(12px * var(--type-scale));font-weight:650;letter-spacing:.05em;white-space:nowrap}
+.downloadCardMeta span.ok{border-color:rgba(61,190,134,.28);background:rgba(61,190,134,.1);color:var(--success)}
+.downloadDot{color:rgba(232,176,120,.45);font-size:calc(12px * var(--type-scale));line-height:1}
+.downloadBtn{display:flex;align-items:center;justify-content:center;gap:8px;min-height:40px;margin-top:auto;padding:0 16px;border-radius:10px;background:linear-gradient(180deg,var(--accent-hover),var(--accent));color:#fff;text-decoration:none;font-size:calc(14px * var(--type-scale));font-weight:650;box-shadow:0 6px 14px rgba(232,137,44,.22);transition:transform .16s ease,box-shadow .16s ease,filter .16s ease}
+.downloadBtn svg{width:16px;height:16px}
+.downloadBtn:hover{transform:translateY(-2px);filter:brightness(1.06);box-shadow:0 10px 22px rgba(232,137,44,.32)}
+.downloadBtn.disabled{opacity:.55;pointer-events:none;transform:none;box-shadow:none}
+.premiumBuy{display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:0 14px;border-radius:10px;background:var(--accent);color:#fff;text-decoration:none;font-size:calc(14px * var(--type-scale));font-weight:650}
+@media(max-width:1099px){.downloadsGrid{grid-template-columns:1fr;gap:18px}.downloadCard{padding:18px}.downloadBtn{width:100%}}
 
 .workspace{display:grid;gap:var(--page-section-gap);align-content:start}
 .workspace>h2,.botPageHead h2{font-size:var(--cc-display)}
@@ -1127,11 +1140,8 @@ a.premiumBuy{border:0;min-height:44px;padding:0 18px;font-size:calc(14px * var(-
   .premiumPage .planPriceCol .planPrice{align-items:center}
   .premiumPage .planPriceCol .premiumBuy{width:100%;justify-content:center}
   .premiumPage .planDetailTop h3{font-size:calc(28px * var(--type-scale))}
-  .ticketToolbar,.featureToolbar,.dashHead,.desktopDownload,.settingsPage .settingsTop,.settingsPage .settingsSection{flex-direction:column;align-items:stretch}
+  .ticketToolbar,.featureToolbar,.dashHead,.settingsPage .settingsTop,.settingsPage .settingsSection{flex-direction:column;align-items:stretch}
   .settingsPage .settingsServer,.settingsPage .settingsProtected{align-self:flex-start}
-  .desktopDownload{flex-wrap:nowrap;align-content:stretch}
-  .desktopDownloadMeta{order:3;flex:0 0 auto;width:100%;padding-left:0;margin-top:0}
-  .desktopDownloadBtn,.desktopDownloadBtn.disabled{order:4}
   .supportChatWidget{height:min(560px,calc(100vh - 32px))}
 }
 @media(max-width:767px){
@@ -1188,12 +1198,12 @@ a.premiumBuy{border:0;min-height:44px;padding:0 18px;font-size:calc(14px * var(-
   .footerMeta{justify-content:flex-start;text-align:left}
 }
 
-.ticketSetup,.ticketToolbar,.featureTop,.activityLogTop,.activityLogHead,.ticketRow,.memberRow,.roleRow,.activityLogRow,.voiceRoomCard,.memberPanel,.announcementEditor,.announcementPreview,.giveawayEditor,.giveawaySide,.discordEmbed,.musicPanel,.settingsCard,.settingsIntegration,.announcementItem,.settingsSection,.musicCommandPanel,.musicPlayerPanel,.dmMembers,.dmComposer,.rrBuilder,.modSetup,.activityLogFilters,.roleEdit,.desktopDownload,.premiumServer,.premiumNote,.planPicker{box-shadow:var(--shadow)}
+.ticketSetup,.ticketToolbar,.featureTop,.activityLogTop,.activityLogHead,.ticketRow,.memberRow,.roleRow,.activityLogRow,.voiceRoomCard,.memberPanel,.announcementEditor,.announcementPreview,.giveawayEditor,.giveawaySide,.discordEmbed,.musicPanel,.settingsCard,.settingsIntegration,.announcementItem,.settingsSection,.musicCommandPanel,.musicPlayerPanel,.dmMembers,.dmComposer,.rrBuilder,.modSetup,.activityLogFilters,.roleEdit,.premiumServer,.premiumNote,.planPicker{box-shadow:var(--shadow)}
 .ticketRow:hover,.memberRow:hover,.roleRow:hover,.activityLogRow:hover,.voiceRoomCard:hover,.giveawayCard:hover,.rrPanelCard:hover,.settingsCard:hover,.announcementItem:hover,.botServiceCard:hover{background:var(--surface-hover)}
 
-.shell .panel:not(.workspace),.shell .stats>div,.shell .desktopDownload,.shell .locked,.shell .botServiceCard,.shell .contentWell button.servercard,.shell .settingsCard,.shell .settingsIntegration,.shell .ticketRow,.shell .memberRow,.shell .roleRow,.shell .voiceRoomCard,.shell .activityLogRow,.shell .announcementItem,.shell .memberPanel,.shell .announcementEditor,.shell .announcementPreview,.shell .giveawayEditor,.shell .giveawaySide,.shell .musicPanel,.shell .settingsSection,.shell .musicCommandPanel,.shell .musicPlayerPanel,.shell .premiumNote,.shell .planPicker,.shell .voiceSetupCard,.shell .botMonitorStrip,.shell .botStatusEmpty,.shell .featureEmpty,.shell .ticketEmpty,.shell .memberPanelEmpty{background:linear-gradient(180deg,rgba(255,196,130,.06),rgba(12,8,6,.22)),var(--surface);backdrop-filter:blur(16px);border-color:rgba(232,176,120,.2)}
+.shell .panel:not(.workspace),.shell .stats>div,.shell .locked,.shell .botServiceCard,.shell .contentWell button.servercard,.shell .settingsCard,.shell .settingsIntegration,.shell .ticketRow,.shell .memberRow,.shell .roleRow,.shell .voiceRoomCard,.shell .activityLogRow,.shell .announcementItem,.shell .memberPanel,.shell .announcementEditor,.shell .announcementPreview,.shell .giveawayEditor,.shell .giveawaySide,.shell .musicPanel,.shell .settingsSection,.shell .musicCommandPanel,.shell .musicPlayerPanel,.shell .premiumNote,.shell .planPicker,.shell .voiceSetupCard,.shell .botMonitorStrip,.shell .botStatusEmpty,.shell .featureEmpty,.shell .ticketEmpty,.shell .memberPanelEmpty{background:linear-gradient(180deg,rgba(255,196,130,.06),rgba(12,8,6,.22)),var(--surface);backdrop-filter:blur(16px);border-color:rgba(232,176,120,.2)}
 .shell .panel.dashboardServices{border-radius:22px;padding:22px 22px 8px;background:linear-gradient(180deg,rgba(255,186,120,.04),rgba(255,186,120,0)),#100e0c;border-color:rgba(232,176,120,.12);backdrop-filter:none;box-shadow:0 8px 16px rgba(0,0,0,.22)}
-.shell .dashStage .stats>div.card,.shell .panel.dashboardControl,.shell .dashboardGrid>.desktopDownload{background:linear-gradient(180deg,rgba(255,186,120,.04),rgba(255,186,120,0)),#100e0c;border-color:rgba(232,176,120,.12);backdrop-filter:none;box-shadow:0 8px 16px rgba(0,0,0,.22)}
+.shell .dashStage .stats>div.card,.shell .panel.dashboardControl{background:linear-gradient(180deg,rgba(255,186,120,.04),rgba(255,186,120,0)),#100e0c;border-color:rgba(232,176,120,.12);backdrop-filter:none;box-shadow:0 8px 16px rgba(0,0,0,.22)}
 .shell .dashboardServices .service{border-top-color:rgba(232,176,120,.12)}
 .shell .dashboardMini div{background:#161310}
 .shell .botServiceCard{background:linear-gradient(180deg,rgba(255,186,120,.04),rgba(255,186,120,0)),#100e0c;border-color:rgba(232,176,120,.12);backdrop-filter:none;box-shadow:0 8px 16px rgba(0,0,0,.22)}
@@ -1859,4 +1869,11 @@ a.premiumBuy{border:0;min-height:44px;padding:0 18px;font-size:calc(14px * var(-
 .streamersPage .streamersWatch{display:inline-flex;align-items:center;gap:6px;min-height:32px;padding:0 10px;border:1px solid rgba(232,137,44,.45);border-radius:9px;color:var(--accent);text-decoration:none}
 @media(max-width:1099px){.streamersPage .streamersCard{grid-template-columns:1fr 1fr}.streamersPage .streamersCard .featureActions{grid-column:1/-1}.streamersPage .streamersForm .voiceConfigGrid{grid-template-columns:minmax(0,1fr)}}
 @media(max-width:767px){.streamersPage .streamersCard{grid-template-columns:1fr}.streamersPage .featureActions{flex-wrap:wrap}.streamersPage .streamersForm .modActionTrigger,.streamersPage .streamersForm .modMemberTrigger{min-height:44px;height:44px;max-height:44px}.streamersPage .streamersForm .modActionSelect,.streamersPage .streamersForm .modMemberPicker{height:44px}}
+
+/* Edge-to-edge / safe-area system-bar chrome. env() is 0 on desktop and whenever the page is not drawn behind system bars, so these are no-ops there. */
+.topbar{top:env(safe-area-inset-top,0px)}
+.side{padding-top:env(safe-area-inset-top,0px)}
+footer{padding-bottom:env(safe-area-inset-bottom,0px)}
+.contentWell .supportChatLauncher{bottom:calc(20px + env(safe-area-inset-bottom,0px))}
+.contentWell .supportChatWidget{padding-top:env(safe-area-inset-top,0px)}
 
