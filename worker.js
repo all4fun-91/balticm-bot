@@ -101,7 +101,8 @@ import {
   shouldRemoveAutoGuildParticipation,
   streamerAnnouncementError,
   streamerPublicView,
-  summarizeStreamerStats
+  summarizeStreamerStats,
+  providerList
 } from "./streamers.js";
 import {
   STREAMING_ACCOUNT_ALTER_SQL,
@@ -2532,6 +2533,7 @@ async function sendStreamerLiveAnnouncement(env,row,check){
  return{sent:true,messageId};
 }
 async function refreshOneStreamer(env,row,{announce=true,premium=true}={}){
+ if(!providerList().includes(row.provider))return;
  const mapped=mapStreamerRow(row);
  if(shouldPauseAutoStreamerAutomation(mapped,premium))return;
  if(normalizeStreamerSource(mapped.source)===STREAMER_SOURCE_AUTO){
@@ -2615,6 +2617,7 @@ async function loadProfileAccountsForMembers(env,memberIds){
   const placeholders=chunk.map(()=>"?").join(",");
   const r=await env.BALTICM_DB.prepare(`SELECT * FROM user_streaming_accounts WHERE discord_user_id IN (${placeholders})`).bind(...chunk).all();
   for(const row of r.results||[]){
+   if(!providerList().includes(row.provider))continue;
    const mapped=mapProfileAccountRow(row);
    if(!mapped?.discordUserId)continue;
    if(!grouped[mapped.discordUserId])grouped[mapped.discordUserId]=[];
@@ -2656,7 +2659,7 @@ async function upsertAutoStreamerFromAccount(env,guildId,account,settings){
   ).run();
   return existing;
  }
- const count=await env.BALTICM_DB.prepare("SELECT COUNT(*) AS n FROM streamers WHERE guild_id=?").bind(guildId).first();
+ const count=await env.BALTICM_DB.prepare("SELECT COUNT(*) AS n FROM streamers WHERE guild_id=? AND provider IN ('twitch','kick','tiktok')").bind(guildId).first();
  if(Number(count?.n||0)>=STREAMERS_MAX_PER_GUILD)return null;
  const id=crypto.randomUUID();
  const detection=liveDetectionAvailable(provider,env);
@@ -2673,6 +2676,7 @@ async function syncAutoStreamersForGuild(env,guildId,premium){
  const settings=await loadStreamerSettings(env,guildId);
  const accounts=await env.BALTICM_DB.prepare("SELECT * FROM user_streaming_accounts").all();
  for(const account of accounts.results||[]){
+  if(!providerList().includes(account.provider))continue;
   if(Number(account.verified)!==1)continue;
   if(!memberIds.has(String(account.discord_user_id)))continue;
   try{await upsertAutoStreamerFromAccount(env,guildId,account,settings)}catch{}
@@ -2705,7 +2709,7 @@ async function streamersState(env,guildId,user){
   await ensureStreamersTable(env);
   const premium=user?!!(await premiumPlanState(env,guildId)).premium:!!(await premiumPlanState(env,guildId)).premium;
   if(premium)await syncAutoStreamersForGuild(env,guildId,true);
-  const r=await env.BALTICM_DB.prepare("SELECT * FROM streamers WHERE guild_id=? ORDER BY created_at DESC").bind(guildId).all();
+  const r=await env.BALTICM_DB.prepare("SELECT * FROM streamers WHERE guild_id=? AND provider IN ('twitch','kick','tiktok') ORDER BY created_at DESC").bind(guildId).all();
   const channels=await listGuildTextChannels(env,guildId);
   const members=await listGuildMembersBrief(env,guildId);
   const memberMap=new Map(members.map(m=>[m.id,m]));
@@ -2802,7 +2806,7 @@ async function saveStreamer(req,env,user,guildId,id=""){
  const dup=await env.BALTICM_DB.prepare("SELECT id FROM streamers WHERE guild_id=? AND provider=? AND provider_user_id=? AND id!=?").bind(guildId,parsed.value.provider,parsed.value.providerUserId,id||"").first();
  if(dup)return json({error:duplicateStreamerError()},409);
  if(!id){
-  const count=await env.BALTICM_DB.prepare("SELECT COUNT(*) AS n FROM streamers WHERE guild_id=?").bind(guildId).first();
+  const count=await env.BALTICM_DB.prepare("SELECT COUNT(*) AS n FROM streamers WHERE guild_id=? AND provider IN ('twitch','kick','tiktok')").bind(guildId).first();
   if(Number(count?.n||0)>=STREAMERS_MAX_PER_GUILD)return json({error:"This server already has the maximum number of managed streamers."},400);
  }
  const now=new Date().toISOString();
@@ -2848,13 +2852,13 @@ async function refreshStreamer(env,guildId,id){
  }catch{return json({error:"Could not refresh status"},500)}
 }
 async function streamingAccountsState(env,user){
- const oauth=Object.fromEntries(["twitch","youtube","tiktok","kick"].map(p=>[p,streamingOAuthPublicStatus(p,env)]));
+ const oauth=Object.fromEntries(["twitch","tiktok","kick"].map(p=>[p,streamingOAuthPublicStatus(p,env)]));
  try{
   const decision=decideProfileStreamingMutation({actorId:user.id,targetUserId:user.id});
   if(!decision.ok)return json({error:decision.error,accounts:[],oauth},decision.status||403);
   await ensureStreamersTable(env);
   const r=await env.BALTICM_DB.prepare("SELECT * FROM user_streaming_accounts WHERE discord_user_id=? ORDER BY provider").bind(user.id).all();
-  const accounts=(r.results||[]).map(row=>publicStreamingAccount(row)).filter(Boolean);
+  const accounts=(r.results||[]).filter(row=>providerList().includes(row.provider)).map(row=>publicStreamingAccount(row)).filter(Boolean);
   const providers=providerCapabilities(env).map(({credentialKeys,...rest})=>rest);
   const payload={accounts,oauth,providers};
   if(streamingAccountHasSecrets(accounts))return json({error:"Could not load streaming accounts",accounts:[],oauth,providers},500);
@@ -2891,7 +2895,7 @@ async function startStreamingOAuth(req,env,user,provider){
  if(!availability.available)return json({error:"Connection temporarily unavailable"},503);
  if(!env.SESSION_SECRET)return json({error:"Connection temporarily unavailable"},503);
  await ensureStreamersTable(env);
- const pkce=p==="kick"||p==="tiktok"||p==="youtube"?await createPkcePair():{verifier:"",challenge:"",method:"S256"};
+ const pkce=p==="kick"||p==="tiktok"?await createPkcePair():{verifier:"",challenge:"",method:"S256"};
  const created=await createStreamingOAuthState({secret:env.SESSION_SECRET,discordUserId:user.id,provider:p,returnPath:"/profile"});
  if(!created.ok)return json({error:created.error||"Could not start connection"},500);
  const origin=publicAppOrigin(env,req);
@@ -2915,7 +2919,7 @@ async function streamingOAuthCallback(req,env,provider){
   const fields=await readStreamingOAuthCallbackFields(req);
   if(fields.error){
    const errCode=publicOAuthErrorCode(fields.error);
-   logStreamingOAuthDiagnostic("google_oauth_error",{provider:p,error:errCode});
+   logStreamingOAuthDiagnostic("provider_oauth_error",{provider:p,error:errCode});
    return fail("The platform denied the connection.",{stage:"consent",error:errCode});
   }
   const code=fields.code;
@@ -3607,7 +3611,7 @@ export default{async scheduled(event,env,ctx){await Promise.all([finishDueGiveaw
  if(p==="/api/auth/callback")return callback(req,env);
  if(p==="/api/auth/logout")return new Response(null,{status:302,headers:{Location:publicAppOrigin(env,req)+"/","Set-Cookie":`${COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`}});
  if(p==="/api/auth/me")return handleAuthMe(req,env,{refreshGuilds:user=>refreshAccessibleGuilds(env,user)});
- const stCb=p.match(/^\/api\/profile\/streaming\/(twitch|youtube|tiktok|kick)\/callback$/);
+ const stCb=p.match(/^\/api\/profile\/streaming\/(twitch|tiktok|kick)\/callback$/);
  if(stCb)return streamingOAuthCallback(req,env,stCb[1]);
  if(p.startsWith("/api/")){try{const user=await session(req,env);if(!user)return json({error:"Unauthorized"},401);if(p==="/api/control-access"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);const permissions={};for(const k of ACCESS_KEYS)permissions[k]=await controlAccessLevel(env,user,guildId,k);const mod=await moduleSettingsState(env,guildId);const modules={};for(const k of MODULE_KEYS)modules[k]=mod.modules?.[k]!==false;return json({permissions,modules});}
 const guildIdForAccess=u.searchParams.get("guildId");
@@ -3665,7 +3669,7 @@ const gw=p.match(new RegExp("^/api/giveaways/([^/]+)(?:/(publish|end|reroll))?$"
 if(p==="/api/announcements"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);if(req.method==="GET")return announcementState(env,guildId);if(req.method==="POST")return saveAnnouncement(req,env,guildId);return json({error:"Method not allowed"},405);}
 if(p==="/api/streaming-accounts"){if(req.method==="GET")return streamingAccountsState(env,user);if(req.method==="POST")return saveStreamingAccount();return json({error:"Method not allowed"},405);}
 const stAcc=p.match(/^\/api\/streaming-accounts\/([^/]+)$/);if(stAcc){const provider=decodeURIComponent(stAcc[1]);if(req.method==="PUT")return saveStreamingAccount();if(req.method==="DELETE")return deleteStreamingAccount(env,user,provider);return json({error:"Method not allowed"},405);}
-const stCo=p.match(/^\/api\/profile\/streaming\/(twitch|youtube|tiktok|kick)\/connect$/);if(stCo&&req.method==="GET")return startStreamingOAuth(req,env,user,stCo[1]);
+const stCo=p.match(/^\/api\/profile\/streaming\/(twitch|tiktok|kick)\/connect$/);if(stCo&&req.method==="GET")return startStreamingOAuth(req,env,user,stCo[1]);
 if(p==="/api/streamers/self"){if(req.method==="GET")return streamingAccountsState(env,user);return json({error:"Method not allowed"},405);}
 if(p==="/api/streamers/settings"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);if(req.method==="POST")return saveStreamerSettings(req,env,user,guildId);if(req.method==="GET"){const settings=await loadStreamerSettings(env,guildId);return json({settings});}return json({error:"Method not allowed"},405);}
 if(p==="/api/streamers"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);if(req.method==="GET")return streamersState(env,guildId,user);if(req.method==="POST")return saveStreamer(req,env,user,guildId);return json({error:"Method not allowed"},405);}

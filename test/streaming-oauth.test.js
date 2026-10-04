@@ -23,8 +23,7 @@ import {
   streamingProfileNoticeFromSearch,
   strippedStreamingOAuthSearch,
   validateStreamingOAuthState,
-  youtubeAccountUserMessage,
-  youtubeTokenUserMessage
+  refreshAccessToken,
 } from "../streaming-oauth.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -37,8 +36,8 @@ async function stateFor(provider, user = USER_A) {
   return createStreamingOAuthState({ secret: SECRET, discordUserId: user, provider });
 }
 
-test("Twitch YouTube TikTok Kick OAuth state generation and validation", async () => {
-  for (const provider of ["twitch", "youtube", "tiktok", "kick"]) {
+test("Twitch TikTok Kick OAuth state generation and validation", async () => {
+  for (const provider of ["twitch", "tiktok", "kick"]) {
     const created = await stateFor(provider);
     assert.equal(created.ok, true);
     const ok = await validateStreamingOAuthState(created.token, { secret: SECRET, expectedProvider: provider, expectedUserId: USER_A });
@@ -66,15 +65,14 @@ test("invalid expired and provider mismatch state are rejected", async () => {
   assert.equal(mismatch.reason, "provider_mismatch");
 });
 
-test("one verified account per provider and all four platforms for the same user", () => {
+test("one verified account per provider and all three platforms for the same user", () => {
   const accounts = [
     normalizeOAuthAccount("twitch", { id: "1", login: "a", displayName: "A" }).value,
-    normalizeOAuthAccount("youtube", { id: "UCabcdefghijklmnopqrstuv", login: "yt", displayName: "YT" }).value,
     normalizeOAuthAccount("tiktok", { id: "open1", login: "clip", displayName: "Clip" }).value,
     normalizeOAuthAccount("kick", { id: "9", login: "kickuser", displayName: "Kick" }).value
   ];
   const keys = accounts.map((a) => USER_A + ":" + a.provider);
-  assert.equal(new Set(keys).size, 4);
+  assert.equal(new Set(keys).size, 3);
   assert.equal(accounts.every((a) => a.ok !== false && a.providerUserId), true);
 });
 
@@ -129,7 +127,6 @@ test("Profile streaming accounts payload stays JSON when no accounts exist", () 
     accounts: [],
     oauth: {
       twitch: streamingOAuthPublicStatus("twitch", {}),
-      youtube: streamingOAuthPublicStatus("youtube", {}),
       tiktok: streamingOAuthPublicStatus("tiktok", {}),
       kick: streamingOAuthPublicStatus("kick", {})
     },
@@ -192,13 +189,6 @@ test("authorization URLs and PKCE stay provider-specific", async () => {
   assert.equal(twitch.ok, true);
   assert.match(twitch.url, /id\.twitch\.tv/);
   assert.equal(streamingOAuthCallbackUrl(origin, "twitch"), "https://bot.balticm.eu/api/profile/streaming/twitch/callback");
-  const ytState = await stateFor("youtube");
-  const ytPkce = await createPkcePair();
-  const yt = buildAuthorizationUrl("youtube", { origin, env, state: ytState.token, pkce: ytPkce });
-  assert.match(yt.url, /accounts\.google\.com/);
-  assert.match(yt.url, /youtube\.readonly/);
-  assert.equal(yt.redirectUri, "https://bot.balticm.eu/api/profile/streaming/youtube/callback");
-  assert.match(yt.url, /code_challenge/);
   assert.equal(twitch.url.includes("code_challenge"), false);
   const pkce = await createPkcePair();
   const kick = buildAuthorizationUrl("kick", { origin, env, state: created.token, pkce });
@@ -225,81 +215,17 @@ test("worker OAuth routes and LIVE lifecycle remain intact", () => {
   assert.match(workerSrc, /last_announced_session_id!=\?/);
 });
 
-test("YouTube token exchange uses Control Center callback and maps Google errors", async () => {
-  const origin = "https://bot.balticm.eu";
-  const env = { GOOGLE_CLIENT_ID: "gid", GOOGLE_CLIENT_SECRET: "gsec" };
-  let captured = "";
-  const tokens = await exchangeAuthorizationCode("youtube", {
-    origin,
-    env,
-    code: "auth-code",
-    codeVerifier: "verifier-1",
-    httpFetch: async (url, init) => {
-      captured = String(init.body || "");
-      assert.equal(url, "https://oauth2.googleapis.com/token");
-      return { ok: false, json: async () => ({ error: "redirect_uri_mismatch" }) };
-    }
-  });
-  assert.match(captured, /redirect_uri=https%3A%2F%2Fbot.balticm.eu%2Fapi%2Fprofile%2Fstreaming%2Fyoutube%2Fcallback/);
-  assert.match(captured, /code_verifier=verifier-1/);
-  assert.equal(tokens.ok, false);
-  assert.equal(tokens.error, "YouTube is not configured with the Control Center callback URL.");
-  assert.equal(youtubeTokenUserMessage({ error: "invalid_client" }), "YouTube connection is not configured.");
-});
-
-test("YouTube callback success and error paths including invalid state", async () => {
-  const origin = "https://bot.balticm.eu";
-  const env = { GOOGLE_CLIENT_ID: "gid" };
-  const ok = await getAuthenticatedAccount("youtube", {
-    env,
-    accessToken: "access",
-    httpFetch: async () => ({
-      ok: true,
-      status: 200,
-      json: async () => ({ items: [{ id: "UCabcdefghijklmnopqrstuvwx", snippet: { title: "Baltic Live", customUrl: "@baltic", thumbnails: { default: { url: "https://img.example/yt.png" } } } }] })
-    })
-  });
-  assert.equal(ok.ok, true);
-  assert.equal(ok.value.displayName, "Baltic Live");
-  const denied = await getAuthenticatedAccount("youtube", {
-    env,
-    accessToken: "access",
-    httpFetch: async () => ({
-      ok: false,
-      status: 403,
-      json: async () => ({ error: { message: "YouTube Data API v3 has not been used", errors: [{ reason: "accessNotConfigured" }] } })
-    })
-  });
-  assert.equal(denied.ok, false);
-  assert.equal(denied.error, "YouTube Data API is not enabled for this Google project.");
-  assert.equal(youtubeAccountUserMessage({}, 200), "This Google account has no YouTube channel");
-  const created = await stateFor("youtube");
-  const invalid = await validateStreamingOAuthState("not-valid", { secret: SECRET, expectedProvider: "youtube" });
-  assert.equal(invalid.ok, false);
-  const mismatch = await validateStreamingOAuthState(created.token, { secret: SECRET, expectedProvider: "twitch" });
-  assert.equal(mismatch.ok, false);
-  const fields = await readStreamingOAuthCallbackFields(new Request("https://bot.balticm.eu/api/profile/streaming/youtube/callback?error=access_denied&state=abc"));
-  assert.equal(fields.error, "access_denied");
-  const posted = await readStreamingOAuthCallbackFields(new Request("https://bot.balticm.eu/api/profile/streaming/youtube/callback", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: "code=ok-code&state=ok-state"
-  }));
-  assert.equal(posted.code, "ok-code");
-  assert.equal(posted.state, "ok-state");
-});
-
 test("Profile OAuth query parameters are cleaned after the result is read", () => {
   const err = streamingProfileNoticeFromSearch("?streaming_error=The+connection+could+not+be+completed.");
   assert.equal(err.notice, "The connection could not be completed.");
   assert.equal(err.shouldClean, true);
-  const ok = streamingProfileNoticeFromSearch("?streaming=connected&platform=youtube");
+  const ok = streamingProfileNoticeFromSearch("?streaming=connected&platform=twitch");
   assert.equal(ok.notice, "Account connected.");
-  const success = streamingProfileNoticeFromSearch("?streaming_success=YouTube+connected");
-  assert.equal(success.notice, "YouTube connected");
-  assert.equal(strippedStreamingOAuthSearch("?streaming_error=x&platform=youtube&tab=1"), "tab=1");
+  const success = streamingProfileNoticeFromSearch("?streaming_success=Twitch+connected");
+  assert.equal(success.notice, "Twitch connected");
+  assert.equal(strippedStreamingOAuthSearch("?streaming_error=x&platform=twitch&tab=1"), "tab=1");
   const ui = readFileSync(join(root, "src/Streamers.jsx"), "utf8");
   assert.match(ui, /history\.replaceState/);
   assert.match(ui, /strippedStreamingOAuthSearch/);
-  assert.match(workerSrc, /p==="kick"\|\|p==="tiktok"\|\|p==="youtube"/);
+  assert.match(workerSrc, /p==="kick"\|\|p==="tiktok"/);
 });

@@ -83,7 +83,7 @@ test("provider normalization/validation", () => {
   assert.equal(normalizeStreamerIdentity("twitch", "https://www.twitch.tv/Example_User").providerUserId, "example_user");
   assert.equal(normalizeStreamerIdentity("kick", "https://kick.com/DemoKick").ok, true);
   assert.equal(normalizeStreamerIdentity("tiktok", "https://www.tiktok.com/@clip.daily").displayName, "@clip.daily");
-  assert.equal(normalizeStreamerIdentity("youtube", "https://www.youtube.com/@BalticLive").ok, true);
+  assert.equal(normalizeStreamerIdentity("youtube", "https://www.youtube.com/@BalticLive").ok, false);
   assert.equal(normalizeStreamerIdentity("twitch", "nope!").ok, false);
   assert.equal(normalizeStreamerIdentity("youtube", "https://www.youtube.com/watch?v=dQw4w9wgGcQ").ok, false);
 });
@@ -221,7 +221,7 @@ test("stats and capabilities", () => {
   assert.equal(stats.unknown, 1);
   assert.equal(stats.announcements, 2);
   const caps = providerCapabilities({});
-  assert.deepEqual(caps.map((p) => p.id), ["twitch", "youtube", "kick", "tiktok"]);
+  assert.deepEqual(caps.map((p) => p.id), ["twitch", "kick", "tiktok"]);
   assert.equal(caps.find((p) => p.id === "tiktok").liveDetectionAvailable, false);
 });
 
@@ -288,7 +288,7 @@ test("global Profile streaming accounts are one per platform per Discord user", 
   assert.equal(parseProfileStreamingBody({ provider: "twitch", channel: "mine", discordMemberId: "444444444444444444" }, actor).status, 403);
   assert.equal(parseProfileStreamingBody({ provider: "youtube", channel: "@x", announcementChannelId: "222222222222222222" }, actor).ok, false);
   assert.equal(parseProfileStreamingBody({ provider: "kick", channel: "x", guildId: GUILD_A }, actor).ok, false);
-  assert.equal(parseProfileStreamingBody({ provider: "youtube", channel: "@LiveOne" }, actor).ok, true);
+  assert.equal(parseProfileStreamingBody({ provider: "youtube", channel: "@LiveOne" }, actor).ok, false);
   assert.equal(parseProfileStreamingBody({ provider: "tiktok", channel: "@clip.daily" }, actor).ok, true);
   assert.equal(parseProfileStreamingBody({ provider: "kick", channel: "kickuser" }, actor).ok, true);
   assert.equal(decideProfileStreamingMutation({ actorId: actor, targetUserId: actor }).ok, true);
@@ -300,7 +300,7 @@ test("Premium guilds auto-include Profile accounts; non-Premium does not", () =>
   const user = "333333333333333333";
   const accounts = [
     { discordUserId: user, provider: "twitch" },
-    { discordUserId: user, provider: "youtube" },
+    { discordUserId: user, provider: "youtube", verified: true },
     { discordUserId: user, provider: "tiktok" },
     { discordUserId: user, provider: "kick" }
   ];
@@ -312,8 +312,8 @@ test("Premium guilds auto-include Profile accounts; non-Premium does not", () =>
       { id: "300000000000000003", premium: false, memberIds: [user] }
     ]
   });
-  assert.equal(rows.filter((r) => r.guildId === GUILD_A).length, 4);
-  assert.equal(rows.filter((r) => r.guildId === GUILD_B).length, 4);
+  assert.equal(rows.filter((r) => r.guildId === GUILD_A).length, 3);
+  assert.equal(rows.filter((r) => r.guildId === GUILD_B).length, 3);
   assert.equal(rows.filter((r) => r.guildId === "300000000000000003").length, 0);
   assert.equal(shouldIncludeProfileAccountInGuild({ premium: true, isMember: true, verified: false }), false);
   assert.equal(shouldIncludeProfileAccountInGuild({ premium: true, isMember: true, verified: true }), true);
@@ -323,7 +323,7 @@ test("Premium guilds auto-include Profile accounts; non-Premium does not", () =>
     accounts: accounts.concat(accounts),
     guilds: [{ id: GUILD_A, premium: true, memberIds: [user] }]
   });
-  assert.equal(duped.length, 4);
+  assert.equal(duped.length, 3);
 });
 
 test("Premium expiration pauses auto inclusion without deleting Profile links", () => {

@@ -4,7 +4,7 @@ import { channelBelongsToGuild } from "./giveaways.js";
 export const STREAMERS_MODULE = "streamers";
 export const STREAMERS_MAX_PER_GUILD = 50;
 export const STREAMER_STATUS = { LIVE: "live", OFFLINE: "offline", UNKNOWN: "unknown" };
-export const STREAM_PROVIDERS = ["twitch", "youtube", "kick", "tiktok"];
+export const STREAM_PROVIDERS = ["twitch", "kick", "tiktok"];
 export const STREAMER_EMBED_COLOR = 0xe8892c;
 export const STREAMERS_POLL_STALE_MS = 50000;
 export const STREAMERS_FETCH_TIMEOUT_MS = 8000;
@@ -17,7 +17,6 @@ export const STREAMER_SETTINGS_KEY = guildId => "streamers-settings:" + guildId;
 
 export const STREAMER_CREDENTIALS = {
   twitch: ["TWITCH_CLIENT_ID", "TWITCH_CLIENT_SECRET"],
-  youtube: ["YOUTUBE_API_KEY"],
   kick: ["KICK_CLIENT_ID", "KICK_CLIENT_SECRET"],
   tiktok: []
 };
@@ -90,7 +89,6 @@ export function isKnownProvider(provider) {
 export function providerLiveDetectionKind(provider) {
   const p = String(provider || "").toLowerCase();
   if (p === "twitch") return "helix";
-  if (p === "youtube") return "data_api";
   if (p === "kick") return "public_api";
   return "";
 }
@@ -159,58 +157,6 @@ export function normalizeTwitchLogin(input) {
   };
 }
 
-export function normalizeYoutubeInput(input) {
-  const raw = stripUrl(input);
-  if (!raw) return { ok: false, error: "Enter a YouTube channel URL, handle, or channel ID" };
-  let handle = "";
-  let channelId = "";
-  try {
-    if (/^https?:\/\//i.test(raw)) {
-      const url = new URL(raw);
-      const host = url.hostname.replace(/^www\./i, "").toLowerCase();
-      if (!["youtube.com", "m.youtube.com", "youtu.be"].includes(host)) return { ok: false, error: "Use a YouTube channel URL" };
-      const parts = url.pathname.split("/").filter(Boolean);
-      if (parts[0] === "channel" && parts[1]) channelId = parts[1];
-      else if (parts[0] === "c" && parts[1]) handle = parts[1];
-      else if (parts[0] === "user" && parts[1]) handle = parts[1];
-      else if (parts[0] && parts[0].startsWith("@")) handle = parts[0];
-      else if (parts[0] === "watch" || host === "youtu.be") return { ok: false, error: "Use a YouTube channel or @handle, not a single video URL" };
-      else if (parts[0]) handle = parts[0].startsWith("@") ? parts[0] : "@" + parts[0];
-    } else if (/^UC[\w-]{20,}$/.test(raw)) {
-      channelId = raw;
-    } else {
-      handle = raw.startsWith("@") ? raw : "@" + raw.replace(/^@/, "");
-    }
-  } catch {
-    return { ok: false, error: "Invalid YouTube URL" };
-  }
-  handle = handle.replace(/\s+/g, "");
-  if (channelId) {
-    if (!/^UC[\w-]{20,}$/.test(channelId)) return { ok: false, error: "Enter a valid YouTube channel ID" };
-    return {
-      ok: true,
-      provider: "youtube",
-      providerUserId: channelId,
-      providerLogin: channelId,
-      displayName: channelId,
-      profileUrl: "https://www.youtube.com/channel/" + channelId,
-      watchUrl: "https://www.youtube.com/channel/" + channelId + "/live"
-    };
-  }
-  const name = handle.replace(/^@/, "");
-  if (!/^[A-Za-z0-9._-]{3,30}$/.test(name)) return { ok: false, error: "Enter a valid YouTube handle" };
-  const at = "@" + name;
-  return {
-    ok: true,
-    provider: "youtube",
-    providerUserId: at.toLowerCase(),
-    providerLogin: at,
-    displayName: at,
-    profileUrl: "https://www.youtube.com/" + at,
-    watchUrl: "https://www.youtube.com/" + at + "/live"
-  };
-}
-
 export function normalizeKickSlug(input) {
   const raw = stripUrl(input);
   if (!raw) return { ok: false, error: "Enter a Kick channel name or URL" };
@@ -270,7 +216,6 @@ export function normalizeTiktokUser(input) {
 export function normalizeStreamerIdentity(provider, input) {
   const p = String(provider || "").toLowerCase();
   if (p === "twitch") return normalizeTwitchLogin(input);
-  if (p === "youtube") return normalizeYoutubeInput(input);
   if (p === "kick") return normalizeKickSlug(input);
   if (p === "tiktok") return normalizeTiktokUser(input);
   return { ok: false, error: "Select a streaming platform" };
@@ -361,6 +306,7 @@ export function autoStreamerRowsForGuilds({ accounts, guilds }) {
   const list = [];
   for (const guild of Array.isArray(guilds) ? guilds : []) {
     for (const account of Array.isArray(accounts) ? accounts : []) {
+      if (!isKnownProvider(account.provider)) continue;
       const memberIds = guild.memberIds || [];
       const isMember = memberIds.includes(String(account.discordUserId || account.discord_user_id || ""));
       const verified = account.verified !== false && account.verified !== 0;
@@ -737,75 +683,6 @@ export async function checkTwitchLive(identity, env, httpFetch) {
   };
 }
 
-async function resolveYoutubeChannelId(identity, env, httpFetch) {
-  const login = String(identity.providerLogin || identity.providerUserId || "");
-  if (/^UC[\w-]{20,}$/.test(login)) return { ok: true, channelId: login, displayName: identity.displayName };
-  const handle = login.replace(/^@/, "");
-  const res = await fetchJson(
-    "https://www.googleapis.com/youtube/v3/channels?part=id,snippet&forHandle=" + encodeURIComponent(handle) + "&key=" + encodeURIComponent(env.YOUTUBE_API_KEY),
-    {},
-    httpFetch
-  );
-  const item = res.body?.items?.[0];
-  if (!res.ok || !item?.id) return { ok: false, error: res.status === 403 ? "YouTube API credentials were rejected" : "YouTube channel was not found" };
-  return { ok: true, channelId: item.id, displayName: item.snippet?.title || identity.displayName, profileImageUrl: item.snippet?.thumbnails?.default?.url || "" };
-}
-
-export async function checkYoutubeLive(identity, env, httpFetch) {
-  const detection = liveDetectionAvailable("youtube", env);
-  if (!detection.available) return unknownResult(detection.detail || detection.reason);
-  const resolved = await resolveYoutubeChannelId(identity, env, httpFetch);
-  if (!resolved.ok) return unknownResult(resolved.error);
-  const search = await withRetries(() =>
-    fetchJson(
-      "https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=" +
-        encodeURIComponent(resolved.channelId) +
-        "&eventType=live&type=video&maxResults=1&key=" +
-        encodeURIComponent(env.YOUTUBE_API_KEY),
-      {},
-      httpFetch
-    )
-  );
-  if (search.status === 429 || search.body?.error?.errors?.[0]?.reason === "quotaExceeded") {
-    return unknownResult("YouTube API quota or rate limit reached");
-  }
-  if (!search.ok) return unknownResult(search.body?.error?.message || "YouTube status check failed");
-  const item = search.body?.items?.[0];
-  const videoId = item?.id?.videoId;
-  if (!videoId) {
-    return {
-      status: STREAMER_STATUS.OFFLINE,
-      liveDetection: true,
-      sessionId: "",
-      displayName: resolved.displayName,
-      profileImageUrl: resolved.profileImageUrl,
-      watchUrl: "https://www.youtube.com/channel/" + resolved.channelId
-    };
-  }
-  const details = await fetchJson(
-    "https://www.googleapis.com/youtube/v3/videos?part=snippet,liveStreamingDetails,statistics&id=" +
-      encodeURIComponent(videoId) +
-      "&key=" +
-      encodeURIComponent(env.YOUTUBE_API_KEY),
-    {},
-    httpFetch
-  );
-  const video = details.body?.items?.[0];
-  const concurrent = video?.liveStreamingDetails?.concurrentViewers;
-  return {
-    status: STREAMER_STATUS.LIVE,
-    liveDetection: true,
-    sessionId: String(videoId),
-    title: String(video?.snippet?.title || item.snippet?.title || ""),
-    category: String(video?.snippet?.categoryId || ""),
-    viewerCount: Number.isFinite(Number(concurrent)) ? Number(concurrent) : null,
-    thumbnailUrl: String(video?.snippet?.thumbnails?.high?.url || item.snippet?.thumbnails?.high?.url || ""),
-    profileImageUrl: resolved.profileImageUrl,
-    displayName: resolved.displayName,
-    watchUrl: "https://www.youtube.com/watch?v=" + videoId
-  };
-}
-
 export async function checkKickLive(identity, env, httpFetch) {
   const detection = liveDetectionAvailable("kick", env);
   if (!detection.available) return unknownResult(detection.detail || detection.reason);
@@ -856,7 +733,6 @@ export async function checkProviderLive(provider, identity, env, httpFetch) {
   const p = String(provider || "").toLowerCase();
   try {
     if (p === "twitch") return await checkTwitchLive(identity, env, httpFetch);
-    if (p === "youtube") return await checkYoutubeLive(identity, env, httpFetch);
     if (p === "kick") return await checkKickLive(identity, env, httpFetch);
     if (p === "tiktok") return await checkTiktokLive(identity);
     return unknownResult("Unknown streaming platform");
@@ -870,7 +746,7 @@ export function providerCapabilities(env = {}) {
     const detection = liveDetectionAvailable(id, env);
     return {
       id,
-      label: id === "youtube" ? "YouTube" : id === "tiktok" ? "TikTok" : id[0].toUpperCase() + id.slice(1),
+      label: id === "tiktok" ? "TikTok" : id[0].toUpperCase() + id.slice(1),
       liveDetectionAvailable: detection.available,
       liveDetectionReason: detection.reason || "",
       liveDetectionDetail: detection.detail || "",

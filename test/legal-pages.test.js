@@ -10,20 +10,17 @@ const legalSrc = readFileSync(join(root, "src/LegalPages.jsx"), "utf8");
 const mainSrc = readFileSync(join(root, "src/main.jsx"), "utf8");
 const stateSrc = readFileSync(join(root, "src/control-center-state.js"), "utf8");
 
-test("privacy policy covers Discord, streaming OAuth, Google Limited Use, and real support contact", () => {
+test("privacy policy covers Discord, streaming OAuth, and real support contact", () => {
   assert.match(legalSrc, /Privacy Policy/);
   assert.match(legalSrc, /Discord authentication/);
   assert.match(legalSrc, /user ID/);
   assert.match(legalSrc, /connected streaming accounts/i);
   assert.match(legalSrc, /Twitch/);
-  assert.match(legalSrc, /YouTube/);
+  assert.doesNotMatch(legalSrc, /youtube\.readonly|YouTube connection uses Google OAuth/);
   assert.match(legalSrc, /TikTok/);
   assert.match(legalSrc, /Kick/);
   assert.match(legalSrc, /LIVE announcements/);
   assert.match(legalSrc, /not exposed publicly/);
-  assert.match(legalSrc, /Google API Services User Data Policy/);
-  assert.match(legalSrc, /Limited Use/);
-  assert.match(legalSrc, /youtube\.readonly/);
   assert.doesNotMatch(legalSrc, /@gmail\.com/);
   assert.doesNotMatch(legalSrc, /support@/);
   assert.match(legalSrc, /href=\{SUPPORT_DISCORD_URL\}/);
