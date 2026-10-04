@@ -31,17 +31,8 @@ const PRIVACY_SECTIONS = [
     id: "streaming",
     title: "Connected streaming accounts",
     body: [
-      "From your Profile you can connect Twitch, YouTube (Google), TikTok and Kick. Connection is optional. For each provider we store identifiers needed to recognize your channel (for example channel or user ID, login or handle, display name, profile image URL and public profile or watch URL), verification status, and encrypted access and refresh tokens plus granted OAuth scopes so we can keep the connection working.",
+      "From your Profile you can connect Twitch, TikTok and Kick. Connection is optional. For each provider we store identifiers needed to recognize your channel (for example channel or user ID, login or handle, display name, profile image URL and public profile or watch URL), verification status, and encrypted access and refresh tokens plus granted OAuth scopes so we can keep the connection working.",
       "We use those connections to confirm that the account is yours, to read live-stream status, and to post Discord LIVE announcements you configure in Streamers. We do not publish OAuth tokens. Disconnecting a provider in Profile removes that stored connection for your Discord user. You can also revoke BalticM from the provider’s own security or connected-apps settings."
-    ]
-  },
-  {
-    id: "google",
-    title: "Google / YouTube API data",
-    body: [
-      "YouTube connection uses Google OAuth with the YouTube Data API read-only scope (youtube.readonly). After you authorize BalticM we request your YouTube channel identity (channel ID and public snippet such as title and thumbnails) and use the same authorization to read live status for Discord LIVE announcements.",
-      "We do not use Google APIs to read Gmail, Drive, Photos, or other Google products. We do not sell Google user data or use it for advertising. Tokens are stored only on our servers to maintain the YouTube integration you enabled.",
-      "BalticM's use and transfer of information received from Google APIs follows the Google API Services User Data Policy, including the Limited Use requirements."
     ]
   },
   {
@@ -56,7 +47,7 @@ const PRIVACY_SECTIONS = [
     id: "sharing",
     title: "Data sharing",
     body: [
-      "We share data with the platforms you use to operate the product: Discord (bot and OAuth), Twitch, Google/YouTube, TikTok, Kick, and Tebex when you buy Premium. Those providers process data under their own policies.",
+      "We share data with the platforms you use to operate the product: Discord (bot and OAuth), Twitch, TikTok, Kick, and Tebex when you buy Premium. Those providers process data under their own policies.",
       "We may share information with infrastructure and security providers who process it on our behalf, or when required by law, or to protect users and the service from abuse. We do not sell your personal information."
     ]
   },
@@ -71,7 +62,7 @@ const PRIVACY_SECTIONS = [
     id: "revoke",
     title: "Account disconnect / revocation",
     body: [
-      "Disconnect a streaming provider from Profile in Control Center. Revoke Discord access from Discord’s Authorized Apps. Revoke Google/YouTube access from your Google Account’s third-party app settings. After revocation we stop using that authorization; leftover encrypted tokens are removed when you disconnect in Profile or when we process the revocation."
+      "Disconnect a streaming provider from Profile in Control Center. Revoke Discord access from Discord’s Authorized Apps. Revoke streaming access from the provider’s connected-app settings. After revocation we stop using that authorization; leftover encrypted tokens are removed when you disconnect in Profile or when we process the revocation."
     ]
   },
   {
@@ -85,7 +76,7 @@ const PRIVACY_SECTIONS = [
     id: "third",
     title: "Third-party services",
     body: [
-      "Discord, Twitch, Google, YouTube, TikTok, Kick and Tebex are independent services. Their sites, APIs and checkout flows are governed by their terms and privacy policies. BalticM is not responsible for those third-party services."
+      "Discord, Twitch, TikTok, Kick and Tebex are independent services. Their sites, APIs and checkout flows are governed by their terms and privacy policies. BalticM is not responsible for those third-party services."
     ]
   },
   {
@@ -130,7 +121,7 @@ const TERMS_SECTIONS = [
     id: "streaming-int",
     title: "Streaming platform integrations",
     body: [
-      "Optional Twitch, YouTube, TikTok and Kick connections are provided so you can verify channels and announce live streams on Discord. You must only connect accounts you are allowed to use. We may suspend an integration that fails provider rules, appears fraudulent, or is used to spam or impersonate."
+      "Optional Twitch, TikTok and Kick connections are provided so you can verify channels and announce live streams on Discord. You must only connect accounts you are allowed to use. We may suspend an integration that fails provider rules, appears fraudulent, or is used to spam or impersonate."
     ]
   },
   {
