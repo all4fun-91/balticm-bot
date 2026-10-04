@@ -10,20 +10,18 @@ const legalSrc = readFileSync(join(root, "src/LegalPages.jsx"), "utf8");
 const mainSrc = readFileSync(join(root, "src/main.jsx"), "utf8");
 const stateSrc = readFileSync(join(root, "src/control-center-state.js"), "utf8");
 
-test("privacy policy covers Discord, streaming OAuth, Google Limited Use, and real support contact", () => {
+test("privacy policy covers Discord, streaming integrations, and real support contact", () => {
   assert.match(legalSrc, /Privacy Policy/);
   assert.match(legalSrc, /Discord authentication/);
   assert.match(legalSrc, /user ID/);
   assert.match(legalSrc, /connected streaming accounts/i);
   assert.match(legalSrc, /Twitch/);
-  assert.match(legalSrc, /YouTube/);
+  assert.doesNotMatch(legalSrc, /YouTube/);
   assert.match(legalSrc, /TikTok/);
   assert.match(legalSrc, /Kick/);
   assert.match(legalSrc, /LIVE announcements/);
   assert.match(legalSrc, /not exposed publicly/);
-  assert.match(legalSrc, /Google API Services User Data Policy/);
-  assert.match(legalSrc, /Limited Use/);
-  assert.match(legalSrc, /youtube\.readonly/);
+  assert.doesNotMatch(legalSrc, /youtube\.readonly/);
   assert.doesNotMatch(legalSrc, /@gmail\.com/);
   assert.doesNotMatch(legalSrc, /support@/);
   assert.match(legalSrc, /href=\{SUPPORT_DISCORD_URL\}/);
@@ -69,7 +67,7 @@ test("opening the legal modal does not rewrite the URL or OAuth query string", (
   assert.match(mainSrc, /const openLegalModal=doc=>\{setLegalModal\(doc\);setOpen\(false\);setAccountOpen\(false\);setServerOpen\(false\);setNotificationsOpen\(false\)\}/);
   assert.doesNotMatch(mainSrc, /openLegalModal=doc=>\{[\s\S]{0,120}history\./);
   assert.equal(strippedStreamingOAuthSearch("?streaming_error=The+connection+could+not+be+completed.&tab=1"), "tab=1");
-  assert.equal(strippedStreamingOAuthSearch("?streaming=connected&platform=youtube&x=1"), "x=1");
+  assert.equal(strippedStreamingOAuthSearch("?streaming=connected&platform=twitch&x=1"), "x=1");
   assert.equal(strippedStreamingOAuthSearch("?streaming_success=ok"), "");
   assert.match(mainSrc, /strippedStreamingOAuthSearch/);
   assert.match(mainSrc, /cleanNavSearch/);

@@ -4,12 +4,11 @@ const enc = new TextEncoder();
 const STATE_TTL_MS = 10 * 60 * 1000;
 const CALLBACK_PATH = {
   twitch: "/api/profile/streaming/twitch/callback",
-  youtube: "/api/profile/streaming/youtube/callback",
   tiktok: "/api/profile/streaming/tiktok/callback",
   kick: "/api/profile/streaming/kick/callback"
 };
 
-export const STREAMING_OAUTH_PROVIDERS = ["twitch", "youtube", "kick", "tiktok"];
+export const STREAMING_OAUTH_PROVIDERS = ["twitch", "kick", "tiktok"];
 
 function isKnownProvider(provider) {
   return STREAMING_OAUTH_PROVIDERS.includes(String(provider || "").toLowerCase());
@@ -26,14 +25,12 @@ export const STREAMING_OAUTH_NONCE_SQL = `CREATE TABLE IF NOT EXISTS streaming_o
 
 export const STREAMING_OAUTH_CREDENTIALS = {
   twitch: ["TWITCH_CLIENT_ID", "TWITCH_CLIENT_SECRET"],
-  youtube: ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"],
   tiktok: ["TIKTOK_CLIENT_KEY", "TIKTOK_CLIENT_SECRET"],
   kick: ["KICK_CLIENT_ID", "KICK_CLIENT_SECRET"]
 };
 
 export const STREAMING_OAUTH_SCOPES = {
   twitch: [],
-  youtube: ["https://www.googleapis.com/auth/youtube.readonly"],
   tiktok: ["user.info.basic"],
   kick: ["user:read"]
 };
@@ -223,9 +220,6 @@ export function normalizeOAuthAccount(provider, raw = {}) {
     const handle = (login || id).toLowerCase();
     profileUrl = "https://www.twitch.tv/" + handle;
     watchUrl = profileUrl;
-  } else if (p === "youtube") {
-    profileUrl = /^UC[\w-]{20,}$/.test(id) ? "https://www.youtube.com/channel/" + id : profileUrl;
-    watchUrl = profileUrl ? profileUrl.replace(/\/$/, "") + "/live" : "";
   } else if (p === "kick") {
     const slug = (login || id).toLowerCase();
     profileUrl = "https://kick.com/" + slug;
@@ -272,26 +266,6 @@ export function publicOAuthErrorCode(raw) {
     .toLowerCase()
     .replace(/[^a-z0-9_.:-]/g, "")
     .slice(0, 80);
-}
-
-export function youtubeTokenUserMessage(body = {}) {
-  const code = publicOAuthErrorCode(body.error);
-  if (code === "redirect_uri_mismatch") return "YouTube is not configured with the Control Center callback URL.";
-  if (code === "invalid_client") return "YouTube connection is not configured.";
-  if (code === "invalid_grant" || code === "invalid_request") return "The YouTube authorization expired. Try connecting again.";
-  if (code === "unauthorized_client") return "This Google OAuth client cannot complete YouTube sign-in.";
-  return "The platform authorization failed.";
-}
-
-export function youtubeAccountUserMessage(body = {}, httpStatus = 0) {
-  const reason = publicOAuthErrorCode(body.error?.errors?.[0]?.reason || body.error?.status || body.error);
-  if (reason === "accessnotconfigured" || reason === "access_not_configured" || /youtube data api/i.test(String(body.error?.message || ""))) {
-    return "YouTube Data API is not enabled for this Google project.";
-  }
-  if (reason === "youtubesignuprequired" || httpStatus === 404) return "This Google account has no YouTube channel";
-  if (httpStatus === 401 || reason === "autherror" || reason === "unauthenticated") return "YouTube authorization expired. Try connecting again.";
-  if (httpStatus === 403) return "YouTube did not allow this connection for the signed-in Google account.";
-  return "This Google account has no YouTube channel";
 }
 
 export async function readStreamingOAuthCallbackFields(req) {
@@ -367,21 +341,6 @@ export function buildAuthorizationUrl(provider, { origin, env, state, pkce } = {
     url.searchParams.set("state", state);
     return { ok: true, url: url.toString(), redirectUri, scopes: STREAMING_OAUTH_SCOPES.twitch };
   }
-  if (p === "youtube") {
-    const url = new URL("https://accounts.google.com/o/oauth2/v2/auth");
-    url.searchParams.set("client_id", env.GOOGLE_CLIENT_ID);
-    url.searchParams.set("redirect_uri", redirectUri);
-    url.searchParams.set("response_type", "code");
-    url.searchParams.set("scope", STREAMING_OAUTH_SCOPES.youtube.join(" "));
-    url.searchParams.set("access_type", "offline");
-    url.searchParams.set("prompt", "consent");
-    url.searchParams.set("state", state);
-    if (pkce?.challenge) {
-      url.searchParams.set("code_challenge", pkce.challenge);
-      url.searchParams.set("code_challenge_method", pkce.method || "S256");
-    }
-    return { ok: true, url: url.toString(), redirectUri, scopes: STREAMING_OAUTH_SCOPES.youtube };
-  }
   if (p === "tiktok") {
     const url = new URL("https://www.tiktok.com/v2/auth/authorize/");
     url.searchParams.set("client_key", env.TIKTOK_CLIENT_KEY);
@@ -430,25 +389,6 @@ export async function exchangeAuthorizationCode(provider, { origin, env, code, c
     });
     const body = await readJson(res);
     if (!res.ok || !body.access_token) return { ok: false, error: "Twitch authorization failed" };
-    return { ok: true, accessToken: body.access_token, refreshToken: body.refresh_token || "", expiresIn: Number(body.expires_in) || 3600, scope: body.scope };
-  }
-  if (p === "youtube") {
-    const res = await httpFetch("https://oauth2.googleapis.com/token", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: formBody({
-        client_id: env.GOOGLE_CLIENT_ID,
-        client_secret: env.GOOGLE_CLIENT_SECRET,
-        code,
-        grant_type: "authorization_code",
-        redirect_uri: redirectUri,
-        ...(codeVerifier ? { code_verifier: codeVerifier } : {})
-      })
-    });
-    const body = await readJson(res);
-    if (!res.ok || !body.access_token) {
-      return { ok: false, error: youtubeTokenUserMessage(body), logCode: publicOAuthErrorCode(body.error) };
-    }
     return { ok: true, accessToken: body.access_token, refreshToken: body.refresh_token || "", expiresIn: Number(body.expires_in) || 3600, scope: body.scope };
   }
   if (p === "tiktok") {
@@ -516,21 +456,6 @@ export async function refreshAccessToken(provider, { env, refreshToken, httpFetc
     if (!res.ok || !body.access_token) return { ok: false, error: "Twitch token refresh failed" };
     return { ok: true, accessToken: body.access_token, refreshToken: body.refresh_token || token, expiresIn: Number(body.expires_in) || 3600 };
   }
-  if (p === "youtube") {
-    const res = await httpFetch("https://oauth2.googleapis.com/token", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: formBody({
-        client_id: env.GOOGLE_CLIENT_ID,
-        client_secret: env.GOOGLE_CLIENT_SECRET,
-        grant_type: "refresh_token",
-        refresh_token: token
-      })
-    });
-    const body = await readJson(res);
-    if (!res.ok || !body.access_token) return { ok: false, error: "YouTube token refresh failed" };
-    return { ok: true, accessToken: body.access_token, refreshToken: token, expiresIn: Number(body.expires_in) || 3600 };
-  }
   if (p === "tiktok") {
     const res = await httpFetch("https://open.tiktokapis.com/v2/oauth/token/", {
       method: "POST",
@@ -583,23 +508,6 @@ export async function getAuthenticatedAccount(provider, { env, accessToken, open
       profileImageUrl: user.profile_image_url
     });
   }
-  if (p === "youtube") {
-    const res = await httpFetch("https://www.googleapis.com/youtube/v3/channels?part=snippet,id&mine=true", {
-      headers: { Authorization: "Bearer " + token }
-    });
-    const body = await readJson(res);
-    const channel = Array.isArray(body.items) ? body.items[0] : null;
-    if (!res.ok || !channel?.id) {
-      return { ok: false, error: youtubeAccountUserMessage(body, res.status), logCode: publicOAuthErrorCode(body.error?.errors?.[0]?.reason || body.error) };
-    }
-    const thumb = channel.snippet?.thumbnails?.high?.url || channel.snippet?.thumbnails?.default?.url || "";
-    return normalizeOAuthAccount("youtube", {
-      id: channel.id,
-      login: String(channel.snippet?.customUrl || "").replace(/^@/, ""),
-      displayName: channel.snippet?.title,
-      profileImageUrl: thumb
-    });
-  }
   if (p === "tiktok") {
     const res = await httpFetch("https://open.tiktokapis.com/v2/user/info/?fields=open_id,union_id,avatar_url,display_name,username", {
       headers: { Authorization: "Bearer " + token }
@@ -644,12 +552,6 @@ export async function revokeStreamingToken(provider, { env, token, httpFetch = f
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: formBody({ client_id: env.TWITCH_CLIENT_ID, token: value })
       });
-    } else if (p === "youtube") {
-      await httpFetch("https://oauth2.googleapis.com/revoke", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: formBody({ token: value })
-      });
     } else if (p === "tiktok") {
       await httpFetch("https://open.tiktokapis.com/v2/oauth/revoke/", {
         method: "POST",
@@ -683,12 +585,6 @@ export function streamingOAuthSetupReport() {
       callback: "https://bot.balticm.eu" + CALLBACK_PATH.twitch,
       scopes: STREAMING_OAUTH_SCOPES.twitch,
       review: false
-    },
-    youtube: {
-      env: STREAMING_OAUTH_CREDENTIALS.youtube,
-      callback: "https://bot.balticm.eu" + CALLBACK_PATH.youtube,
-      scopes: STREAMING_OAUTH_SCOPES.youtube,
-      review: "Google Cloud OAuth consent screen; YouTube Data API v3 enabled"
     },
     tiktok: {
       env: STREAMING_OAUTH_CREDENTIALS.tiktok,

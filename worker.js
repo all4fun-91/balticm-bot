@@ -2848,7 +2848,7 @@ async function refreshStreamer(env,guildId,id){
  }catch{return json({error:"Could not refresh status"},500)}
 }
 async function streamingAccountsState(env,user){
- const oauth=Object.fromEntries(["twitch","youtube","tiktok","kick"].map(p=>[p,streamingOAuthPublicStatus(p,env)]));
+ const oauth=Object.fromEntries(["twitch","tiktok","kick"].map(p=>[p,streamingOAuthPublicStatus(p,env)]));
  try{
   const decision=decideProfileStreamingMutation({actorId:user.id,targetUserId:user.id});
   if(!decision.ok)return json({error:decision.error,accounts:[],oauth},decision.status||403);
@@ -2891,7 +2891,7 @@ async function startStreamingOAuth(req,env,user,provider){
  if(!availability.available)return json({error:"Connection temporarily unavailable"},503);
  if(!env.SESSION_SECRET)return json({error:"Connection temporarily unavailable"},503);
  await ensureStreamersTable(env);
- const pkce=p==="kick"||p==="tiktok"||p==="youtube"?await createPkcePair():{verifier:"",challenge:"",method:"S256"};
+ const pkce=p==="kick"||p==="tiktok"?await createPkcePair():{verifier:"",challenge:"",method:"S256"};
  const created=await createStreamingOAuthState({secret:env.SESSION_SECRET,discordUserId:user.id,provider:p,returnPath:"/profile"});
  if(!created.ok)return json({error:created.error||"Could not start connection"},500);
  const origin=publicAppOrigin(env,req);
@@ -2915,7 +2915,7 @@ async function streamingOAuthCallback(req,env,provider){
   const fields=await readStreamingOAuthCallbackFields(req);
   if(fields.error){
    const errCode=publicOAuthErrorCode(fields.error);
-   logStreamingOAuthDiagnostic("google_oauth_error",{provider:p,error:errCode});
+   logStreamingOAuthDiagnostic("consent_error",{provider:p,error:errCode});
    return fail("The platform denied the connection.",{stage:"consent",error:errCode});
   }
   const code=fields.code;
@@ -3607,7 +3607,7 @@ export default{async scheduled(event,env,ctx){await Promise.all([finishDueGiveaw
  if(p==="/api/auth/callback")return callback(req,env);
  if(p==="/api/auth/logout")return new Response(null,{status:302,headers:{Location:publicAppOrigin(env,req)+"/","Set-Cookie":`${COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`}});
  if(p==="/api/auth/me")return handleAuthMe(req,env,{refreshGuilds:user=>refreshAccessibleGuilds(env,user)});
- const stCb=p.match(/^\/api\/profile\/streaming\/(twitch|youtube|tiktok|kick)\/callback$/);
+ const stCb=p.match(/^\/api\/profile\/streaming\/(twitch|tiktok|kick)\/callback$/);
  if(stCb)return streamingOAuthCallback(req,env,stCb[1]);
  if(p.startsWith("/api/")){try{const user=await session(req,env);if(!user)return json({error:"Unauthorized"},401);if(p==="/api/control-access"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);const permissions={};for(const k of ACCESS_KEYS)permissions[k]=await controlAccessLevel(env,user,guildId,k);const mod=await moduleSettingsState(env,guildId);const modules={};for(const k of MODULE_KEYS)modules[k]=mod.modules?.[k]!==false;return json({permissions,modules});}
 const guildIdForAccess=u.searchParams.get("guildId");
@@ -3665,7 +3665,7 @@ const gw=p.match(new RegExp("^/api/giveaways/([^/]+)(?:/(publish|end|reroll))?$"
 if(p==="/api/announcements"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);if(req.method==="GET")return announcementState(env,guildId);if(req.method==="POST")return saveAnnouncement(req,env,guildId);return json({error:"Method not allowed"},405);}
 if(p==="/api/streaming-accounts"){if(req.method==="GET")return streamingAccountsState(env,user);if(req.method==="POST")return saveStreamingAccount();return json({error:"Method not allowed"},405);}
 const stAcc=p.match(/^\/api\/streaming-accounts\/([^/]+)$/);if(stAcc){const provider=decodeURIComponent(stAcc[1]);if(req.method==="PUT")return saveStreamingAccount();if(req.method==="DELETE")return deleteStreamingAccount(env,user,provider);return json({error:"Method not allowed"},405);}
-const stCo=p.match(/^\/api\/profile\/streaming\/(twitch|youtube|tiktok|kick)\/connect$/);if(stCo&&req.method==="GET")return startStreamingOAuth(req,env,user,stCo[1]);
+const stCo=p.match(/^\/api\/profile\/streaming\/(twitch|tiktok|kick)\/connect$/);if(stCo&&req.method==="GET")return startStreamingOAuth(req,env,user,stCo[1]);
 if(p==="/api/streamers/self"){if(req.method==="GET")return streamingAccountsState(env,user);return json({error:"Method not allowed"},405);}
 if(p==="/api/streamers/settings"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);if(req.method==="POST")return saveStreamerSettings(req,env,user,guildId);if(req.method==="GET"){const settings=await loadStreamerSettings(env,guildId);return json({settings});}return json({error:"Method not allowed"},405);}
 if(p==="/api/streamers"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);if(req.method==="GET")return streamersState(env,guildId,user);if(req.method==="POST")return saveStreamer(req,env,user,guildId);return json({error:"Method not allowed"},405);}
