@@ -54,6 +54,7 @@ import {
   logRowFromWebhookEvent,
   mergeAdminLogRows
 } from "./admin-logs.js";
+import { adminNameGaps, applyAdminLogNames, applyAdminPaymentNames, buildAdminNameMaps } from "./admin-names.js";
 import {
   ACCESS_CONFIGURE,
   ACCESS_KEYS,
@@ -75,6 +76,9 @@ import {
   STREAMERS_MAX_PER_GUILD,
   STREAMERS_DELETE_MAX_ATTEMPTS,
   STREAMER_SETTINGS_KEY,
+  STREAMER_PANEL_BOT_PERMISSION_ERROR,
+  STREAMER_PANEL_CONFIG_KEY,
+  STREAMER_PANEL_KEY,
   STREAMER_SOURCE_AUTO,
   STREAMER_SOURCE_OWNER,
   USER_STREAMING_ACCOUNTS_TABLE_SQL,
@@ -84,6 +88,8 @@ import {
   decideProfileStreamingMutation,
   decideStreamerStudioMutation,
   defaultStreamerSettings,
+  defaultStreamerPanel,
+  defaultStreamerPanelConfig,
   discordAnnouncementGone,
   discordChannelAllowed,
   duplicateStreamerError,
@@ -91,7 +97,10 @@ import {
   mapProfileAccountRow,
   mapStreamerRow,
   isStreamerSnowflake,
+  isStreamerSuppressed,
+  normalizeStreamerPanelConfig,
   normalizeStreamerSource,
+  parseStreamerPanelConfig,
   parseStreamerConfigBody,
   parseStreamerSettingsBody,
   providerCapabilities,
@@ -100,7 +109,14 @@ import {
   shouldPauseAutoStreamerAutomation,
   shouldRemoveAutoGuildParticipation,
   streamerAnnouncementError,
+  streamerPanelEmbed,
+  streamerPanelManageUrl,
+  streamerPanelPayload,
+  streamerPanelSendableChannels,
   streamerPublicView,
+  streamerSuppressedKey,
+  streamerSuppressedPrefix,
+  streamerSuppressionFromKeys,
   summarizeStreamerStats
 } from "./streamers.js";
 import {
@@ -869,7 +885,8 @@ async function adminSupportDeleteConversation(req,env,user){
 }
 async function adminSupportStatus(req,env,user){const denied=adminDenied(env,user);if(denied)return denied;try{await ensureSupportChatTables(env);const body=await req.json().catch(()=>({})),threadId=String(body.threadId||"").trim(),status=String(body.status||"").trim();if(!threadId)return json({error:"Thread is required"},400);if(!["open","waiting_staff","waiting_customer","closed"].includes(status))return json({error:"Invalid status"},400);const existing=await env.BALTICM_DB.prepare("SELECT id,user_id AS userId,status FROM bot_support_threads WHERE id=?").bind(threadId).first();if(!existing)return json({error:"Conversation not found"},404);const now=new Date().toISOString(),r=await env.BALTICM_DB.prepare("UPDATE bot_support_threads SET status=?,updated_at=? WHERE id=?").bind(status,now,threadId).run();if(!r.meta?.changes)return json({error:"Conversation not found"},404);if(status==="closed"){await rotateCustomerAiSession(env.BALTICM_DB,existing.userId);await setSupportTyping(env.BALTICM_DB,threadId,"user",false);await setSupportTyping(env.BALTICM_DB,threadId,"staff",false)}return json({ok:true,status})}catch(e){return json({error:String(e.message||e)},500)}}
 
-async function ensureBotConfigTable(env){if(!env.BALTICM_DB)throw new Error("BALTICM_DB binding is not configured");await env.BALTICM_DB.prepare("CREATE TABLE IF NOT EXISTS bot_config (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL)").run()}
+let botConfigTableEnsured=false;
+async function ensureBotConfigTable(env){if(!env.BALTICM_DB)throw new Error("BALTICM_DB binding is not configured");if(botConfigTableEnsured)return;await env.BALTICM_DB.prepare("CREATE TABLE IF NOT EXISTS bot_config (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL)").run();botConfigTableEnsured=true}
 async function readPremiumRaw(env,guildId){await ensureBotConfigTable(env);const row=await env.BALTICM_DB.prepare("SELECT value FROM bot_config WHERE key=?").bind(premiumPlanKey(guildId)).first();if(!row?.value)return {plan:"free",source:"",startsAt:"",expiresAt:""};try{const v=JSON.parse(row.value);return {plan:String(v.plan||"free"),source:String(v.source||""),startsAt:String(v.startsAt||""),expiresAt:String(v.expiresAt||""),revokedAt:v.revokedAt?String(v.revokedAt):undefined,code:v.code?String(v.code):undefined}}catch{return {plan:"free",source:"",startsAt:"",expiresAt:""}}}
 async function writePremiumPlan(env,guildId,value){await ensureBotConfigTable(env);await env.BALTICM_DB.prepare("INSERT INTO bot_config (key,value,updated_at) VALUES (?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at").bind(premiumPlanKey(guildId),JSON.stringify(value),new Date().toISOString()).run()}
 async function listBotGuilds(env){const r=await fetch("https://discord.com/api/v10/users/@me/guilds",{headers:botHeaders(env)});if(!r.ok)throw new Error("Could not list bot guilds ("+r.status+")");const guilds=await r.json();return Array.isArray(guilds)?guilds:[]}
@@ -911,6 +928,60 @@ async function adminSettingsOverview(req,env,user){
  }catch(e){return json({error:String(e.message||e)},500)}
 }
 
+/* Readable display names for admin views: stored rows first, then a small
+   bounded set of Discord lookups kept in a TTL cache so no view re-asks per render. */
+const adminDisplayNameCache=new Map();
+const ADMIN_DISPLAY_NAME_TTL=10*60*1000;
+const ADMIN_NAME_LOOKUP_USER_LIMIT=10;
+const ADMIN_NAME_LOOKUP_GUILD_LIMIT=6;
+function readAdminNameCache(key){const hit=adminDisplayNameCache.get(key);if(!hit)return"";if(Number(hit.exp)<=Date.now()){adminDisplayNameCache.delete(key);return""}return String(hit.name||"")}
+function writeAdminNameCache(key,name){adminDisplayNameCache.set(key,{name,exp:Date.now()+ADMIN_DISPLAY_NAME_TTL});if(adminDisplayNameCache.size>400)adminDisplayNameCache.delete(adminDisplayNameCache.keys().next().value)}
+async function fetchAdminRemoteUserName(env,userId){
+ try{const r=await fetch(`https://discord.com/api/v10/users/${userId}`,{headers:botHeaders(env)});if(!r.ok)return"";const u=await r.json();return String(u.global_name||u.username||"").trim()}catch{return""}
+}
+async function fetchAdminRemoteGuildName(env,guildId){
+ try{const r=await fetch(`https://discord.com/api/v10/guilds/${guildId}`,{headers:botHeaders(env)});if(!r.ok)return"";const g=await r.json();return String(g.name||"").trim()}catch{return""}
+}
+async function loadAdminStoredNameMaps(env){
+ let userRows=[],guildRows=[];
+ if(!env.BALTICM_DB)return buildAdminNameMaps();
+ try{
+  const r=await env.BALTICM_DB.prepare("SELECT id,name FROM (SELECT discord_user_id AS id,discord_username AS name FROM vip_code_redemptions WHERE discord_user_id<>'' AND discord_username<>'' UNION ALL SELECT sender_id,sender_name FROM bot_support_messages WHERE sender_id<>'' AND sender_name<>'' UNION ALL SELECT user_id,user_name FROM bot_support_threads WHERE user_id<>'' AND user_name<>'' UNION ALL SELECT actor_id,actor_name FROM activity_logs WHERE actor_id<>'' AND actor_name<>'') LIMIT 2000").all();
+  userRows=r.results||[];
+ }catch{}
+ try{
+  const r=await env.BALTICM_DB.prepare("SELECT id,name FROM (SELECT guild_id AS id,guild_name AS name FROM bot_support_threads WHERE guild_id<>'' AND guild_name<>'' UNION ALL SELECT guild_id,guild_name FROM vip_code_redemptions WHERE guild_id<>'' AND guild_name<>'') LIMIT 1000").all();
+  guildRows=r.results||[];
+ }catch{}
+ return buildAdminNameMaps(userRows,guildRows);
+}
+export async function resolveAdminRemoteNames(env,gaps){
+ const users=new Map(),guilds=new Map();
+ if(!env||!env.DISCORD_BOT_TOKEN)return{users,guilds};
+ const guildIds=[...new Set((gaps&&gaps.guildIds)||[])].filter(id=>/^\d{16,22}$/.test(id)).slice(0,ADMIN_NAME_LOOKUP_GUILD_LIMIT);
+ const userIds=[...new Set((gaps&&gaps.userIds)||[])].filter(id=>/^\d{16,22}$/.test(id)).slice(0,ADMIN_NAME_LOOKUP_USER_LIMIT);
+ await Promise.all([
+  ...guildIds.map(async id=>{const key="guild:"+id;let name=readAdminNameCache(key);if(!name){name=await fetchAdminRemoteGuildName(env,id);if(name)writeAdminNameCache(key,name)}if(name)guilds.set(id,name)}),
+  ...userIds.map(async id=>{const key="user:"+id;let name=readAdminNameCache(key);if(!name){name=await fetchAdminRemoteUserName(env,id);if(name)writeAdminNameCache(key,name)}if(name)users.set(id,name)})
+ ]);
+ return{users,guilds};
+}
+async function applyStoredAdminNames(env,rows,kind){
+ try{
+  if(!Array.isArray(rows)||!rows.length)return rows;
+  const stored=await loadAdminStoredNameMaps(env);
+  if(kind==="payment")applyAdminPaymentNames(rows,stored);else applyAdminLogNames(rows,stored);
+ }catch{}
+ return rows;
+}
+async function applyRemoteAdminNames(env,rows,kind){
+ try{
+  if(!Array.isArray(rows)||!rows.length)return rows;
+  const remote=await resolveAdminRemoteNames(env,adminNameGaps(rows,kind));
+  if(kind==="payment")applyAdminPaymentNames(rows,remote);else applyAdminLogNames(rows,remote);
+ }catch{}
+ return rows;
+}
 async function adminTebexOverview(env,user){
  const denied=adminDenied(env,user);if(denied)return denied;
  try{
@@ -919,6 +990,8 @@ async function adminTebexOverview(env,user){
   const config=buildTebexConfigStatus(env);
   const payRes=await env.BALTICM_DB.prepare("SELECT payment_id AS paymentId,event_id AS eventId,discord_user_id AS discordUserId,guild_id AS guildId,package_id AS packageId,amount,currency,status,basket_ident AS basketIdent,created_at AS createdAt,updated_at AS updatedAt FROM tebex_payments ORDER BY COALESCE(updated_at,created_at) DESC LIMIT 200").all();
   const payments=(payRes.results||[]).map(r=>formatTebexPaymentRow(r,TEBEX_VIP_PACKAGE_NAME));
+  await applyStoredAdminNames(env,payments,"payment");
+  await applyRemoteAdminNames(env,payments,"payment");
   let packageId=config.packageId;
   if(!packageId){
    const fromPay=payments.find(p=>p.packageId)?.packageId||"";
@@ -1100,9 +1173,9 @@ async function adminLogsList(req,env,user){
    env.BALTICM_DB.prepare("SELECT payment_id AS paymentId,discord_user_id AS discordUserId,guild_id AS guildId,amount,currency,status,created_at AS createdAt,updated_at AS updatedAt FROM tebex_payments ORDER BY COALESCE(updated_at,created_at) DESC LIMIT 200").all(),
    env.BALTICM_DB.prepare("SELECT id,type,payment_id AS paymentId,received_at AS receivedAt,handled FROM tebex_webhook_events ORDER BY received_at DESC LIMIT 200").all(),
    env.BALTICM_DB.prepare("SELECT id,code,duration_days AS durationDays,status,created_at AS createdAt,created_by AS createdBy FROM vip_codes WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT 200").all(),
-   env.BALTICM_DB.prepare("SELECT id,code_id AS codeId,code,discord_user_id AS discordUserId,guild_id AS guildId,guild_name AS guildName,redeemed_at AS redeemedAt,duration_days AS durationDays,result FROM vip_code_redemptions ORDER BY redeemed_at DESC LIMIT 200").all(),
-   env.BALTICM_DB.prepare("SELECT id,guild_id AS guildId,actor_id AS actorId,action,target,source,details,created_at AS createdAt FROM activity_logs WHERE UPPER(source) IN ('ADMIN','TEBEX') ORDER BY created_at DESC LIMIT 200").all(),
-   env.BALTICM_DB.prepare("SELECT m.id,m.thread_id AS threadId,m.sender_type AS senderType,m.sender_id AS senderId,m.message,m.created_at AS createdAt,t.guild_id AS guildId,t.guild_name AS guildName,t.status AS threadStatus FROM bot_support_messages m LEFT JOIN bot_support_threads t ON t.id=m.thread_id ORDER BY m.created_at DESC LIMIT 200").all(),
+   env.BALTICM_DB.prepare("SELECT id,code_id AS codeId,code,discord_user_id AS discordUserId,discord_username AS discordUsername,guild_id AS guildId,guild_name AS guildName,redeemed_at AS redeemedAt,duration_days AS durationDays,result FROM vip_code_redemptions ORDER BY redeemed_at DESC LIMIT 200").all(),
+   env.BALTICM_DB.prepare("SELECT id,guild_id AS guildId,actor_id AS actorId,actor_name AS actorName,action,target,source,details,created_at AS createdAt FROM activity_logs WHERE UPPER(source) IN ('ADMIN','TEBEX') ORDER BY created_at DESC LIMIT 200").all(),
+   env.BALTICM_DB.prepare("SELECT m.id,m.thread_id AS threadId,m.sender_type AS senderType,m.sender_id AS senderId,m.sender_name AS senderName,m.message,m.created_at AS createdAt,t.guild_id AS guildId,t.guild_name AS guildName,t.status AS threadStatus FROM bot_support_messages m LEFT JOIN bot_support_threads t ON t.id=m.thread_id ORDER BY m.created_at DESC LIMIT 200").all(),
    env.BALTICM_DB.prepare("SELECT id,created_at AS createdAt,category,action,actor_discord_id AS actorDiscordId,guild_id AS guildId,reference,status,details FROM admin_audit_log ORDER BY created_at DESC LIMIT 200").all()
   ]);
 
@@ -1115,7 +1188,9 @@ async function adminLogsList(req,env,user){
    ...(supRes.results||[]).map(logRowFromSupportMessage),
    ...(audRes.results||[]).map(logRowFromAudit)
   ];
+  await applyStoredAdminNames(env,raw,"log");
   const events=mergeAdminLogRows(raw,{q,category,status}).slice(0,500);
+  await applyRemoteAdminNames(env,events,"log");
   const counts={
    payment:(payRes.results||[]).length,
    webhook:(whRes.results||[]).length,
@@ -1413,9 +1488,9 @@ async function discordGuild(env,id){
  if(!env.DISCORD_BOT_TOKEN)return json({error:"DISCORD_BOT_TOKEN is not configured"},503);
  if(!id)return json({error:"guildId is required"},400);
  const h={Authorization:`Bot ${env.DISCORD_BOT_TOKEN}`};
- const [g,c,r]=await Promise.all([fetch(`https://discord.com/api/v10/guilds/${id}?with_counts=true`,{headers:h}),fetch(`https://discord.com/api/v10/guilds/${id}/channels`,{headers:h}),fetch(`https://discord.com/api/v10/guilds/${id}/roles`,{headers:h})]);
- if(!g.ok){if(g.status===404)return json({error:"Bot is not installed in this server",notInstalled:true},404);return json({error:"Discord guild request failed",status:g.status},502);}
- const gd=await g.json();return json({guild:{id:gd.id,name:gd.name,icon:gd.icon,memberCount:gd.approximate_member_count,onlineCount:gd.approximate_presence_count},channels:c.ok?await c.json():[],roles:r.ok?await r.json():[]});
+ const [g,c,r]=await Promise.all([discordGet(`https://discord.com/api/v10/guilds/${id}?with_counts=true`,h,"guild-state",id),discordGet(`https://discord.com/api/v10/guilds/${id}/channels`,h,"guild-channels",id),discordGet(`https://discord.com/api/v10/guilds/${id}/roles`,h,"guild-roles",id)]);
+ if(!g||!g.ok){if(g&&g.status===404)return json({error:"Bot is not installed in this server",notInstalled:true},404);if(!g||discordLookupTransient(g.status))return json({error:DISCORD_LOOKUP_ERROR,retryable:true},503);return json({error:"Could not load Discord server",status:g.status},502);}
+ const gd=await g.json();return json({guild:{id:gd.id,name:gd.name,icon:gd.icon,memberCount:gd.approximate_member_count,onlineCount:gd.approximate_presence_count},channels:c&&c.ok?await c.json():[],roles:r&&r.ok?await r.json():[]});
 }
 
 function botHeaders(env,jsonBody=false){return{Authorization:`Bot ${env.DISCORD_BOT_TOKEN}`,...(jsonBody?{"Content-Type":"application/json; charset=utf-8"}:{})}}
@@ -1526,57 +1601,88 @@ async function discoverAccessibleGuildsFromOAuth(env,userId,oauthGuilds){
 }
 /** Discover guilds from bot membership + live Discord member/roles. OAuth lists are not RBAC authority. */
 async function refreshAccessibleGuilds(env,user){
- const previous=Array.isArray(user?.guilds)?user.guilds:[];
- const seen=new Set();
- const out=[];
- let botGuilds=[];
- if(env.DISCORD_BOT_TOKEN){
-  try{botGuilds=await listBotGuilds(env)}catch{botGuilds=[]}
- }
- const fromBot=await mapPool(botGuilds,5,g=>resolveGuildAccessEntry(env,user.id,g,null));
- for(const entry of fromBot){
-  if(!entry||seen.has(entry.id))continue;
-  seen.add(entry.id);
-  out.push(entry);
- }
- for(const g of previous){
-  const id=String(g?.id||"");
-  if(!id||seen.has(id))continue;
-  if(!(g.owner||g.access==="owner"||g.access==="manage"||oauthGuildHasManageAccess(g)))continue;
-  const entry=await resolveGuildAccessEntry(env,user.id,g,g);
-  if(entry&&!seen.has(entry.id)){seen.add(entry.id);out.push(entry)}
- }
- return out.map(({id,name,icon,owner,access})=>({id,name,icon,owner:!!owner,access:access||(owner?"owner":"rbac")}));
+ // The accessible-guild list drives the server switcher only; permission checks
+ // on API routes stay live (controlAccessLevel). Cache it briefly so auth/me
+ // does not re-run N x Discord member lookups on every page view.
+ return cachedDiscordList("guilds-access:"+String(user?.id||""),async()=>{
+  const previous=Array.isArray(user?.guilds)?user.guilds:[];
+  const seen=new Set();
+  const out=[];
+  let botGuilds=[];
+  if(env.DISCORD_BOT_TOKEN){
+   try{botGuilds=await listBotGuilds(env)}catch{botGuilds=[]}
+  }
+  const fromBot=await mapPool(botGuilds,5,g=>resolveGuildAccessEntry(env,user.id,g,null));
+  for(const entry of fromBot){
+   if(!entry||seen.has(entry.id))continue;
+   seen.add(entry.id);
+   out.push(entry);
+  }
+  for(const g of previous){
+   const id=String(g?.id||"");
+   if(!id||seen.has(id))continue;
+   if(!(g.owner||g.access==="owner"||g.access==="manage"||oauthGuildHasManageAccess(g)))continue;
+   const entry=await resolveGuildAccessEntry(env,user.id,g,g);
+   if(entry&&!seen.has(entry.id)){seen.add(entry.id);out.push(entry)}
+  }
+  return out.map(({id,name,icon,owner,access})=>({id,name,icon,owner:!!owner,access:access||(owner?"owner":"rbac")}));
+ });
 }
 async function controlAccessLevel(env,user,guildId,key){
  if(!/^\d{16,22}$/.test(String(guildId||"")))return ACCESS_NONE;
  const sessionGuild=(user.guilds||[]).find(g=>String(g.id)===String(guildId));
  if(!env.DISCORD_BOT_TOKEN)return sessionGuild?.owner?ACCESS_CONFIGURE:ACCESS_NONE;
  try{
-  const [gr,mr]=await Promise.all([fetch(`https://discord.com/api/v10/guilds/${guildId}`,{headers:botHeaders(env)}),fetch(`https://discord.com/api/v10/guilds/${guildId}/members/${user.id}`,{headers:botHeaders(env)})]);
-  if(gr.status===404)return sessionGuild?.owner?ACCESS_CONFIGURE:ACCESS_NONE;
-  if(!gr.ok||!mr.ok)return ACCESS_NONE;
-  const guild=await gr.json();
+  const mrP=fetch(`https://discord.com/api/v10/guilds/${guildId}/members/${user.id}`,{headers:botHeaders(env)});
+  const wrap=await loadCachedGuildWrap(env,guildId);
+  if(!wrap)return null;
+  if(wrap.status===404)return sessionGuild?.owner?ACCESS_CONFIGURE:ACCESS_NONE;
+  const guild=wrap.guild;
+  const mr=await mrP;
+  if(!mr.ok){if(mr.status===404)return ACCESS_NONE;return null;}
   if(String(guild.owner_id)===String(user.id))return ACCESS_CONFIGURE;
   const member=await mr.json();
-  const rr=await fetch(`https://discord.com/api/v10/guilds/${guildId}/roles`,{headers:botHeaders(env)});
-  const discordRoles=rr.ok?await rr.json():[];
-  if(memberHasDiscordGuildManager(guildId,discordRoles,member.roles||[]))return ACCESS_CONFIGURE;
+  const discordRoles=await cachedDiscordList("guild-roles:"+guildId,async()=>{
+   const rr=await fetch(`https://discord.com/api/v10/guilds/${guildId}/roles`,{headers:botHeaders(env)});
+   return rr.ok?rr.json():null;
+  });
+  const roles=Array.isArray(discordRoles)?discordRoles:[];
+  if(memberHasDiscordGuildManager(guildId,roles,member.roles||[]))return ACCESS_CONFIGURE;
   const accessConfig=await loadGuildAccessConfig(env,guildId);
   return accessLevelFromRoles(accessConfig.roles,memberRoleIdsForAccess(guildId,member.roles||[]),key);
- }catch{return ACCESS_NONE}
+ }catch{return null}
 }
 async function controlAccess(env,user,guildId,key,minLevel=ACCESS_OPERATE){return levelMeets(await controlAccessLevel(env,user,guildId,key),minLevel)}
+// A transient Discord lookup failure leaves the access state unknown (`null`),
+// never a grant. Retry briefly so a single bursty 403 does not lock a manager
+// out of a page they demonstrably have access to, then fail closed as before.
+const ACCESS_UNKNOWN_RETRY_DELAYS_MS=[200,400];
+const ACCESS_UNKNOWN_ERROR="Discord access check is temporarily unavailable. Please try again in a moment.";
+async function resolveAccessLevel(env,user,guildId,key){
+ let level=await controlAccessLevel(env,user,guildId,key);
+ for(let attempt=0;level===null&&attempt<ACCESS_UNKNOWN_RETRY_DELAYS_MS.length;attempt++){
+  await new Promise(resolve=>setTimeout(resolve,ACCESS_UNKNOWN_RETRY_DELAYS_MS[attempt]));
+  level=await controlAccessLevel(env,user,guildId,key);
+ }
+ return level;
+}
 async function requireControlAccess(env,user,guildId,key,minLevel=ACCESS_OPERATE){
- const level=await controlAccessLevel(env,user,guildId,key);
+ const level=await resolveAccessLevel(env,user,guildId,key);
  if(levelMeets(level,minLevel))return null;
+ // Unknown state is still denied — but as a retryable temporary error instead
+ // of a raw "Forbidden", so the UI never blames channel permissions for a blip.
+ if(level===null)return json({error:ACCESS_UNKNOWN_ERROR,accessUnknown:true,requiredPermission:key,requiredLevel:minLevel,accessLevel:level},503);
  return json({error:"Forbidden",requiredPermission:key,requiredLevel:minLevel,accessLevel:level},403);
 }
 
 async function discordMembers(env,guildId){
  if(!env.DISCORD_BOT_TOKEN)return json({error:"DISCORD_BOT_TOKEN is not configured"},503);
- const r=await fetch(`https://discord.com/api/v10/guilds/${guildId}/members?limit=1000`,{headers:botHeaders(env)});
- if(!r.ok)return json({error:"Discord members request failed",status:r.status},r.status===403?403:502);
+ const r=await discordGet(`https://discord.com/api/v10/guilds/${guildId}/members?limit=1000`,botHeaders(env),"members-list",guildId);
+ if(!r||!r.ok){
+  const transient=!r||discordLookupTransient(r.status);
+  if(transient)return json({error:DISCORD_LOOKUP_ERROR,retryable:true},503);
+  return json({error:"Could not load server members",status:r.status},r.status===403?403:502);
+ }
  const members=await r.json();
  return json({members:members.map(m=>({id:m.user?.id,username:m.user?.username||"Unknown",globalName:m.user?.global_name||m.nick||m.user?.username||"Unknown",nick:m.nick||null,avatar:m.user?.avatar||null,roles:m.roles||[],bot:!!m.user?.bot,joinedAt:m.joined_at||null}))});
 }
@@ -1856,31 +1962,85 @@ async function saveAnnouncement(req,env,guildId,id=""){let body;try{body=await r
 async function publishAnnouncement(env,guildId,id){await ensureAnnouncementTables(env);const result=await runAnnouncementPublish({guildId,id,load:()=>loadAnnouncement(env,guildId,id),claimPost:async()=>{const now=new Date().toISOString(),cutoff=new Date(Date.now()-ANNOUNCEMENT_PUBLISH_LOCK_MS).toISOString();const locked=await env.BALTICM_DB.prepare("UPDATE announcements SET status='publishing', updated_at=? WHERE id=? AND guild_id=? AND message_id='' AND (status!='publishing' OR updated_at < ?)").bind(now,id,guildId,cutoff).run();return !!locked.meta?.changes},claimReplace:async oldId=>{const now=new Date().toISOString();const replaced=await env.BALTICM_DB.prepare("UPDATE announcements SET message_id='', followers_status='', status='publishing', updated_at=? WHERE id=? AND guild_id=? AND message_id=?").bind(now,id,guildId,oldId).run();return !!replaced.meta?.changes},releasePost:async()=>{const now=new Date().toISOString();await env.BALTICM_DB.prepare("UPDATE announcements SET status='draft', updated_at=? WHERE id=? AND guild_id=? AND status='publishing' AND message_id=''").bind(now,id,guildId).run()},commitMessage:async(messageId,edit)=>{const now=new Date().toISOString();const saved=edit?await env.BALTICM_DB.prepare("UPDATE announcements SET status='published', published_at=COALESCE(NULLIF(published_at,''), ?), updated_at=? WHERE id=? AND guild_id=? AND message_id=?").bind(now,now,id,guildId,messageId).run():await env.BALTICM_DB.prepare("UPDATE announcements SET message_id=?, status='published', published_at=?, updated_at=? WHERE id=? AND guild_id=? AND message_id=''").bind(messageId,now,now,id,guildId).run();return !!saved.meta?.changes},commitFollowers:async status=>{const now=new Date().toISOString();await env.BALTICM_DB.prepare("UPDATE announcements SET followers_status=?, updated_at=? WHERE id=? AND guild_id=?").bind(status,now,id,guildId).run()},getChannel:channelId=>readAnnouncementChannel(env,channelId),send:async({method,channelId,messageId,payload})=>{const url=method==="PATCH"?"https://discord.com/api/v10/channels/"+channelId+"/messages/"+messageId:"https://discord.com/api/v10/channels/"+channelId+"/messages";return discordAnnouncement(url,{method,headers:botHeaders(env,true),body:JSON.stringify(payload)})},crosspost:({channelId,messageId})=>discordAnnouncement("https://discord.com/api/v10/channels/"+channelId+"/messages/"+messageId+"/crosspost",{method:"POST",headers:botHeaders(env)}),remove:({channelId,messageId})=>discordAnnouncement("https://discord.com/api/v10/channels/"+channelId+"/messages/"+messageId,{method:"DELETE",headers:botHeaders(env)}).catch(()=>null)});if(!result.ok)return json({error:result.error},result.status||502);return json({ok:true,messageId:result.messageId,channelId:result.channelId,crossposted:!!result.crossposted,crosspostError:result.crosspostError||"",bannerSkipped:!!result.bannerSkipped})}
 async function deleteAnnouncement(env,guildId,id){await ensureAnnouncementTables(env);const a=await env.BALTICM_DB.prepare("SELECT channel_id AS channelId,message_id AS messageId FROM announcements WHERE id=? AND guild_id=?").bind(id,guildId).first();if(!a)return json({error:"Announcement not found"},404);if(a.messageId)await discordAnnouncement("https://discord.com/api/v10/channels/"+a.channelId+"/messages/"+a.messageId,{method:"DELETE",headers:botHeaders(env)}).catch(()=>null);await env.BALTICM_DB.prepare("DELETE FROM announcements WHERE id=? AND guild_id=?").bind(id,guildId).run();return json({ok:true})}
 
+const DISCORD_LOOKUP_RETRY_DELAYS_MS=[250,600];
+const DISCORD_LOOKUP_ERROR="Discord is temporarily unavailable. Please try again in a moment.";
+// Bursty/short-lived Discord failures (the known transient 403, plus 429/5xx
+// and network errors) are retried on read-only lookups. 404 and other
+// definitive answers return immediately so fail-closed error mapping keeps
+// seeing the real status. Nothing here ever grants access — it only decides
+// whether a failure is temporary or final.
+function discordLookupTransient(status){const s=Number(status)||0;return s===0||s===408||s===403||s===429||s>=500;}
+async function discordGet(url,headers,stage,guildId,component="members-roles"){
+ let res=null;
+ for(let attempt=0;attempt<=DISCORD_LOOKUP_RETRY_DELAYS_MS.length;attempt++){
+  if(attempt)await new Promise(resolve=>setTimeout(resolve,DISCORD_LOOKUP_RETRY_DELAYS_MS[attempt-1]));
+  try{res=await fetch(url,{headers})}catch{res=null}
+  if(res&&res.ok)return res;
+  const status=res?res.status:0;
+  const transient=discordLookupTransient(status);
+  const willRetry=transient&&attempt<DISCORD_LOOKUP_RETRY_DELAYS_MS.length;
+  if(status!==404)console.log(JSON.stringify({component,event:willRetry?"discord-lookup-retry":"discord-lookup-failed",stage,guildId:String(guildId||""),status,attempt:attempt+1}));
+  if(!willRetry)return res;
+ }
+ return res;
+}
+function membersRolesUnavailable(stage){return{error:DISCORD_LOOKUP_ERROR,code:"discord_unavailable",retryable:true,status:503,stage}}
+// Discord refused a role mutation: never surface a raw Discord blip as a
+// permissions claim, and never pass 429/5xx through as a generic failure.
+function membersRolesDiscordError(status,data,fallback){
+ const s=Number(status)||0;
+ if(s===429||s>=500)return{error:DISCORD_LOOKUP_ERROR,status:503,retryable:true};
+ if(s===403||Number(data&&data.code)===50013)return{error:"Discord refused the change \u2014 the bot needs Manage Roles and the role must be below its top role.",status:403,code:"bot_permissions"};
+ const detail=String(data&&data.message||"").trim();
+ return{error:detail?`${fallback}: ${detail}`:fallback,status:s>=400&&s<600?s:502};
+}
 async function loadMembersRolesContext(env,guildId,actorId,targetMemberId=""){
  if(!env.DISCORD_BOT_TOKEN)return{error:"DISCORD_BOT_TOKEN is not configured",status:503};
+ if(!isSnowflake(guildId))return{error:"Invalid guild id",code:"invalid_id",status:400};
+ if(!isSnowflake(actorId))return{error:"Invalid member id",code:"invalid_id",status:400};
  const headers=botHeaders(env);
- const meRes=await fetch("https://discord.com/api/v10/users/@me",{headers});
- if(!meRes.ok)return{error:"Could not resolve bot user",status:502};
+ const meRes=await discordGet("https://discord.com/api/v10/users/@me",headers,"bot-user",guildId);
+ if(!meRes||!meRes.ok)return !meRes||discordLookupTransient(meRes.status)?membersRolesUnavailable("bot-user"):{error:"Could not resolve bot user",status:502};
  const me=await meRes.json();
  const fetches=[
-  fetch(`https://discord.com/api/v10/guilds/${guildId}`,{headers}),
-  fetch(`https://discord.com/api/v10/guilds/${guildId}/roles`,{headers}),
-  fetch(`https://discord.com/api/v10/guilds/${guildId}/members/${actorId}`,{headers}),
-  fetch(`https://discord.com/api/v10/guilds/${guildId}/members/${me.id}`,{headers})
+  discordGet(`https://discord.com/api/v10/guilds/${guildId}`,headers,"guild",guildId),
+  discordGet(`https://discord.com/api/v10/guilds/${guildId}/roles`,headers,"roles",guildId),
+  discordGet(`https://discord.com/api/v10/guilds/${guildId}/members/${actorId}`,headers,"actor-member",guildId),
+  discordGet(`https://discord.com/api/v10/guilds/${guildId}/members/${me.id}`,headers,"bot-member",guildId)
  ];
- if(targetMemberId)fetches.push(fetch(`https://discord.com/api/v10/guilds/${guildId}/members/${targetMemberId}`,{headers}));
- const results=await Promise.all(fetches);
- const [gr,rr,actorMr,botMr,targetMr]=results;
- if(!gr.ok)return{error:gr.status===404?"Bot is not installed in this server":"Could not load Discord server",status:gr.status===404?404:502};
- if(!rr.ok)return{error:"Could not load Discord roles",status:502};
- if(!actorMr.ok)return{error:"You are not a member of this server",status:403};
+ if(targetMemberId)fetches.push(discordGet(`https://discord.com/api/v10/guilds/${guildId}/members/${targetMemberId}`,headers,"target-member",guildId));
+ const [gr,rr,actorMr,botMr,targetMr]=await Promise.all(fetches);
+ if(!gr)return membersRolesUnavailable("guild");
+ if(!gr.ok){
+  if(gr.status===404)return{error:"Bot is not installed in this server",status:404,code:"not_installed"};
+  if(discordLookupTransient(gr.status))return membersRolesUnavailable("guild");
+  const dgBody=await gr.text().catch(()=>"");
+  console.log(JSON.stringify({component:"members-roles",event:"guild-lookup-error",guildId:String(guildId||""),status:gr.status,body:dgBody.slice(0,300)}));
+  return{error:"Could not load Discord server",status:502,code:"discord_error"};
+ }
+ if(!rr)return membersRolesUnavailable("roles");
+ if(!rr.ok)return discordLookupTransient(rr.status)?membersRolesUnavailable("roles"):{error:"Could not load Discord roles",status:502,code:"discord_error"};
+ if(!actorMr)return membersRolesUnavailable("actor-member");
+ if(!actorMr.ok){
+  if(actorMr.status===404)return{error:"You are not a member of this server",status:403,code:"not_member"};
+  return discordLookupTransient(actorMr.status)?membersRolesUnavailable("actor-member"):{error:"Could not verify your membership in this server",status:502,code:"member_lookup"};
+ }
+ if(!botMr)return membersRolesUnavailable("bot-member");
+ if(!botMr.ok){
+  if(botMr.status===404)return{error:"Bot is not installed in this server",status:404,code:"not_installed"};
+  return discordLookupTransient(botMr.status)?membersRolesUnavailable("bot-member"):{error:"Could not verify the bot's roles in this server",status:502,code:"bot_lookup"};
+ }
  const guild=await gr.json();
  const guildRoles=await rr.json();
  const actorMember=await actorMr.json();
- const botMember=botMr.ok?await botMr.json():null;
+ const botMember=await botMr.json();
  let targetMember=null;
  if(targetMemberId){
-  if(!targetMr||!targetMr.ok)return{error:"Member could not be resolved in this server",status:403,code:"cross_guild"};
+  if(!targetMr)return membersRolesUnavailable("target-member");
+  if(!targetMr.ok){
+   if(targetMr.status===404)return{error:"Member could not be resolved in this server",status:403,code:"cross_guild"};
+   return discordLookupTransient(targetMr.status)?membersRolesUnavailable("target-member"):{error:"Member could not be resolved in this server",status:502,code:"member_lookup"};
+  }
   targetMember=await targetMr.json();
  }
  const botAccess=botRoleAccess(guildRoles,botMember?.roles||[],guildId);
@@ -1892,7 +2052,7 @@ async function createDiscordRole(req,env,user,guildId){
  const name=String(body?.name||"").trim().slice(0,100);if(!name)return json({error:"Role name is required"},400);
  if(body?.position!=null)return json({error:"Role reordering is not allowed through this endpoint",code:"reorder"},403);
  const ctx=await loadMembersRolesContext(env,guildId,user.id);
- if(ctx.error)return json({error:ctx.error,code:ctx.code},ctx.status||502);
+ if(ctx.error)return json({error:ctx.error,code:ctx.code,retryable:!!ctx.retryable},ctx.status||502);
  const actorIsGuildOwner=String(ctx.guild.owner_id)===String(user.id);
  const decision=decideRoleMutation({
   action:"create",
@@ -1907,18 +2067,19 @@ async function createDiscordRole(req,env,user,guildId){
  const payload={name,hoist:!!body.hoist,mentionable:!!body.mentionable};
  if(/^#[0-9a-fA-F]{6}$/.test(body.color||""))payload.color=parseInt(body.color.slice(1),16);
  const r=await fetch(`https://discord.com/api/v10/guilds/${guildId}/roles`,{method:"POST",headers:botHeaders(env,true),body:JSON.stringify(payload)});
- const data=await r.json().catch(()=>({}));if(!r.ok)return json({error:data.message||"Role creation failed",status:r.status},r.status===403?403:502);
+ const data=await r.json().catch(()=>({}));if(!r.ok){const e=membersRolesDiscordError(r.status,data,"Role creation failed");return json({error:e.error,code:e.code,status:e.status,retryable:!!e.retryable},e.status)}
  await addActivityLog(env,guildId,{actorId:user?.id||"",actorName:user?.global_name||user?.username||user?.id||"Control Center",action:"Role created",target:data.name||name,source:"BALTICM"});
  return json({role:data},201);
 }
 async function changeMemberRole(req,env,user,guildId,memberId,roleId,remove=false){
  if(!isSnowflake(memberId)||!isSnowflake(roleId))return json({error:"Invalid member or role id",code:"invalid_id"},400);
  const ctx=await loadMembersRolesContext(env,guildId,user.id,memberId);
- if(ctx.error)return json({error:ctx.error,code:ctx.code},ctx.status||502);
+ if(ctx.error)return json({error:ctx.error,code:ctx.code,retryable:!!ctx.retryable},ctx.status||502);
  const role=(ctx.guildRoles||[]).find(r=>String(r.id)===String(roleId))||null;
  const actorIsGuildOwner=String(ctx.guild.owner_id)===String(user.id);
  const targetIsGuildOwner=String(ctx.guild.owner_id)===String(memberId);
- const actorAccessLevel=await controlAccessLevel(env,user,guildId,"members_roles");
+ const actorAccessLevel=await resolveAccessLevel(env,user,guildId,"members_roles");
+ if(actorAccessLevel===null)return json({error:ACCESS_UNKNOWN_ERROR,accessUnknown:true,requiredPermission:"members_roles"},503);
  const decision=decideMemberRoleChange({
   guildId,
   actorId:user.id,
@@ -1937,7 +2098,7 @@ async function changeMemberRole(req,env,user,guildId,memberId,roleId,remove=fals
  });
  if(!decision.ok)return json({error:decision.error,code:decision.code},403);
  const r=await fetch(`https://discord.com/api/v10/guilds/${guildId}/members/${memberId}/roles/${roleId}`,{method:remove?"DELETE":"PUT",headers:botHeaders(env)});
- if(!r.ok){const data=await r.json().catch(()=>({}));return json({error:data.message||"Role update failed",status:r.status},r.status===403?403:502)}
+ if(!r.ok){const data=await r.json().catch(()=>({}));const e=membersRolesDiscordError(r.status,data,"Role update failed");return json({error:e.error,code:e.code,status:e.status,retryable:!!e.retryable},e.status)}
  const actorName=user?.global_name||user?.username||user?.id||"Control Center";
  await addActivityLog(env,guildId,{actorId:user?.id||"",actorName,action:remove?"Role removed":"Role assigned",target:memberId,source:"BALTICM",details:`roleId=${roleId}`});
  return new Response(null,{status:204});
@@ -1945,7 +2106,7 @@ async function changeMemberRole(req,env,user,guildId,memberId,roleId,remove=fals
 async function deleteDiscordRole(env,user,guildId,roleId){
  if(!isSnowflake(roleId))return json({error:"Invalid role id",code:"invalid_id"},400);
  const ctx=await loadMembersRolesContext(env,guildId,user.id);
- if(ctx.error)return json({error:ctx.error,code:ctx.code},ctx.status||502);
+ if(ctx.error)return json({error:ctx.error,code:ctx.code,retryable:!!ctx.retryable},ctx.status||502);
  const role=(ctx.guildRoles||[]).find(r=>String(r.id)===String(roleId))||null;
  const actorIsGuildOwner=String(ctx.guild.owner_id)===String(user.id);
  const decision=decideRoleMutation({
@@ -1960,7 +2121,7 @@ async function deleteDiscordRole(env,user,guildId,roleId){
  });
  if(!decision.ok)return json({error:decision.error,code:decision.code},403);
  const r=await fetch(`https://discord.com/api/v10/guilds/${guildId}/roles/${roleId}`,{method:"DELETE",headers:botHeaders(env)});
- if(!r.ok){const data=await r.json().catch(()=>({}));return json({error:data.message||"Role deletion failed",status:r.status},r.status===403?403:502)}
+ if(!r.ok){const data=await r.json().catch(()=>({}));const e=membersRolesDiscordError(r.status,data,"Role deletion failed");return json({error:e.error,code:e.code,status:e.status,retryable:!!e.retryable},e.status)}
  return new Response(null,{status:204});
 }
 async function editDiscordRole(req,env,user,guildId,roleId){
@@ -1968,7 +2129,7 @@ async function editDiscordRole(req,env,user,guildId,roleId){
  if(!isSnowflake(roleId))return json({error:"Invalid role id",code:"invalid_id"},400);
  if(Object.prototype.hasOwnProperty.call(body||{},"position"))return json({error:"Role reordering is not allowed through this endpoint",code:"reorder"},403);
  const ctx=await loadMembersRolesContext(env,guildId,user.id);
- if(ctx.error)return json({error:ctx.error,code:ctx.code},ctx.status||502);
+ if(ctx.error)return json({error:ctx.error,code:ctx.code,retryable:!!ctx.retryable},ctx.status||502);
  const role=(ctx.guildRoles||[]).find(r=>String(r.id)===String(roleId))||null;
  const actorIsGuildOwner=String(ctx.guild.owner_id)===String(user.id);
  const decision=decideRoleMutation({
@@ -1991,7 +2152,7 @@ async function editDiscordRole(req,env,user,guildId,roleId){
  if(body.permissions!==undefined){const permissions=String(body.permissions);if(!/^\d+$/.test(permissions))return json({error:"Invalid permissions bitfield"},400);try{BigInt(permissions)}catch{return json({error:"Invalid permissions bitfield"},400)}payload.permissions=permissions;}
  if(!Object.keys(payload).length)return json({error:"No role changes supplied"},400);
  const r=await fetch(`https://discord.com/api/v10/guilds/${guildId}/roles/${roleId}`,{method:"PATCH",headers:botHeaders(env,true),body:JSON.stringify(payload)});
- const data=await r.json().catch(()=>({}));if(!r.ok)return json({error:data.message||"Role update failed",status:r.status},r.status===403?403:502);
+ const data=await r.json().catch(()=>({}));if(!r.ok){const e=membersRolesDiscordError(r.status,data,"Role update failed");return json({error:e.error,code:e.code,status:e.status,retryable:!!e.retryable},e.status)}
  return json({role:data});
 }
 
@@ -2415,7 +2576,7 @@ const MODULE_KEYS=["direct_messages","tickets","members_roles","moderation","rea
 const NOTIFICATION_KEYS=["moderation","tickets","giveaways","service_status","errors","management"];
 async function readBotConfig(env,key,fallback){
  if(!env.BALTICM_DB)return fallback;
- await env.BALTICM_DB.prepare("CREATE TABLE IF NOT EXISTS bot_config (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL)").run();
+ await ensureBotConfigTable(env);
  const row=await env.BALTICM_DB.prepare("SELECT value FROM bot_config WHERE key=?").bind(key).first();
  if(row?.value)try{return {...fallback,...JSON.parse(row.value)}}catch{}
  return fallback;
@@ -2442,8 +2603,10 @@ async function saveModuleSettings(req,env,guildId){
 }
 async function moduleEnabled(env,guildId,key){if(!MODULE_KEYS.includes(key))return true;const c=await moduleSettingsState(env,guildId);return c.modules?.[key]!==false}
 
+let streamersTablesEnsured=false;
 async function ensureStreamersTable(env){
  if(!env.BALTICM_DB)throw new Error("BALTICM_DB binding is not configured");
+ if(streamersTablesEnsured)return;
  await env.BALTICM_DB.prepare(STREAMERS_TABLE_SQL).run();
  for(const sql of STREAMERS_ALTER_SQL){try{await env.BALTICM_DB.prepare(sql).run()}catch{}}
  await env.BALTICM_DB.prepare("CREATE INDEX IF NOT EXISTS idx_streamers_guild ON streamers(guild_id)").run();
@@ -2456,24 +2619,34 @@ async function ensureStreamersTable(env){
   await env.BALTICM_DB.prepare("INSERT OR IGNORE INTO user_streaming_accounts (id,discord_user_id,provider,provider_user_id,provider_login,display_name,profile_url,watch_url,created_at,updated_at) SELECT id,discord_member_id,provider,provider_user_id,provider_login,display_name,profile_url,watch_url,created_at,updated_at FROM streamers WHERE source IN ('self','auto')").run();
   await env.BALTICM_DB.prepare("UPDATE streamers SET source='auto' WHERE source='self'").run();
  }catch{}
+ streamersTablesEnsured=true;
 }
 async function loadStreamerSettings(env,guildId){
  const raw=await readBotConfig(env,STREAMER_SETTINGS_KEY(guildId),defaultStreamerSettings());
  return {...defaultStreamerSettings(),...(raw&&typeof raw==="object"?raw:{})};
 }
+async function loadCachedGuildWrap(env,guildId){
+ return cachedDiscordList("guild-obj:"+guildId,async()=>{
+  const r=await fetch(`https://discord.com/api/v10/guilds/${guildId}`,{headers:botHeaders(env)});
+  if(r.status===404)return{status:404};
+  if(!r.ok)return null;
+  return{status:200,guild:await r.json()};
+ });
+}
 async function isDiscordGuildOwner(env,user,guildId){
- const r=await fetch(`https://discord.com/api/v10/guilds/${guildId}`,{headers:botHeaders(env)});
- if(!r.ok)return false;
- const g=await r.json();
- return String(g.owner_id||"")===String(user.id);
+ const wrap=await loadCachedGuildWrap(env,guildId);
+ return !!(wrap&&wrap.guild&&String(wrap.guild.owner_id||"")===String(user.id));
 }
 async function discordGuildMemberPresent(env,guildId,userId){
  const r=await fetch(`https://discord.com/api/v10/guilds/${guildId}/members/${userId}`,{headers:botHeaders(env)});
  return r.ok;
 }
 async function streamerStudioGate(env,user,guildId){
- const [isOwner,premiumState,level]=await Promise.all([isDiscordGuildOwner(env,user,guildId),premiumPlanState(env,guildId),controlAccessLevel(env,user,guildId,"streamers")]);
+ const [isOwner,premiumState,level]=await Promise.all([isDiscordGuildOwner(env,user,guildId),premiumPlanState(env,guildId),resolveAccessLevel(env,user,guildId,"streamers")]);
  const decision=decideStreamerStudioMutation({isOwner,premium:!!premiumState.premium,canConfigure:levelMeets(level,ACCESS_CONFIGURE)});
+ // "Forbidden" here means "access level too low"; when the level is only
+ // unknown (transient lookup failure) report a temporary error instead.
+ if(!decision.ok&&decision.error==="Forbidden"&&level===null)return{...decision,status:503,error:ACCESS_UNKNOWN_ERROR,accessUnknown:true};
  return {...decision,isOwner,premium:!!premiumState.premium,premiumState,accessLevel:level};
 }
 async function persistStreamerCheck(env,row,check){
@@ -2585,17 +2758,36 @@ async function loadStreamerChannel(env,channelId){
  if(!r.ok)return null;
  return r.json();
 }
+const discordListCache=new Map();
+const DISCORD_LIST_TTL_MS=60000;
+async function cachedDiscordList(key,loader){
+ const hit=discordListCache.get(key);
+ if(hit){
+  if(Date.now()-hit.ts<DISCORD_LIST_TTL_MS)return hit.v;
+  // Stale-while-revalidate: serve the cached value now, refresh once in the background.
+  hit.ts=Date.now();
+  loader().then(v=>{if(v&&(!Array.isArray(v)||v.length))discordListCache.set(key,{ts:Date.now(),v})}).catch(()=>{});
+  return hit.v;
+ }
+ const v=await loader();
+ if(v&&(!Array.isArray(v)||v.length))discordListCache.set(key,{ts:Date.now(),v});
+ return v;
+}
 async function listGuildMembersBrief(env,guildId){
- const r=await fetch(`https://discord.com/api/v10/guilds/${guildId}/members?limit=1000`,{headers:botHeaders(env)});
- if(!r.ok)return[];
- const members=await r.json();
- return(Array.isArray(members)?members:[]).filter(m=>m.user&&!m.user.bot).map(m=>({id:m.user.id,username:m.user.username||"Unknown",globalName:m.nick||m.user.global_name||m.user.username||"Unknown",avatar:m.user.avatar||null}));
+ return cachedDiscordList("members:"+guildId,async()=>{
+  const r=await fetch(`https://discord.com/api/v10/guilds/${guildId}/members?limit=1000`,{headers:botHeaders(env)});
+  if(!r.ok)return[];
+  const members=await r.json();
+  return(Array.isArray(members)?members:[]).filter(m=>m.user&&!m.user.bot).map(m=>({id:m.user.id,username:m.user.username||"Unknown",globalName:m.nick||m.user.global_name||m.user.username||"Unknown",avatar:m.user.avatar||null}));
+ });
 }
 async function listGuildTextChannels(env,guildId){
- const r=await fetch(`https://discord.com/api/v10/guilds/${guildId}/channels`,{headers:botHeaders(env)});
- if(!r.ok)return[];
- const data=await r.json().catch(()=>[]);
- return(Array.isArray(data)?data:[]).filter(x=>[0,5].includes(x.type)).map(x=>({id:x.id,name:x.name,type:x.type}));
+ return cachedDiscordList("channels:"+guildId,async()=>{
+  const r=await fetch(`https://discord.com/api/v10/guilds/${guildId}/channels`,{headers:botHeaders(env)});
+  if(!r.ok)return[];
+  const data=await r.json().catch(()=>[]);
+  return(Array.isArray(data)?data:[]).filter(x=>[0,5].includes(x.type)).map(x=>({id:x.id,name:x.name,type:x.type}));
+ });
 }
 function streamerRowToView(row,env,extras={}){
  const mapped=mapStreamerRow(row);
@@ -2665,16 +2857,35 @@ async function upsertAutoStreamerFromAccount(env,guildId,account,settings){
  ).run();
  return {id};
 }
-async function syncAutoStreamersForGuild(env,guildId,premium){
+async function loadStreamerSuppressions(env,guildId){
+ await ensureBotConfigTable(env);
+ const prefix=streamerSuppressedPrefix(guildId);
+ const r=await env.BALTICM_DB.prepare("SELECT key FROM bot_config WHERE key LIKE ?").bind(prefix+"%").all();
+ return streamerSuppressionFromKeys((r.results||[]).map(row=>String(row.key||"")),prefix);
+}
+async function suppressStreamerDeletion(env,guildId,memberId,platform){
+ if(!memberId||!platform)return;
+ await ensureBotConfigTable(env);
+ const now=new Date().toISOString();
+ await env.BALTICM_DB.prepare("INSERT INTO bot_config (key,value,updated_at) VALUES (?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at").bind(streamerSuppressedKey(guildId,memberId,platform),JSON.stringify({guildId:String(guildId),memberId:String(memberId),platform:String(platform).toLowerCase(),createdAt:now}),now).run();
+}
+async function clearStreamerSuppression(env,guildId,memberId,platform){
+ if(!memberId||!platform)return;
+ await ensureBotConfigTable(env);
+ await env.BALTICM_DB.prepare("DELETE FROM bot_config WHERE key=?").bind(streamerSuppressedKey(guildId,memberId,platform)).run();
+}async function syncAutoStreamersForGuild(env,guildId,premium){
  if(!premium)return;
  await ensureStreamersTable(env);
  const members=await listGuildMembersBrief(env,guildId);
+ if(!members.length)return;
  const memberIds=new Set(members.map(m=>String(m.id)));
  const settings=await loadStreamerSettings(env,guildId);
+ const suppressed=await loadStreamerSuppressions(env,guildId);
  const accounts=await env.BALTICM_DB.prepare("SELECT * FROM user_streaming_accounts").all();
  for(const account of accounts.results||[]){
   if(Number(account.verified)!==1)continue;
   if(!memberIds.has(String(account.discord_user_id)))continue;
+  if(isStreamerSuppressed(suppressed,account.discord_user_id,account.provider))continue;
   try{await upsertAutoStreamerFromAccount(env,guildId,account,settings)}catch{}
  }
  const autoRows=await env.BALTICM_DB.prepare("SELECT * FROM streamers WHERE guild_id=? AND source IN ('auto','self')").bind(guildId).all();
@@ -2700,14 +2911,26 @@ async function syncAutoStreamersForUser(env,userId){
   }catch{}
  }
 }
-async function streamersState(env,guildId,user){
+async function streamersState(env,guildId,user,ctx){
  try{
-  await ensureStreamersTable(env);
-  const premium=user?!!(await premiumPlanState(env,guildId)).premium:!!(await premiumPlanState(env,guildId)).premium;
-  if(premium)await syncAutoStreamersForGuild(env,guildId,true);
-  const r=await env.BALTICM_DB.prepare("SELECT * FROM streamers WHERE guild_id=? ORDER BY created_at DESC").bind(guildId).all();
-  const channels=await listGuildTextChannels(env,guildId);
-  const members=await listGuildMembersBrief(env,guildId);
+  // DDL, RBAC gate, Discord lookups and D1 reads all start together; the
+  // streamers SELECT simply waits for the table DDL instead of serializing behind it.
+  const ensureP=ensureStreamersTable(env);
+  const gateP=user?streamerStudioGate(env,user,guildId):Promise.resolve(null);
+  const channelsP=listGuildTextChannels(env,guildId);
+  const membersP=listGuildMembersBrief(env,guildId);
+  const settingsP=loadStreamerSettings(env,guildId);
+  const selectP=ensureP.then(()=>env.BALTICM_DB.prepare("SELECT * FROM streamers WHERE guild_id=? ORDER BY created_at DESC").bind(guildId).all());
+  const profileP=membersP.then(members=>loadProfileAccountsForMembers(env,members.map(m=>m.id)));
+  const [gate,channels,members,r,settings,profileAccounts]=await Promise.all([gateP,channelsP,membersP,selectP,settingsP,profileP]);
+  const premium=gate?gate.premium:!!(await premiumPlanState(env,guildId)).premium;
+  // Premium/profile sync must never delay the stored row list: schedule it in the
+  // background (waitUntil) instead of awaiting it. The every-minute cron sync
+  // remains the freshness backstop. Suppression checks inside sync still apply.
+  if(premium){
+   const syncP=syncAutoStreamersForGuild(env,guildId,true).catch(()=>{});
+   if(ctx&&typeof ctx.waitUntil==="function")ctx.waitUntil(syncP);
+  }
   const memberMap=new Map(members.map(m=>[m.id,m]));
   const channelMap=new Map(channels.map(c=>[c.id,c.name]));
   const streamers=[];
@@ -2717,19 +2940,17 @@ async function streamersState(env,guildId,user){
    const member=memberMap.get(row.discord_member_id)||null;
    streamers.push(streamerRowToView(row,env,{member,channelName:channelMap.get(row.announcement_channel_id)||"",memberMissing:!member}));
   }
-  const memberIds=members.map(m=>m.id);
-  const profileAccounts=await loadProfileAccountsForMembers(env,memberIds);
   return json({
    streamers,
    stats:summarizeStreamerStats(streamers),
    members,
    channels,
    providers:providerCapabilities(env),
-   settings:await loadStreamerSettings(env,guildId),
+   settings,
    profileAccounts,
    premium,
-   isOwner:user?await isDiscordGuildOwner(env,user,guildId):false,
-   canMutate:user?(await streamerStudioGate(env,user,guildId)).ok:false
+   isOwner:gate?gate.isOwner:false,
+   canMutate:gate?gate.ok:false
   });
  }catch{return json({error:"Could not load streamers"},500)}
 }
@@ -2747,6 +2968,136 @@ async function saveStreamerSettings(req,env,user,guildId){
  }
  await writeBotConfig(env,STREAMER_SETTINGS_KEY(guildId),parsed.value);
  return json({ok:true,settings:parsed.value});
+}
+async function loadStreamerPanel(env,guildId){
+ const raw=await readBotConfig(env,STREAMER_PANEL_KEY(guildId),defaultStreamerPanel());
+ return{channelId:String(raw?.channelId||""),messageId:String(raw?.messageId||""),updatedAt:String(raw?.updatedAt||"")};
+}
+async function writeStreamerPanel(env,guildId,panel){
+ await writeBotConfig(env,STREAMER_PANEL_KEY(guildId),{channelId:String(panel.channelId||""),messageId:String(panel.messageId||""),updatedAt:new Date().toISOString()});
+}
+async function loadStreamerPanelConfig(env,guildId){
+ const raw=await readBotConfig(env,STREAMER_PANEL_CONFIG_KEY(guildId),defaultStreamerPanelConfig());
+ return normalizeStreamerPanelConfig(raw);
+}
+async function saveStreamerPanelConfig(req,env,user,guildId){
+ const gate=await streamerStudioGate(env,user,guildId);
+ if(!gate.ok)return json({error:gate.error},gate.status||403);
+ let body;try{body=await req.json()}catch{return json({error:"Invalid JSON"},400)};
+ if(body.guildId&&String(body.guildId)!==String(guildId))return json({error:"Forbidden"},403);
+ const parsed=parseStreamerPanelConfig(body.config||body);
+ if(!parsed.ok)return json({error:parsed.error},400);
+ await writeBotConfig(env,STREAMER_PANEL_CONFIG_KEY(guildId),parsed.value);
+ return json({ok:true,config:parsed.value});
+}
+async function resetStreamerPanelConfig(env,user,guildId){
+ const gate=await streamerStudioGate(env,user,guildId);
+ if(!gate.ok)return json({error:gate.error},gate.status||403);
+ const config=defaultStreamerPanelConfig();
+ await writeBotConfig(env,STREAMER_PANEL_CONFIG_KEY(guildId),config);
+ return json({ok:true,config});
+}
+async function listGuildSendableChannels(env,guildId){
+ const r=await fetch(`https://discord.com/api/v10/guilds/${guildId}/channels`,{headers:botHeaders(env)});
+ // null = the channel list could not be read (transient Discord failure).
+ // Returning [] there would claim missing bot permissions for a blip.
+ if(!r.ok)return r.status===404?[]:null;
+ const data=await r.json().catch(()=>[]);
+ const all=(Array.isArray(data)?data:[]).filter(x=>[0,5].includes(Number(x.type)));
+ const basic=()=>all.map(x=>({id:String(x.id),name:String(x.name||""),type:Number(x.type)}));
+ try{
+  const me=await fetch("https://discord.com/api/v10/users/@me",{headers:botHeaders(env)});
+  if(!me.ok)return basic();
+  const bot=await me.json().catch(()=>({}));
+  const botId=String(bot.id||"");
+  if(!botId)return basic();
+  const [memberRes,rolesRes]=await Promise.all([
+   fetch(`https://discord.com/api/v10/guilds/${guildId}/members/${botId}`,{headers:botHeaders(env)}),
+   fetch(`https://discord.com/api/v10/guilds/${guildId}/roles`,{headers:botHeaders(env)})
+  ]);
+  if(!memberRes.ok||!rolesRes.ok)return basic();
+  const member=await memberRes.json().catch(()=>({})),roles=await rolesRes.json().catch(()=>[]);
+  if(!Array.isArray(roles))return basic();
+  return streamerPanelSendableChannels(all,{roles,memberRoleIds:Array.isArray(member.roles)?member.roles:[],memberId:botId,everyoneId:guildId});
+ }catch{return basic();}
+}
+async function streamerPanelState(env,guildId){
+ try{
+  const [panel,config]=await Promise.all([loadStreamerPanel(env,guildId),loadStreamerPanelConfig(env,guildId)]);
+  const channels=await listGuildSendableChannels(env,guildId);
+  const sendable=Array.isArray(channels)?channels:[];
+  const published=!!(panel.messageId&&panel.channelId);
+  const channelName=published?(sendable.find(c=>c.id===panel.channelId)?.name||""):"";
+  return json({
+   panel:{published,channelId:published?panel.channelId:"",channelName,updatedAt:panel.updatedAt||""},
+   channels:Array.isArray(channels)?channels:null,
+   config,
+   defaults:defaultStreamerPanelConfig(),
+   embed:streamerPanelEmbed(env,config),
+   manageUrl:streamerPanelManageUrl(env)
+  });
+ }catch{return json({error:"Could not load streamer panel"},500)}
+}
+async function publishStreamerPanel(req,env,user,guildId){
+ const gate=await streamerStudioGate(env,user,guildId);
+ if(!gate.ok)return json({error:gate.error},gate.status||403);
+ let body;try{body=await req.json()}catch{return json({error:"Invalid JSON"},400)};
+ const channelId=String(body?.channelId||"");
+ if(!/^\d{16,22}$/.test(channelId))return json({error:"Select a Discord channel"},400);
+ const config=await loadStreamerPanelConfig(env,guildId);
+ if(!String(config.buttonUrl||"").trim()&&!streamerPanelManageUrl(env))return json({error:"Public app URL is not configured."},500);
+ const existing=await loadStreamerPanel(env,guildId);
+ if(existing.messageId&&existing.channelId){
+  const chk=await fetch(`https://discord.com/api/v10/channels/${existing.channelId}/messages/${existing.messageId}`,{headers:botHeaders(env)});
+  if(chk.ok)return json({error:"A panel is already published in this server. Use Update Panel."},409);
+  await writeStreamerPanel(env,guildId,defaultStreamerPanel());
+ }
+ const channel=await loadStreamerChannel(env,channelId);
+ if(!channel||channel.missing)return json({error:"The Discord channel no longer exists."},400);
+ if(channel.forbidden)return json({error:STREAMER_PANEL_BOT_PERMISSION_ERROR},403);
+ const allowed=discordChannelAllowed(channel,guildId);
+ if(!allowed.ok)return json({error:allowed.error},allowed.status||400);
+ const res=await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`,{method:"POST",headers:botHeaders(env,true),body:JSON.stringify(streamerPanelPayload(env,config))});
+ const sent=await res.json().catch(()=>({}));
+ if(!res.ok||!sent.id){
+  if(res.status===403||Number(sent.code)===50013)return json({error:STREAMER_PANEL_BOT_PERMISSION_ERROR},403);
+  return json({error:"Discord could not publish the panel."},502);
+ }
+ await writeStreamerPanel(env,guildId,{channelId,messageId:String(sent.id)});
+ return json({ok:true});
+}
+async function updateStreamerPanel(env,user,guildId){
+ const gate=await streamerStudioGate(env,user,guildId);
+ if(!gate.ok)return json({error:gate.error},gate.status||403);
+ const panel=await loadStreamerPanel(env,guildId);
+ if(!panel.messageId||!panel.channelId)return json({error:"No published panel in this server."},404);
+ const config=await loadStreamerPanelConfig(env,guildId);
+ if(!String(config.buttonUrl||"").trim()&&!streamerPanelManageUrl(env))return json({error:"Public app URL is not configured."},500);
+ const res=await fetch(`https://discord.com/api/v10/channels/${panel.channelId}/messages/${panel.messageId}`,{method:"PATCH",headers:botHeaders(env,true),body:JSON.stringify(streamerPanelPayload(env,config))});
+ const body=await res.json().catch(()=>({}));
+ if(!res.ok){
+  if(discordAnnouncementGone(res.status,body)){
+   await writeStreamerPanel(env,guildId,defaultStreamerPanel());
+   return json({deleted:true,error:"The panel message was deleted in Discord. Publish the panel again."},410);
+  }
+  if(res.status===403||Number(body.code)===50013)return json({error:STREAMER_PANEL_BOT_PERMISSION_ERROR},403);
+  return json({error:"Discord could not update the panel."},502);
+ }
+ await writeStreamerPanel(env,guildId,panel);
+ return json({ok:true});
+}
+async function deleteStreamerPanel(env,user,guildId){
+ const gate=await streamerStudioGate(env,user,guildId);
+ if(!gate.ok)return json({error:gate.error},gate.status||403);
+ const panel=await loadStreamerPanel(env,guildId);
+ if(!panel.messageId||!panel.channelId)return json({error:"No published panel in this server."},404);
+ const res=await fetch(`https://discord.com/api/v10/channels/${panel.channelId}/messages/${panel.messageId}`,{method:"DELETE",headers:botHeaders(env)});
+ if(!res.ok&&res.status!==204){
+  const body=await res.json().catch(()=>({}));
+  if(!discordAnnouncementGone(res.status,body))return json({error:"Discord could not delete the panel."},502);
+ }
+ await writeStreamerPanel(env,guildId,defaultStreamerPanel());
+ return json({ok:true});
 }
 async function saveStreamer(req,env,user,guildId,id=""){
  await ensureStreamersTable(env);
@@ -2777,6 +3128,7 @@ async function saveStreamer(req,env,user,guildId,id=""){
   ).run();
   const row=await env.BALTICM_DB.prepare("SELECT * FROM streamers WHERE id=? AND guild_id=?").bind(id,guildId).first();
   const member=await loadStreamerMember(env,guildId,memberId);
+  await clearStreamerSuppression(env,guildId,memberId,existing.provider);
   return json({ok:true,streamer:streamerRowToView(row,env,{member:member.member,channelName:gate.name})});
  }
  const memberHint=String(body.discordMemberId||body.memberId||existing?.discord_member_id||"").trim();
@@ -2819,6 +3171,7 @@ async function saveStreamer(req,env,user,guildId,id=""){
   ).run();
  }
  const row=await env.BALTICM_DB.prepare("SELECT * FROM streamers WHERE id=? AND guild_id=?").bind(streamerId,guildId).first();
+ await clearStreamerSuppression(env,guildId,discordMemberId,parsed.value.provider);
  return json({ok:true,streamer:streamerRowToView(row,env,{member:member.member,channelName:gate.name})});
 }
 async function deleteStreamer(env,user,guildId,id){
@@ -2827,11 +3180,13 @@ async function deleteStreamer(env,user,guildId,id){
  if(!studio.ok)return json({error:studio.error},studio.status||403);
  const row=await env.BALTICM_DB.prepare("SELECT * FROM streamers WHERE id=? AND guild_id=?").bind(id,guildId).first();
  if(!row)return json({error:"Streamer not found"},404);
- if(normalizeStreamerSource(row.source)===STREAMER_SOURCE_AUTO)return json({error:"Premium auto streamers are linked from the member Profile and cannot be converted or deleted here. Disable the streamer instead."},403);
+ const memberId=String(row.discord_member_id||"");
+ const provider=String(row.provider||"");
+ if(memberId&&provider)await suppressStreamerDeletion(env,guildId,memberId,provider);
  await env.BALTICM_DB.prepare("DELETE FROM streamers WHERE id=? AND guild_id=?").bind(id,guildId).run();
  return json({ok:true});
 }
-async function refreshStreamer(env,guildId,id){
+async function refreshStreamer(env,guildId,id,ctx){
  try{
   await ensureStreamersTable(env);
   const premium=!!(await premiumPlanState(env,guildId)).premium;
@@ -2844,7 +3199,7 @@ async function refreshStreamer(env,guildId,id){
   }
   const all=await env.BALTICM_DB.prepare("SELECT * FROM streamers WHERE guild_id=? AND enabled=1").bind(guildId).all();
   for(const item of all.results||[]){try{await refreshOneStreamer(env,item,{announce:true,premium})}catch{}}
-  return streamersState(env,guildId);
+  return streamersState(env,guildId,undefined,ctx);
  }catch{return json({error:"Could not refresh status"},500)}
 }
 async function streamingAccountsState(env,user){
@@ -2933,7 +3288,7 @@ async function streamingOAuthCallback(req,env,provider){
   const identity=await getAuthenticatedAccount(p,{env,accessToken:tokens.accessToken,openId:tokens.openId||""});
   if(!identity.ok)return fail(identity.error||"Could not load the connected account.",{stage:"account",error:identity.logCode||""});
   await persistVerifiedStreamingAccount(env,state.discordUserId,identity.value,tokens);
-  logStreamingOAuthDiagnostic("callback_ok",{provider:p});
+  logStreamingOAuthDiagnostic("callback_ok",{provider:p,scope:String(tokens.scope||"")});
   return new Response(null,{status:302,headers:{Location:streamingProfileLocation(origin,{streaming:"connected",platform:p}),"Cache-Control":"no-store"}});
  }catch(e){
   return fail("The connection could not be completed.",{stage:"exception",error:String(e&&e.message||e).slice(0,120)});
@@ -2962,9 +3317,13 @@ async function accessSettingsState(env,guildId){
  const row=await env.BALTICM_DB.prepare("SELECT value FROM bot_config WHERE key=?").bind(accessSettingsKey(guildId)).first();
  let config={roles:[]};if(row?.value)try{config={roles:[],...JSON.parse(row.value)}}catch{}
  config=normalizeAccessConfig(config);
- const [gr,rr]=await Promise.all([fetch(`https://discord.com/api/v10/guilds/${guildId}`,{headers:botHeaders(env)}),fetch(`https://discord.com/api/v10/guilds/${guildId}/roles`,{headers:botHeaders(env)})]);
- if(!gr.ok)return {error:"Could not load Discord server",status:gr.status};
- const guild=await gr.json(),roles=rr.ok?await rr.json():[];
+ const [gr,rr]=await Promise.all([discordGet(`https://discord.com/api/v10/guilds/${guildId}`,botHeaders(env),"access-settings-guild",guildId),discordGet(`https://discord.com/api/v10/guilds/${guildId}/roles`,botHeaders(env),"access-settings-roles",guildId)]);
+ if(!gr||!gr.ok){
+  if(!gr||discordLookupTransient(gr.status))return {error:DISCORD_LOOKUP_ERROR,status:503,retryable:true};
+  if(gr.status===404)return {error:"Bot is not installed in this server",status:404};
+  return {error:"Could not load Discord server",status:502};
+ }
+ const guild=await gr.json(),roles=rr&&rr.ok?await rr.json():[];
  return {config,guild:{id:guild.id,name:guild.name,ownerId:guild.owner_id},roles:roles.filter(r=>r.id!==guildId&&!r.managed).map(r=>({id:r.id,name:r.name,color:r.color,position:r.position})).sort((a,b)=>b.position-a.position)};
 }
 async function saveAccessSettings(req,env,guildId){
@@ -3552,6 +3911,119 @@ async function verifyDiscordInteraction(req,raw,env){
  message.set(enc.encode(ts),0);message.set(raw,enc.encode(ts).length);
  return crypto.subtle.verify("Ed25519",key,signature,message);
 }
+export const HELP_COMMAND_DEFINITION={name:"help",description:"Show BalticM.eu help, features and the Control Center link",type:1,dm_permission:true};
+// Self-heal window: /help must come back within one cron tick after ANY
+// other service removes it, so this may never exceed the cron cadence (60s).
+export const HELP_COMMAND_SYNC_INTERVAL_MS=60000;
+/**
+ * Deterministic, idempotent plan for keeping the global /help command in
+ * sync. Given the same Discord command list it always returns the same
+ * action, it never creates a command that already exists (no duplicates),
+ * and after its action has been applied the next plan is always "none".
+ * It only ever touches the "help" command — commands owned by other
+ * BalticM modules (music, etc.) are never in the plan.
+ */
+export function planHelpCommandSync(list,definition=HELP_COMMAND_DEFINITION){
+ const commands=Array.isArray(list)?list:[];
+ const matches=commands.filter(c=>String(c.name)===definition.name&&Number(c.type||1)===1);
+ if(!matches.length)return{action:"create"};
+ const keep=matches[0],removeIds=matches.slice(1).map(c=>String(c.id||"")).filter(Boolean);
+ const optionsOk=!Array.isArray(keep.options)||keep.options.length===0;
+ const drifted=String(keep.description||"")!==definition.description||!optionsOk;
+ if(removeIds.length)return{action:"dedupe",keepId:String(keep.id||""),removeIds};
+ if(drifted)return{action:"update",id:String(keep.id||"")};
+ return{action:"none",id:String(keep.id||"")};
+}
+let helpCommandRegisteredAt=0;
+export function helpCommandResponse(){
+ return json({type:4,data:{
+  embeds:[{
+   color:0xe8892c,
+   title:"🛟 BalticM.eu — Help Center",
+   description:"Manage your Discord server with BalticM Control Center.",
+   fields:[
+    {name:"🎵 Music",value:"/play, /join, /volume, /loop"},
+    {name:"🎫 Tickets",value:"Support and ticket management"},
+    {name:"🎁 Giveaways",value:"Create and manage giveaways"},
+    {name:"📡 Streamers",value:"Twitch, TikTok & Kick LIVE alerts"},
+    {name:"🛡️ Moderation",value:"Server management and moderation tools"},
+    {name:"🎭 Reaction Roles",value:"Self-assignable Discord roles"},
+    {name:"🌐 Control Center",value:"https://bot.balticm.eu"}
+   ],
+   footer:{text:"BalticM.eu • PLAY TOGETHER • MANAGE SMARTER"}
+  }],
+  components:[{type:1,components:[{type:2,style:5,label:"Open Control Center",url:"https://bot.balticm.eu"}]}]
+ }});
+}
+// Live inspection of Discord's own application-command state (admin-only).
+// The only trustworthy verification that /help exists is Discord's API answer,
+// not source code — this endpoint returns exactly what Discord returns.
+async function adminDiscordCommands(env,user,guildId){
+ if(!env.DISCORD_BOT_TOKEN)return json({error:"DISCORD_BOT_TOKEN is not configured"},503);
+ const map=c=>({id:String(c.id||""),name:String(c.name||""),type:Number(c.type||1),description:String(c.description||"")});
+ const appRes=await discordGet("https://discord.com/api/v10/oauth2/applications/@me",botHeaders(env),"admin-commands-application","","discord-commands");
+ if(!appRes||!appRes.ok)return json({error:"Could not resolve the Discord application",status:appRes?appRes.status:0},502);
+ const app=await appRes.json().catch(()=>null),appId=String(app?.id||"");
+ if(!/^\d{16,22}$/.test(appId))return json({error:"Discord application id unavailable"},502);
+ const globalRes=await discordGet(`https://discord.com/api/v10/applications/${appId}/commands`,botHeaders(env),"admin-commands-global",appId,"discord-commands");
+ if(!globalRes||!globalRes.ok)return json({error:"Could not load global commands",status:globalRes?globalRes.status:0},502);
+ const globalList=await globalRes.json().catch(()=>[]);
+ const payload={applicationId:appId,checkedAt:new Date().toISOString(),global:Array.isArray(globalList)?globalList.map(map):[]};
+ if(isSnowflake(guildId)){
+  const guildRes=await discordGet(`https://discord.com/api/v10/applications/${appId}/guilds/${guildId}/commands`,botHeaders(env),"admin-commands-guild",guildId,"discord-commands");
+  payload.guild=guildRes&&guildRes.ok?await guildRes.json().then(list=>Array.isArray(list)?list.map(map):[]):{error:"Could not load guild commands",status:guildRes?guildRes.status:0};
+ }
+ return json(payload);
+}
+async function ensureHelpCommandRegistered(env){
+ // Keeps ONLY the global /help command in sync: create when missing, patch on
+ // definition drift, drop accidental duplicate "help" rows. It never lists-and-
+ // replaces and never deletes anything else, so no other module's commands can
+ // be erased from here (no bulk overwrite exists in this worker at all).
+ // Every outcome — including each failure stage and status — is logged so a
+ // vanished /help is diagnosable from `wrangler tail` instead of going silent.
+ if(!env.DISCORD_BOT_TOKEN)return;
+ if(helpCommandRegisteredAt&&Date.now()-helpCommandRegisteredAt<HELP_COMMAND_SYNC_INTERVAL_MS)return;
+ const fail=(stage,status,detail)=>console.log(JSON.stringify({component:"help-command",event:"sync-failed",stage,status:Number(status)||0,detail:String(detail||"").slice(0,200)}));
+ try{
+  const appRes=await discordGet("https://discord.com/api/v10/oauth2/applications/@me",botHeaders(env),"help-application","","help-command");
+  if(!appRes||!appRes.ok)return fail("application",appRes?appRes.status:0,"application lookup");
+  const app=await appRes.json().catch(()=>null);
+  const appId=String(app?.id||"");
+  if(!/^\d{16,22}$/.test(appId))return fail("application",0,"invalid application id");
+  const base=`https://discord.com/api/v10/applications/${appId}/commands`;
+  const listRes=await discordGet(base,botHeaders(env),"help-list",appId,"help-command");
+  if(!listRes||!listRes.ok)return fail("list",listRes?listRes.status:0,"global command list");
+  const list=await listRes.json().catch(()=>[]);
+  const names=Array.isArray(list)?list.map(c=>String(c.name)):[];
+  const plan=planHelpCommandSync(list);
+  if(plan.action==="none"){
+   helpCommandRegisteredAt=Date.now();
+   console.log(JSON.stringify({component:"help-command",event:"present",commands:names}));
+   return;
+  }
+  if(plan.action==="dedupe"){
+   for(const id of plan.removeIds){
+    const dr=await fetch(`${base}/${id}`,{method:"DELETE",headers:botHeaders(env)});
+    console.log(JSON.stringify({component:"help-command",event:dr.ok?"duplicate-removed":"sync-failed",stage:"dedupe",status:dr.status,removeId:id}));
+   }
+   // Fall through: the kept copy is re-evaluated on the next sync tick.
+   helpCommandRegisteredAt=Date.now();
+   return;
+  }
+  if(plan.action==="update"){
+   const pr=await fetch(`${base}/${plan.id}`,{method:"PATCH",headers:botHeaders(env,true),body:JSON.stringify({name:HELP_COMMAND_DEFINITION.name,description:HELP_COMMAND_DEFINITION.description,type:1,dm_permission:true})});
+   if(!pr.ok)return fail("update",pr.status,await pr.text().catch(()=>""));
+   helpCommandRegisteredAt=Date.now();
+   console.log(JSON.stringify({component:"help-command",event:"updated",commands:names}));
+   return;
+  }
+  const cr=await fetch(base,{method:"POST",headers:botHeaders(env,true),body:JSON.stringify(HELP_COMMAND_DEFINITION)});
+  if(!cr.ok)return fail("create",cr.status,await cr.text().catch(()=>""));
+  helpCommandRegisteredAt=Date.now();
+  console.log(JSON.stringify({component:"help-command",event:"created",commands:[...new Set([...names,HELP_COMMAND_DEFINITION.name])]}));
+ }catch(e){fail("exception",0,String(e&&e.message||e))}
+}
 async function discordInteractionGateway(req,env,ctx){
  if(req.method!=="POST")return json({ok:true,service:"BalticM Discord Interaction Gateway",version:"1.0.0"});
  const raw=new Uint8Array(await req.arrayBuffer());
@@ -3559,6 +4031,7 @@ async function discordInteractionGateway(req,env,ctx){
  if(!valid)return json({error:"Invalid request signature"},401);
  let interaction;try{interaction=JSON.parse(dec.decode(raw))}catch{return json({error:"Invalid JSON"},400)}
  if(interaction?.type===1)return json({type:1});
+ if(interaction?.type===2&&String(interaction?.data?.name||"")==="help")return helpCommandResponse();
  const customId=String(interaction?.data?.custom_id||"");
  if(interaction?.type===3&&customId.startsWith("ticket_create:")){
  const parts=customId.slice("ticket_create:".length).split(":"),guildId=parts[0],typeKey=parts[1]||"support";
@@ -3591,7 +4064,7 @@ if(interaction?.type===3&&customId.startsWith("giveaway_enter:")){try{return awa
  return json({type:4,data:{content:"BalticM.eu interaction server is online.",flags:64}});
 }
 
-export default{async scheduled(event,env,ctx){await Promise.all([finishDueGiveaways(env),enforceFreeBrandingForManagedGuilds(env),pollAllStreamers(env)])},async fetch(req,env,ctx){
+export default{async scheduled(event,env,ctx){await Promise.all([finishDueGiveaways(env),enforceFreeBrandingForManagedGuilds(env),pollAllStreamers(env),ensureHelpCommandRegistered(env)])},async fetch(req,env,ctx){
  const u=new URL(req.url),p=u.pathname;
  if(p==="/api/health")return health(req,env);
  if(p==="/api/status-public")return json({ok:true,service:"BalticM Bot Center",version:"status-public-v2",checkedAt:new Date().toISOString()});
@@ -3615,7 +4088,7 @@ if(guildIdForAccess){
  const routeKey=routeAccessKey(p);
  if(routeKey){const minLevel=requiredLevelForRequest(p,req.method);const denied=await requireControlAccess(env,user,guildIdForAccess,routeKey,minLevel);if(denied)return denied;if(MODULE_KEYS.includes(routeKey)&&!await moduleEnabled(env,guildIdForAccess,routeKey))return json({error:"Feature module is disabled",module:routeKey},403)}
 }
-if(p==="/api/admin/access")return json({admin:isBalticMAdmin(env,user)});
+if(p==="/api/admin/access")return json({admin:isBalticMAdmin(env,user)});if(p==="/api/admin/discord/commands"&&req.method==="GET"){const denied=adminDenied(env,user);if(denied)return denied;return adminDiscordCommands(env,user,u.searchParams.get("guildId")||"");}
 if(p==="/api/admin/support/threads"&&req.method==="GET")return adminSupportThreads(env,user);
 if(p==="/api/admin/support/thread"&&req.method==="GET")return adminSupportThread(req,env,user);
 if(p==="/api/admin/support/reply"&&req.method==="POST")return adminSupportReply(req,env,user);if(p==="/api/admin/support/typing"&&req.method==="POST")return adminSupportTyping(req,env,user);
@@ -3666,17 +4139,35 @@ if(p==="/api/announcements"){const guildId=u.searchParams.get("guildId");if(!gui
 if(p==="/api/streaming-accounts"){if(req.method==="GET")return streamingAccountsState(env,user);if(req.method==="POST")return saveStreamingAccount();return json({error:"Method not allowed"},405);}
 const stAcc=p.match(/^\/api\/streaming-accounts\/([^/]+)$/);if(stAcc){const provider=decodeURIComponent(stAcc[1]);if(req.method==="PUT")return saveStreamingAccount();if(req.method==="DELETE")return deleteStreamingAccount(env,user,provider);return json({error:"Method not allowed"},405);}
 const stCo=p.match(/^\/api\/profile\/streaming\/(twitch|tiktok|kick)\/connect$/);if(stCo&&req.method==="GET")return startStreamingOAuth(req,env,user,stCo[1]);
+if(p==="/api/streamers/panel/config"){
+ const guildId=u.searchParams.get("guildId");
+ if(!guildId)return json({error:"guildId is required"},400);
+ if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);
+ if(req.method==="POST")return saveStreamerPanelConfig(req,env,user,guildId);
+ if(req.method==="DELETE")return resetStreamerPanelConfig(env,user,guildId);
+ return json({error:"Method not allowed"},405);
+}
+if(p==="/api/streamers/panel"){
+ const guildId=u.searchParams.get("guildId");
+ if(!guildId)return json({error:"guildId is required"},400);
+ if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);
+ if(req.method==="GET")return streamerPanelState(env,guildId);
+ if(req.method==="POST")return publishStreamerPanel(req,env,user,guildId);
+ if(req.method==="PUT")return updateStreamerPanel(env,user,guildId);
+ if(req.method==="DELETE")return deleteStreamerPanel(env,user,guildId);
+ return json({error:"Method not allowed"},405);
+}
 if(p==="/api/streamers/self"){if(req.method==="GET")return streamingAccountsState(env,user);return json({error:"Method not allowed"},405);}
 if(p==="/api/streamers/settings"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);if(req.method==="POST")return saveStreamerSettings(req,env,user,guildId);if(req.method==="GET"){const settings=await loadStreamerSettings(env,guildId);return json({settings});}return json({error:"Method not allowed"},405);}
-if(p==="/api/streamers"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);if(req.method==="GET")return streamersState(env,guildId,user);if(req.method==="POST")return saveStreamer(req,env,user,guildId);return json({error:"Method not allowed"},405);}
-if(p==="/api/streamers/refresh"&&req.method==="POST"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return refreshStreamer(env,guildId,"");}
-const st=p.match(/^\/api\/streamers\/([^/]+)(?:\/(check))?$/);if(st){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);const id=decodeURIComponent(st[1]);if(id==="refresh"||id==="self"||id==="settings")return json({error:"Not found"},404);if(st[2]==="check"&&req.method==="POST")return refreshStreamer(env,guildId,id);if(!st[2]&&req.method==="PUT")return saveStreamer(req,env,user,guildId,id);if(!st[2]&&req.method==="DELETE")return deleteStreamer(env,user,guildId,id);return json({error:"Method not allowed"},405);}
+if(p==="/api/streamers"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);if(req.method==="GET")return streamersState(env,guildId,user,ctx);if(req.method==="POST")return saveStreamer(req,env,user,guildId);return json({error:"Method not allowed"},405);}
+if(p==="/api/streamers/refresh"&&req.method==="POST"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return refreshStreamer(env,guildId,"",ctx);}
+const st=p.match(/^\/api\/streamers\/([^/]+)(?:\/(check))?$/);if(st){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);const id=decodeURIComponent(st[1]);if(id==="refresh"||id==="self"||id==="settings"||id==="panel")return json({error:"Not found"},404);if(st[2]==="check"&&req.method==="POST")return refreshStreamer(env,guildId,id,ctx);if(!st[2]&&req.method==="PUT")return saveStreamer(req,env,user,guildId,id);if(!st[2]&&req.method==="DELETE")return deleteStreamer(env,user,guildId,id);return json({error:"Method not allowed"},405);}
 const an=p.match(new RegExp("^/api/announcements/([^/]+)(?:/(publish))?$"));if(an){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);const id=decodeURIComponent(an[1]);if(an[2]==="publish"&&req.method==="POST")return publishAnnouncement(env,guildId,id);if(!an[2]&&req.method==="PUT")return saveAnnouncement(req,env,guildId,id);if(!an[2]&&req.method==="DELETE")return deleteAnnouncement(env,guildId,id);}
 if(p==="/api/direct-messages/opt-outs"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);if(req.method==="GET")return dmOptOutState(env,guildId);if(req.method==="DELETE"){let body;try{body=await req.json()}catch{return json({error:"Invalid JSON"},400)}const userId=String(body.userId||"").trim();if(!/^\d{16,22}$/.test(userId))return json({error:"Invalid user"},400);return setDmOptOut(env,guildId,userId,false)}return json({error:"Method not allowed"},405);}
 if(p==="/api/direct-messages"&&req.method==="POST"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return sendDirectMessages(req,env,guildId);}
 if(p==="/api/logs"&&req.method==="GET"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return activityLogState(env,guildId,u);}
 if(p==="/api/discord/members"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return discordMembers(env,guildId);}
-if(p==="/api/discord/roles"&&req.method==="POST"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return createDiscordRole(req,env,guildId);}const er=p.match(/^\/api\/discord\/roles\/([^/]+)$/);if(er&&(req.method==="PATCH"||req.method==="DELETE")){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return req.method==="DELETE"?deleteDiscordRole(env,guildId,decodeURIComponent(er[1])):editDiscordRole(req,env,guildId,decodeURIComponent(er[1]));}
+if(p==="/api/discord/roles"&&req.method==="POST"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return createDiscordRole(req,env,user,guildId);}const er=p.match(/^\/api\/discord\/roles\/([^/]+)$/);if(er&&(req.method==="PATCH"||req.method==="DELETE")){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return req.method==="DELETE"?deleteDiscordRole(env,user,guildId,decodeURIComponent(er[1])):editDiscordRole(req,env,user,guildId,decodeURIComponent(er[1]));}
 const rm=p.match(/^\/api\/discord\/members\/([^/]+)\/roles\/([^/]+)$/);if(rm&&(req.method==="PUT"||req.method==="DELETE")){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return changeMemberRole(req,env,user,guildId,decodeURIComponent(rm[1]),decodeURIComponent(rm[2]),req.method==="DELETE");}
 return json({error:"Not found"},404)}catch(e){return json({error:"Request failed"},500)}}
  return env.ASSETS.fetch(req);

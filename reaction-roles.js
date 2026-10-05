@@ -252,7 +252,9 @@ export function roleAssignBlock({ role, botHighestPosition, canManageRoles, admi
   if (role.managed) return "Managed role cannot be assigned";
   if (accessKnown === false) return "";
   if (!canManageRoles) return "Missing Manage Roles permission";
-  if (!administrator && Number(role.position) >= Number(botHighestPosition)) return "Bot role must be above the selected role";
+  // Discord enforces role hierarchy even for Administrator bots: a role at or
+  // above the bot's highest role can never be managed, whatever its perms.
+  if (Number(role.position) >= Number(botHighestPosition)) return "Bot role must be above the selected role";
   return "";
 }
 

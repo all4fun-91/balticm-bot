@@ -73,8 +73,10 @@ export function formatTebexPaymentRow(row = {}, packageName = TEBEX_VIP_PACKAGE_
     paymentId,
     eventId: String(row.eventId || row.event_id || ""),
     discordUserId: String(row.discordUserId || row.discord_user_id || ""),
+    /* Readable names when they are known/stored; empty falls back to the raw id. */
+    discordUserName: String(row.discordUserName || row.discord_username || ""),
     guildId: String(row.guildId || row.guild_id || ""),
-    guildName: "",
+    guildName: String(row.guildName || row.guild_name || ""),
     packageId: String(row.packageId || row.package_id || ""),
     packageName,
     amount: amount == null ? null : Number(amount),
@@ -105,6 +107,7 @@ export function matchesTebexPaymentSearch(row, q) {
   if (!s) return true;
   const hay = [
     row.discordUserId,
+    row.discordUserName,
     row.guildId,
     row.guildName,
     row.paymentId,

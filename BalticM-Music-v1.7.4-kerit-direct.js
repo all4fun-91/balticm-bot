@@ -2053,11 +2053,40 @@ async function registerGuildCommands(
   guild
 ) {
   try {
-    await guild.commands.set(MUSIC_COMMANDS);
+    // Merge instead of bulk overwrite: guild.commands.set() replaces the ENTIRE
+    // guild command list, which would erase commands registered by other
+    // BalticM modules (for example /help). Sync only the music commands:
+    // create the missing ones, edit the ones that drifted, and never touch —
+    // or delete — a command this service does not own.
+    const existing = await guild.commands.fetch();
+    const musicNames = new Set(MUSIC_COMMANDS.map((def) => def.name));
+    let changed = 0;
+    for (const def of MUSIC_COMMANDS) {
+      const found = existing.find((cmd) => cmd.name === def.name);
+      if (!found) {
+        await guild.commands.create(def);
+        changed++;
+        continue;
+      }
+      const sameDescription = found.description === def.description;
+      const sameOptions = JSON.stringify(found.options || []) === JSON.stringify(def.options || []);
+      if (!sameDescription || !sameOptions) {
+        await found.edit(def);
+        changed++;
+      }
+    }
+    const preserved = existing
+      .filter((cmd) => !musicNames.has(cmd.name))
+      .map((cmd) => cmd.name);
 
     console.log(
-      `[BalticM Music] ${MUSIC_COMMANDS.length} commands registered for ${guild.name} (${guild.id})`
+      `[BalticM Music] ${MUSIC_COMMANDS.length} commands synced (${changed} changed) for ${guild.name} (${guild.id})`
     );
+    if (preserved.length) {
+      console.log(
+        `[BalticM Music] preserved foreign commands: ${preserved.join(", ")}`
+      );
+    }
   } catch (error) {
     setLastError(
       error

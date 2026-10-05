@@ -1,5 +1,6 @@
 import { repairMojibake } from "./discord-utf8.js";
 import { channelBelongsToGuild } from "./giveaways.js";
+import { resolveChannelPermissions } from "./voice-create.js";
 
 export const STREAMERS_MODULE = "streamers";
 export const STREAMERS_MAX_PER_GUILD = 50;
@@ -14,6 +15,36 @@ export const STREAMER_SOURCE_OWNER = "owner";
 export const STREAMER_SOURCE_AUTO = "auto";
 export const STREAMER_SOURCE_SELF = "self";
 export const STREAMER_SETTINGS_KEY = guildId => "streamers-settings:" + guildId;
+
+// Guild-scoped suppression: after an owner manually deletes a streamer, the
+// profile/Premium sync must not recreate that member+platform for THIS guild.
+// Key format: streamer-suppressed:<guildId>:<memberId>:<platform>
+export const STREAMER_SUPPRESSED_PREFIX = "streamer-suppressed:";
+export const streamerSuppressedKey = (guildId, memberId, platform) =>
+  STREAMER_SUPPRESSED_PREFIX + guildId + ":" + memberId + ":" + String(platform || "").toLowerCase();
+export const streamerSuppressedPrefix = guildId => STREAMER_SUPPRESSED_PREFIX + guildId + ":";
+export const streamerSuppressionEntry = (memberId, platform) =>
+  String(memberId || "") + ":" + String(platform || "").toLowerCase();
+
+export function streamerSuppressionFromKeys(keys, prefix) {
+  const out = new Set();
+  for (const key of keys || []) {
+    const k = String(key || "");
+    if (!k.startsWith(prefix)) continue;
+    const entry = k.slice(prefix.length);
+    if (entry) out.add(entry);
+  }
+  return out;
+}
+
+export function isStreamerSuppressed(entries, memberId, platform) {
+  if (!entries) return false;
+  const entry = streamerSuppressionEntry(memberId, platform);
+  if (entries instanceof Set) return entries.has(entry);
+  if (Array.isArray(entries)) return entries.includes(entry);
+  if (typeof entries === "object") return Object.prototype.hasOwnProperty.call(entries, entry);
+  return false;
+}
 
 export const STREAMER_CREDENTIALS = {
   twitch: ["TWITCH_CLIENT_ID", "TWITCH_CLIENT_SECRET"],
@@ -422,6 +453,211 @@ export function discordAnnouncementGone(status, body) {
 
 export function defaultStreamerSettings() {
   return { announcementChannelId: "", autoAnnounce: true };
+}
+
+export const STREAMER_PANEL_KEY = guildId => "streamers-panel:" + guildId;
+// Per-guild Streamer Info Panel customization (Free and Premium servers alike).
+export const STREAMER_PANEL_CONFIG_KEY = guildId => "streamer-panel-config:" + guildId;
+export const STREAMER_PANEL_BRANDING = "Powered by Bot.BalticM.eu • PLAY TOGETHER";
+export const STREAMER_PANEL_BRANDING_URL = "https://bot.balticm.eu";
+export const STREAMER_PANEL_BRANDING_LINKED = "Powered by [Bot.BalticM.eu](https://bot.balticm.eu) • PLAY TOGETHER";
+export const STREAMER_PANEL_LIMITS = { title: 256, description: 4000, howItWorks: 2000, additionalText: 2000, footerText: 1500, buttonLabel: 80, buttonUrl: 512, descriptionTotal: 4096 };
+
+// Panel failure copy. Raw HTTP text ("Forbidden") is never shown to the user:
+// each class of failure gets a message that says what actually happened.
+export const STREAMER_PANEL_BOT_PERMISSION_ERROR = "Bot permissions required — grant View Channel, Send Messages and Embed Links in the selected channel.";
+export const STREAMER_PANEL_ACCESS_UNKNOWN_ERROR = "Discord access check is temporarily unavailable. Please try again in a moment.";
+export const STREAMER_PANEL_NO_PERMISSION_ERROR = "You do not have permission to manage the Streamer Info Panel for this server.";
+
+/**
+ * Turn a panel API failure into user-facing text.
+ * - `accessUnknown` (transient Discord lookup failure, still denied server-side)
+ *   is reported as temporary — never as missing channel permissions.
+ * - A real RBAC denial never renders the raw word "Forbidden".
+ * - Server messages that are already actionable (bot permissions, owner-only)
+ *   pass through unchanged.
+ */
+export function streamerPanelErrorText(status, body, fallback, noPermission) {
+  const code = Number(status) || 0;
+  const data = body && typeof body === "object" ? body : {};
+  const raw = String(data.error || "").trim();
+  const fb = String(fallback || "Could not update the Streamer Info Panel");
+  const denied = String(noPermission || STREAMER_PANEL_NO_PERMISSION_ERROR);
+  let text;
+  if (data.accessUnknown) text = STREAMER_PANEL_ACCESS_UNKNOWN_ERROR;
+  else if (code === 401) text = "Your session has expired. Please sign in again.";
+  else if (code === 403) text = raw && raw !== "Forbidden" ? raw : denied;
+  else if (code >= 500) text = fb;
+  else text = raw || fb;
+  if (text === "Forbidden" || text === "Unauthorized") return denied;
+  return text;
+}
+
+export function defaultStreamerPanel() {
+  return { channelId: "", messageId: "", updatedAt: "" };
+}
+
+export function streamerPanelManageUrl(env = {}) {
+  const origin = String(env.PUBLIC_APP_URL || "").trim().replace(/\/+$/, "");
+  return origin ? origin + "/profile" : "";
+}
+
+// Default template: the existing BalticM Streamers panel content. A new server
+// can publish immediately without configuring anything.
+export function defaultStreamerPanelConfig() {
+  return {
+    title: "🎥 BalticM Streamers",
+    description: [
+      "Streaming on Twitch, TikTok or Kick?",
+      "",
+      "Connect your streaming accounts to your BalticM profile and let BalticM handle the rest automatically."
+    ].join("\n"),
+    howItWorks: [
+      "🔗 Connect your streaming account",
+      "🟢 BalticM detects when you go live",
+      "📢 Your stream is automatically posted in the configured stream channel",
+      "🔴 When your stream ends, BalticM automatically updates the live notification",
+      "",
+      "No commands. No manual stream posts.",
+      "",
+      "Connect once and BalticM takes care of the rest."
+    ].join("\n"),
+    additionalText: "Your connected streaming accounts can be managed anytime from your BalticM profile.",
+    footerText: "",
+    buttonLabel: "🎥 Manage Streaming Accounts",
+    buttonUrl: "",
+    buttonEnabled: true,
+    color: STREAMER_EMBED_COLOR
+  };
+}
+
+const panelConfigText = (value, fallback, max) => (value == null ? fallback : String(value).replace(/\r\n/g, "\n")).slice(0, max);
+
+export function normalizeStreamerPanelConfig(raw) {
+  const d = defaultStreamerPanelConfig();
+  const src = raw && typeof raw === "object" ? raw : {};
+  const color = Number.isInteger(src.color) && src.color >= 0 && src.color <= 0xffffff ? src.color : d.color;
+  const singleLine = value => String(value || "").split("\n").join(" ");
+  return {
+    title: singleLine(panelConfigText(src.title, d.title, STREAMER_PANEL_LIMITS.title)),
+    description: panelConfigText(src.description, d.description, STREAMER_PANEL_LIMITS.description),
+    howItWorks: panelConfigText(src.howItWorks, d.howItWorks, STREAMER_PANEL_LIMITS.howItWorks),
+    additionalText: panelConfigText(src.additionalText, d.additionalText, STREAMER_PANEL_LIMITS.additionalText),
+    footerText: singleLine(panelConfigText(src.footerText, d.footerText, STREAMER_PANEL_LIMITS.footerText)),
+    buttonLabel: singleLine(panelConfigText(src.buttonLabel, d.buttonLabel, STREAMER_PANEL_LIMITS.buttonLabel)),
+    buttonUrl: panelConfigText(src.buttonUrl, d.buttonUrl, STREAMER_PANEL_LIMITS.buttonUrl).trim(),
+    buttonEnabled: src.buttonEnabled !== false,
+    color
+  };
+}
+
+export function isStreamerPanelUrl(value) {
+  try {
+    const url = new URL(String(value || ""));
+    return url.protocol === "https:" || url.protocol === "http:";
+  } catch {
+    return false;
+  }
+}
+
+const parsePanelColor = value => {
+  if (Number.isInteger(value) && value >= 0 && value <= 0xffffff) return { ok: true, value };
+  const hex = String(value == null ? "" : value).trim().replace(/^#/, "").replace(/^0x/i, "");
+  if (/^[0-9a-fA-F]{6}$/.test(hex)) return { ok: true, value: parseInt(hex, 16) };
+  return { ok: false };
+};
+
+export function parseStreamerPanelConfig(body) {
+  const src = body && typeof body === "object" ? body : {};
+  const limits = STREAMER_PANEL_LIMITS;
+  const d = defaultStreamerPanelConfig();
+  const grab = (key, fallback) => String(src[key] == null ? fallback : src[key]).replace(/\r\n/g, "\n");
+  const title = grab("title", d.title).split("\n").join(" ").trim();
+  if (!title) return { ok: false, error: "Panel title is required" };
+  if (title.length > limits.title) return { ok: false, error: `Panel title must be ${limits.title} characters or fewer` };
+  const single = key => grab(key, d[key]).split("\n").join(" ").trim();
+  const description = grab("description", d.description);
+  if (description.length > limits.description) return { ok: false, error: `Main description must be ${limits.description} characters or fewer` };
+  const howItWorks = grab("howItWorks", d.howItWorks);
+  if (howItWorks.length > limits.howItWorks) return { ok: false, error: `"How it works" content must be ${limits.howItWorks} characters or fewer` };
+  const additionalText = grab("additionalText", d.additionalText);
+  if (additionalText.length > limits.additionalText) return { ok: false, error: `Additional text must be ${limits.additionalText} characters or fewer` };
+  const footerText = single("footerText");
+  if (footerText.length > limits.footerText) return { ok: false, error: `Footer text must be ${limits.footerText} characters or fewer` };
+  const buttonEnabled = src.buttonEnabled !== false;
+  const buttonLabel = single("buttonLabel");
+  if (buttonEnabled && !buttonLabel) return { ok: false, error: "Button label is required" };
+  if (buttonLabel.length > limits.buttonLabel) return { ok: false, error: `Button label must be ${limits.buttonLabel} characters or fewer` };
+  const buttonUrl = grab("buttonUrl", d.buttonUrl).trim();
+  if (buttonUrl && (buttonUrl.length > limits.buttonUrl || !isStreamerPanelUrl(buttonUrl))) {
+    return { ok: false, error: "Enter a valid button URL (http or https)" };
+  }
+  const color = parsePanelColor(src.color == null ? STREAMER_EMBED_COLOR : src.color);
+  if (!color.ok) return { ok: false, error: "Enter a valid accent color" };
+  const value = normalizeStreamerPanelConfig({ title, description, howItWorks, additionalText, footerText, buttonLabel, buttonUrl, buttonEnabled, color: color.value });
+  const composed = composeStreamerPanelDescription(value);
+  const maxBody = limits.descriptionTotal - STREAMER_PANEL_BRANDING_LINKED.length - 2;
+  if (composed.length > maxBody) return { ok: false, error: `Panel content exceeds Discord's ${limits.descriptionTotal}-character limit` };
+  return { ok: true, value };
+}
+
+export function composeStreamerPanelDescription(config) {
+  const cfg = normalizeStreamerPanelConfig(config);
+  const sections = [];
+  if (cfg.description.trim()) sections.push(cfg.description.trim());
+  if (cfg.howItWorks.trim()) sections.push("How it works\n\n" + cfg.howItWorks.trim());
+  if (cfg.additionalText.trim()) sections.push(cfg.additionalText.trim());
+  return sections.join("\n\n");
+}
+
+// Custom footer text only. The fixed BalticM Bot branding line stays in the
+// embed description (where Discord formatting can link to the site), so it is
+// rendered exactly once and never repeated below the footer.
+export function buildStreamerPanelFooter(config) {
+  return normalizeStreamerPanelConfig(config).footerText.trim();
+}
+
+export function streamerPanelEmbed(env = {}, config) {
+  const cfg = normalizeStreamerPanelConfig(config);
+  const maxBody = STREAMER_PANEL_LIMITS.descriptionTotal - STREAMER_PANEL_BRANDING_LINKED.length - 2;
+  const content = composeStreamerPanelDescription(cfg).slice(0, Math.max(0, maxBody));
+  const footerText = buildStreamerPanelFooter(cfg);
+  return {
+    title: cfg.title,
+    description: [content, STREAMER_PANEL_BRANDING_LINKED].filter(x => String(x || "").trim()).join("\n\n"),
+    color: cfg.color,
+    ...(footerText ? { footer: { text: footerText } } : {})
+  };
+}
+
+export function streamerPanelPayload(env = {}, config) {
+  const cfg = normalizeStreamerPanelConfig(config);
+  const url = String(cfg.buttonUrl || "").trim() || streamerPanelManageUrl(env);
+  const button = { type: 2, style: 5, label: cfg.buttonLabel, url };
+  if (!cfg.buttonEnabled) button.disabled = true;
+  return {
+    content: "",
+    embeds: [streamerPanelEmbed(env, cfg)],
+    components: [{ type: 1, components: [button] }],
+    allowed_mentions: { parse: [] }
+  };
+}
+
+export function streamerPanelSendableChannels(channels = [], { roles = [], memberRoleIds = [], memberId = "", everyoneId = "" } = {}) {
+  const VIEW_CHANNEL = 1n << 10n;
+  const SEND_MESSAGES = 1n << 11n;
+  const EMBED_LINKS = 1n << 14n;
+  const ADMINISTRATOR = 1n << 3n;
+  const required = VIEW_CHANNEL | SEND_MESSAGES | EMBED_LINKS;
+  return (Array.isArray(channels) ? channels : [])
+    .filter(ch => [0, 5].includes(Number(ch?.type)))
+    .filter(ch => {
+      const perms = resolveChannelPermissions({ roles, memberRoleIds, memberId, everyoneId, overwrites: ch.permission_overwrites || [] });
+      const bits = typeof perms === "bigint" ? perms : 0n;
+      if ((bits & ADMINISTRATOR) === ADMINISTRATOR) return true;
+      return (bits & required) === required;
+    })
+    .map(({ id, name, type }) => ({ id: String(id), name: String(name || ""), type: Number(type) }));
 }
 
 export function parseStreamerSettingsBody(body) {

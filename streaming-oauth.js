@@ -268,6 +268,22 @@ export function publicOAuthErrorCode(raw) {
     .slice(0, 80);
 }
 
+/**
+ * Safe, loggable error token for a provider response: TikTok answers errors as
+ * HTTP 200/4xx with `{error:{code,message}}`. Never returns tokens, codes or
+ * secrets — only a short sanitized provider error code (or the HTTP status).
+ */
+export function providerErrorCode(body, status) {
+  const err = body && typeof body === "object" ? body.error : null;
+  const raw =
+    typeof err === "string"
+      ? err
+      : (err && (err.code || err.message)) ||
+        (body && (body.code || body.error_description)) ||
+        `http_${Number(status) || 0}`;
+  return publicOAuthErrorCode(raw);
+}
+
 export async function readStreamingOAuthCallbackFields(req) {
   const url = new URL(req.url);
   const fields = {
@@ -406,7 +422,7 @@ export async function exchangeAuthorizationCode(provider, { origin, env, code, c
     });
     const body = await readJson(res);
     const token = body.access_token || body.data?.access_token;
-    if (!res.ok || !token) return { ok: false, error: "TikTok authorization failed" };
+    if (!res.ok || !token) return { ok: false, error: "TikTok authorization failed", logCode: providerErrorCode(body, res.status) };
     return {
       ok: true,
       accessToken: token,
@@ -509,13 +525,35 @@ export async function getAuthenticatedAccount(provider, { env, accessToken, open
     });
   }
   if (p === "tiktok") {
-    const res = await httpFetch("https://open.tiktokapis.com/v2/user/info/?fields=open_id,union_id,avatar_url,display_name,username", {
-      headers: { Authorization: "Bearer " + token }
-    });
-    const body = await readJson(res);
-    const user = body.data?.user || body.user || body.data || {};
-    const id = String(user.open_id || user.union_id || openId || "").trim();
-    if (!res.ok || !id) return { ok: false, error: "Could not load the TikTok account" };
+    // TikTok moved `username` (and profile links) to the `user.info.profile`
+    // scope. Requesting a field outside the granted scope makes TikTok reject
+    // the WHOLE user-info request with 401 `scope_not_authorized`, which used to
+    // abort the connection immediately before persistence — the OAuth flow then
+    // "completed" on TikTok's side while BalticM stored nothing.
+    // So: ask for the fields `user.info.basic` always returns first, and only
+    // then try to enrich with `username` (used as soon as the app is approved
+    // for the extra scope); enrichment failure never blocks the connection.
+    const BASIC_TIKTOK_FIELDS = "open_id,union_id,avatar_url,display_name";
+    const pickUser = (body) => body?.data?.user || body?.user || null;
+    const load = (fields) =>
+      httpFetch("https://open.tiktokapis.com/v2/user/info/?fields=" + fields, {
+        headers: { Authorization: "Bearer " + token }
+      });
+    const basicRes = await load(BASIC_TIKTOK_FIELDS);
+    let body = await readJson(basicRes);
+    let user = pickUser(body);
+    let logCode = user ? "" : providerErrorCode(body, basicRes.status);
+    if (basicRes.ok && user && !user.username) {
+      try {
+        const extra = await readJson(await load(BASIC_TIKTOK_FIELDS + ",username"));
+        if (pickUser(extra)?.username) {
+          body = extra;
+          user = pickUser(extra);
+        }
+      } catch {}
+    }
+    const id = String(user?.open_id || user?.union_id || openId || "").trim();
+    if (!basicRes.ok || !user || !id) return { ok: false, error: "Could not load the TikTok account", logCode: logCode || providerErrorCode(body, basicRes.status) };
     return normalizeOAuthAccount("tiktok", {
       id,
       login: user.username,

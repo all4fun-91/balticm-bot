@@ -47,9 +47,11 @@ export function makeLogRow({
   category = "",
   action = "",
   actorDiscordId = "",
+  actorLabel = "",
   guildId = "",
   guildLabel = "",
   reference = "",
+  referenceLabel = "",
   status = "",
   details = ""
 } = {}) {
@@ -59,9 +61,13 @@ export function makeLogRow({
     category: String(category || ""),
     action: dashField(action),
     actorDiscordId: dashField(actorDiscordId),
+    /* Readable Discord name when one is known; empty means "show the raw id". */
+    actorLabel: String(actorLabel || "").trim(),
     guildId: dashField(guildId),
-    guildLabel: dashField(guildLabel),
+    guildLabel: String(guildLabel || "").trim(),
     reference: dashField(reference),
+    /* Readable label when the reference happens to be a known discord snowflake. */
+    referenceLabel: String(referenceLabel || "").trim(),
     status: dashField(status),
     details: shortDetails(details)
   };
@@ -82,6 +88,7 @@ export function logRowFromPayment(row = {}) {
     category: "payment",
     action: "payment." + String(row.status || "recorded"),
     actorDiscordId: row.discordUserId || row.discord_user_id || "",
+    actorLabel: row.discordUserName || row.discord_username || "",
     guildId: row.guildId || row.guild_id || "",
     reference: paymentId,
     status: row.status || "",
@@ -130,6 +137,7 @@ export function logRowFromVipCodeRedeem(row = {}) {
     category: "vip_code",
     action: "code_redeemed",
     actorDiscordId: row.discordUserId || row.discord_user_id || "",
+    actorLabel: row.discordUsername || row.discord_username || "",
     guildId: row.guildId || row.guild_id || "",
     guildLabel: guildName,
     reference: row.code || row.codeId || row.code_id || id,
@@ -152,6 +160,7 @@ export function logRowFromActivity(row = {}) {
     category,
     action: action || source || "activity",
     actorDiscordId: row.actorId || row.actor_id || "",
+    actorLabel: row.actorName || row.actor_name || "",
     guildId: row.guildId || row.guild_id || "",
     reference: row.target || "",
     status: source || "",
@@ -169,6 +178,7 @@ export function logRowFromSupportMessage(row = {}) {
     category: "support",
     action,
     actorDiscordId: row.senderId || row.sender_id || "",
+    actorLabel: row.senderName || row.sender_name || "",
     guildId: row.guildId || row.guild_id || "",
     guildLabel: row.guildName || row.guild_name || "",
     reference: row.threadId || row.thread_id || id,
@@ -204,9 +214,11 @@ export function matchesAdminLogFilters(row, { q = "", category = "", status = ""
   const hay = [
     row.action,
     row.actorDiscordId,
+    row.actorLabel,
     row.guildId,
     row.guildLabel,
     row.reference,
+    row.referenceLabel,
     row.status,
     row.details,
     row.category

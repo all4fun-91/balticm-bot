@@ -147,7 +147,9 @@ export function decideRoleMutation({
       if (!actorIsGuildOwner && Number.isFinite(pos) && pos >= actorHighest) {
         return deny("Cannot create or place a role at equal or higher position", "hierarchy");
       }
-      if (!botAccess.administrator && Number.isFinite(pos) && pos >= Number(botAccess.highestPosition)) {
+      // Discord applies role hierarchy even to Administrator bots — never
+      // allow creating/placing a role at or above the bot's highest role.
+      if (Number.isFinite(pos) && pos >= Number(botAccess.highestPosition)) {
         return deny("Bot role must be above the selected role", "bot_hierarchy");
       }
     }
@@ -176,7 +178,7 @@ export function decideRoleMutation({
     if (!actorIsGuildOwner && pos >= actorHighest) {
       return deny("Cannot reorder a role to equal or higher position", "hierarchy");
     }
-    if (!botAccess.administrator && pos >= Number(botAccess.highestPosition)) {
+    if (Number.isFinite(pos) && pos >= Number(botAccess.highestPosition)) {
       return deny("Bot role must be above the selected role", "bot_hierarchy");
     }
   }

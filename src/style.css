@@ -1877,3 +1877,44 @@ footer{padding-bottom:env(safe-area-inset-bottom,0px)}
 .contentWell .supportChatLauncher{bottom:calc(20px + env(safe-area-inset-bottom,0px))}
 .contentWell .supportChatWidget{padding-top:env(safe-area-inset-top,0px)}
 
+/* Streamer Info Panel */
+.streamersPage .streamerPanelCard{display:flex;flex-direction:column;gap:14px}
+.streamersPage .streamerPanelCard .voiceConfigHead{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.panelEmbed{display:flex;flex-direction:column;gap:10px;max-width:560px;min-width:0;padding:16px 18px;border:1px solid var(--border);border-left:4px solid var(--accent);border-radius:12px;background:rgba(0,0,0,.25)}
+.panelEmbedTitle{font-size:15px;font-weight:700;color:var(--text)}
+.panelEmbedDesc{font-size:13px;line-height:1.6;color:var(--text-secondary);white-space:pre-line;overflow-wrap:anywhere}
+.panelEmbedFooter{font-size:11px;color:var(--text-secondary);opacity:.75}
+.panelEmbedButton{align-self:flex-start;max-width:100%;padding:9px 14px;border-radius:8px;background:var(--accent);color:#18110a;font-weight:700;font-size:12.5px;text-decoration:none;overflow-wrap:anywhere}
+.panelControls{display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap}
+.panelControls>label{display:flex;flex-direction:column;gap:6px;flex:1 1 240px;min-width:0}
+.panelControls>label>span{font-size:10.5px;letter-spacing:.08em;color:var(--text-secondary)}
+.panelPublished{display:flex;gap:14px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.panelPublishedMeta{display:flex;flex-direction:column;gap:4px;min-width:0}
+.panelPublishedMeta span{font-size:10.5px;letter-spacing:.08em;color:var(--text-secondary)}
+.panelPublishedMeta b{color:var(--text);overflow-wrap:anywhere}
+.panelHeadActions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.panelEmbedBrandLink{font-size:11px;color:var(--text-secondary);opacity:.75}
+.panelEmbedBrandLink a{color:var(--accent);text-decoration:none}
+.panelEmbedBrandLink a:hover{text-decoration:underline}
+.panelEmbedButton.isDisabled{opacity:.55;pointer-events:none;background:var(--border);color:var(--text-secondary)}
+.panelEditor{display:flex;flex-direction:column;gap:14px;min-width:0}
+.panelColorInput{width:100%;height:38px;padding:3px;background:transparent;border:1px solid var(--border);border-radius:8px;cursor:pointer}
+.panelEditor .streamersMessage textarea{min-height:84px;resize:vertical;width:100%;box-sizing:border-box}
+@media(max-width:767px){.streamersPage .streamerPanelCard .panelEmbed{max-width:100%}.streamersPage .panelControls{flex-direction:column;align-items:stretch}.streamersPage .panelPublished{align-items:flex-start}.streamersPage .panelPublished .featureActions{width:100%}}
+
+/* Streamer row Delete confirmation modal */
+.streamerDeleteBackdrop{position:fixed;inset:0;z-index:80;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(0,0,0,.62)}
+.streamerDeleteModal{display:flex;flex-direction:column;gap:14px;width:min(460px,100%);max-height:min(640px,calc(100vh - 48px));overflow:auto;padding:18px 18px 16px;border:1px solid var(--border);border-radius:16px;background:linear-gradient(180deg,rgba(225,93,93,.06),transparent 46%),var(--surface);box-shadow:0 24px 64px rgba(0,0,0,.5)}
+.streamerDeleteHead b{font-size:var(--cc-dialog,16px);color:var(--text)}
+.streamerDeleteBody{display:grid;gap:12px}
+.streamerDeleteText{margin:0;color:var(--text-secondary);font-size:13px;line-height:1.5}
+.streamerDeleteList span{display:block;margin-bottom:6px;font-size:10.5px;letter-spacing:.08em;color:var(--text-secondary)}
+.streamerDeleteList ul{margin:0;padding-left:18px;display:grid;gap:4px;color:var(--text);font-size:13px;line-height:1.45}
+.streamerDeleteList li::marker{color:var(--accent)}
+.streamerDeleteActions{padding-top:2px}
+.streamerDeleteModal .streamerDeleteActions button.danger{border-color:rgba(225,93,93,.5);color:#ffd0d0;background:rgba(225,93,93,.16)}
+.streamerDeleteModal .streamerDeleteActions button.danger:hover{background:rgba(225,93,93,.26)}
+.streamerDeleteError{font-size:12.5px}
+.streamerToast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:95;padding:11px 18px;border:1px solid rgba(120,220,150,.4);border-radius:12px;background:rgba(16,38,25,.94);color:#d7ffe4;font-size:13px;box-shadow:0 16px 40px rgba(0,0,0,.45)}
+@media(max-width:767px){.streamerDeleteBackdrop{padding:14px}.streamerDeleteModal{padding:16px 14px 14px;max-height:calc(100vh - 28px)}.streamerToast{bottom:16px;width:calc(100vw - 28px);text-align:center}}
+

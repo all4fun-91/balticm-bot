@@ -66,7 +66,16 @@ const PATH_TO_PAGE = {
 };
 
 export function canUseAccess(perms, key, min = ACCESS_OPERATE) {
-  return !perms || levelMeets(perms[key], min);
+  if (!perms) return true;
+  const level = perms[key];
+  // null/undefined level = unknown (still loading or a transient lookup failure):
+  // never treat it as a denial. Explicit levels ("none"/"operate"/"configure") are enforced.
+  if (level == null) return true;
+  return levelMeets(level, min);
+}
+
+export function isValidAccessPayload(payload) {
+  return !!(payload && payload.permissions && typeof payload.permissions === "object");
 }
 
 export function normalizePath(pathname) {
@@ -133,4 +142,30 @@ export function pageAfterRefresh({ pathname, user, storedGuildId, authorizedGuil
     page: fallbackPageIfUnauthorized(fromPath, { user, permissions, modules, accessReady }),
     guildId: pickAuthorizedGuildId({ storedId: storedGuildId, authorizedGuilds })
   };
+}
+
+export const MEMBERS_ROLES_NO_PERMISSION_ERROR = "You do not have permission to manage members and roles in this server.";
+export const MEMBERS_ROLES_TEMPORARY_ERROR = "Discord is temporarily unavailable. Please try again in a moment.";
+
+/**
+ * Turn a Members & Roles API failure into user-facing text.
+ * - `retryable` / `accessUnknown` (transient Discord lookup failure) is always
+ *   reported as temporary — never as missing permissions.
+ * - A raw RBAC denial ("Forbidden") never renders; a real hierarchy/bot
+ *   permission message from the worker passes through because it is actionable.
+ * - Server-side 5xx messages for this feature are curated, so they pass too.
+ */
+export function membersRolesErrorText(status, body, fallback) {
+  const code = Number(status) || 0;
+  const data = body && typeof body === "object" ? body : {};
+  const raw = String(data.error || "").trim();
+  const fb = String(fallback || "The request could not be completed");
+  let text;
+  if (data.retryable || data.accessUnknown) text = raw || MEMBERS_ROLES_TEMPORARY_ERROR;
+  else if (code === 401) text = "Your session has expired. Please sign in again.";
+  else if (code === 403) text = raw && raw !== "Forbidden" ? raw : MEMBERS_ROLES_NO_PERMISSION_ERROR;
+  else if (code === 503) text = raw || MEMBERS_ROLES_TEMPORARY_ERROR;
+  else text = raw || fb;
+  if (text === "Forbidden" || text === "Unauthorized") return MEMBERS_ROLES_NO_PERMISSION_ERROR;
+  return text;
 }
