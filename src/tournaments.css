@@ -1,0 +1,442 @@
+/* ============================ Tournaments (Control Center) ============================ */
+.tournamentsPage{display:grid;gap:16px;min-width:0}
+.tState{display:grid;justify-items:center;gap:8px;text-align:center;padding:46px 18px;border:1px dashed var(--border);border-radius:16px;background:rgba(255,255,255,.02);color:var(--text-secondary)}
+.tState b{color:var(--text);font-size:15px}
+.tState span{font-size:13px;max-width:52ch}
+.tState svg{width:26px;height:26px;color:var(--accent)}
+.tState .login,.tState a{display:inline-flex;align-items:center;gap:8px;margin-top:6px;padding:11px 18px;border-radius:10px;background:var(--accent);color:#18110a;font-weight:700;text-decoration:none;min-height:44px}
+.tState .spin,.tPubState .spin{animation:tSpin .9s linear infinite}
+@keyframes tSpin{to{transform:rotate(360deg)}}
+.tEmpty{display:grid;justify-items:center;gap:8px;text-align:center;padding:40px 18px;border:1px dashed var(--border);border-radius:16px;color:var(--text-secondary)}
+.tEmpty b{color:var(--text);font-size:15px}
+.tEmpty span{font-size:13px;max-width:52ch}
+.tEmpty svg{width:26px;height:26px;color:var(--accent)}
+.tNotice{display:flex;gap:8px;padding:11px 14px;border-radius:11px;font-size:13px;border:1px solid var(--border);background:rgba(255,255,255,.03)}
+.tNotice.ok{border-color:rgba(120,220,150,.45);background:rgba(16,38,25,.5);color:#d7ffe4}
+.tNotice.error{border-color:rgba(225,93,93,.5);background:rgba(48,18,18,.5);color:#ffd0d0}
+
+.tToolbar{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px}
+.tSearch{display:flex;align-items:center;gap:8px;flex:1 1 240px;min-width:0;padding:0 12px;min-height:44px;border:1px solid var(--border);border-radius:11px;background:rgba(0,0,0,.25)}
+.tSearch svg{width:17px;height:17px;color:var(--text-secondary);flex:none}
+.tSearch input{flex:1;min-width:0;border:0;background:transparent;color:var(--text);font-size:13.5px;min-height:42px;outline:none}
+.tFilter{display:grid;gap:5px}
+.tFilter span{font-size:10.5px;letter-spacing:.08em;color:var(--text-secondary)}
+.tFilter select,.tField select,.tField input,.tField textarea{min-height:44px;padding:9px 12px;border:1px solid var(--border);border-radius:11px;background:rgba(0,0,0,.42);color:var(--text);font-size:13.5px;font-family:inherit;width:100%;color-scheme:dark}
+/* Dark theme for every native control in the tournament UI: color-scheme makes
+   the browser render pickers/popups dark (the reliable, non-fragile path);
+   closed selects and options are themed explicitly below. */
+.tModal,.tPanel,.tSettings,.tFilter,.tField,.tToolbar{color-scheme:dark}
+.tFilter select,.tField select,.tModal select,.tSettings select{-webkit-appearance:none;appearance:none;background-image:linear-gradient(45deg,transparent 50%,#b7ab9e 50%),linear-gradient(135deg,#b7ab9e 50%,transparent 50%);background-position:calc(100% - 18px) calc(50% + 2px),calc(100% - 13px) calc(50% + 2px);background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:34px}
+.tFilter select option,.tField select option,.tModal select option,.tSettings select option{background:#0e0c0a;color:var(--text)}
+.tField textarea{min-height:84px;resize:vertical;line-height:1.5}
+.tField{display:grid;gap:6px;min-width:0}
+.tField>span{font-size:10.5px;letter-spacing:.08em;color:var(--text-secondary)}
+.tField small{font-size:11.5px;color:var(--text-secondary)}
+.tToolbar button,.tDetailActions button,.tDetailActions a,.tPartActions button,.tRegisterActions button,.tModal footer button{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:10px 15px;border-radius:11px;border:1px solid var(--border);background:rgba(255,255,255,.04);color:var(--text);font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;transition:.15s}
+.tToolbar button svg,.tDetailActions svg,.tPartFormActions button svg{width:16px;height:16px}
+.tournamentsPage button.primary,.tDetail button.primary,.tModal button.primary,.tSettings button.primary,.tModal footer button[type=submit],.tPartFormActions button[type=submit]{background:var(--accent);border-color:transparent;color:#fff;font-weight:700}
+.tournamentsPage button.primary:hover,.tDetail button.primary:hover,.tModal button.primary:hover,.tSettings button.primary:hover,.tModal footer button[type=submit]:hover,.tPartFormActions button[type=submit]:hover{background:var(--accent-hover)}
+.tToolbar button:disabled,.tDetailActions button:disabled,.tPartActions button:disabled,.tMatchConfirm:disabled,.tRegisterBtn:disabled{opacity:.5;cursor:not-allowed}
+button.danger,.tPartActions button.danger{border-color:rgba(225,93,93,.5);color:#ffd0d0;background:rgba(225,93,93,.14)}
+
+.tCardGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(320px,100%),1fr));gap:16px}
+.tCard{display:flex;flex-direction:column;min-width:0;border:1px solid var(--border);border-radius:16px;background:linear-gradient(180deg,rgba(232,137,44,.06),transparent 55%),var(--surface);overflow:hidden}
+.tCardBanner{width:100%;height:118px;object-fit:cover;border-bottom:1px solid var(--border)}
+.tCardBody{display:grid;gap:9px;padding:16px 16px 4px;min-width:0}
+.tCardTop{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.tPill{display:inline-flex;align-items:center;padding:4px 10px;border-radius:999px;font-size:10.5px;font-weight:800;letter-spacing:.07em;border:1px solid var(--border);color:var(--text-secondary)}
+.tPill.registration{color:#34d399;border-color:rgba(52,211,153,.5);background:rgba(52,211,153,.1)}
+.tPill.upcoming{color:#60a5fa;border-color:rgba(96,165,250,.5);background:rgba(96,165,250,.1)}
+.tPill.live{color:#f59e0b;border-color:rgba(245,158,11,.5);background:rgba(245,158,11,.12)}
+.tPill.finished{color:#c4b5fd;border-color:rgba(196,181,253,.45);background:rgba(196,181,253,.1)}
+.tPill.draft{color:var(--text-secondary)}
+.tVis{font-size:10.5px;font-weight:700;letter-spacing:.06em;padding:4px 9px;border-radius:999px;border:1px dashed var(--border);color:var(--text-secondary)}
+.tVis.public{border-style:solid;border-color:rgba(52,211,153,.4);color:#7fe6c3}
+.tCard h3{font-size:16.5px;color:var(--text);margin:0;overflow-wrap:anywhere}
+.tCardGame{margin:0;font-size:13px;color:var(--accent);font-weight:700}
+.tCardMeta{list-style:none;display:grid;gap:6px;margin:0;padding:0}
+.tCardMeta li{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text-secondary);overflow-wrap:anywhere}
+.tCardMeta svg{width:15px;height:15px;flex:none;color:var(--accent)}
+.tCardActions{display:flex;gap:9px;padding:14px 16px 16px;margin-top:auto}
+.tCardActions>*{flex:1}
+.tBtn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:10px 14px;border-radius:11px;border:1px solid var(--border);background:rgba(255,255,255,.04);color:var(--text);font-size:13px;font-weight:600;text-decoration:none}
+.tBtn svg{width:16px;height:16px}
+
+.tModalBackdrop{position:fixed;inset:0;z-index:90;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(5,5,11,.84);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+.tModal{display:flex;flex-direction:column;width:min(720px,100%);max-height:92vh;overflow:auto;border:1px solid var(--border);border-radius:18px;background:var(--surface);box-shadow:0 24px 64px rgba(0,0,0,.5)}
+.tModal header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border-bottom:1px solid var(--border)}
+.tModal header>div{display:flex;align-items:center;gap:12px;min-width:0}
+.tModalIcon{display:grid;place-items:center;width:38px;height:38px;border-radius:11px;background:var(--accent-soft);color:var(--accent);flex:none}
+.tModalIcon svg{width:19px;height:19px}
+.tModal header small{font-size:10.5px;letter-spacing:.1em;color:var(--text-secondary)}
+.tModal header h3{margin:2px 0 0;font-size:17px;color:var(--text)}
+.tClose{min-width:44px;min-height:44px;border-radius:11px;border:1px solid var(--border);background:transparent;color:var(--text-secondary);cursor:pointer}
+.tModalBody{display:grid;gap:13px;padding:18px}
+.tFormRow{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr));gap:13px}
+.tModal footer{display:flex;justify-content:flex-end;gap:10px;padding:15px 18px;border-top:1px solid var(--border);position:sticky;bottom:0;background:var(--surface)}
+.tToggles{display:flex;flex-wrap:wrap;gap:10px}
+.tToggle{display:inline-flex;align-items:center;gap:9px;min-height:44px;padding:9px 14px;border-radius:999px;border:1px solid var(--border);background:rgba(255,255,255,.03);color:var(--text-secondary);font-size:12.5px;font-weight:600;cursor:pointer}
+.tToggle i{width:34px;height:19px;border-radius:999px;background:rgba(255,255,255,.14);position:relative;transition:.15s;flex:none}
+.tToggle i::after{content:"";position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:50%;background:#fff;transition:.15s}
+.tToggle.on{color:var(--text);border-color:rgba(52,211,153,.45)}
+.tToggle.on i{background:#22c55e}
+.tToggle.on i::after{left:17px}
+.tHint{display:flex;gap:8px;align-items:flex-start;font-size:12px;color:var(--text-secondary);line-height:1.5}
+.tHint svg{width:15px;height:15px;flex:none;color:var(--accent);margin-top:2px}
+
+.tDetail{display:grid;gap:16px;min-width:0}
+.tDetailHead{display:grid;gap:12px;min-width:0}
+.tBack{display:inline-flex;align-items:center;gap:6px;justify-self:start;min-height:44px;padding:8px 13px;border-radius:11px;border:1px solid var(--border);background:rgba(255,255,255,.04);color:var(--text-secondary);font-size:13px;cursor:pointer}
+.tBack svg{width:16px;height:16px}
+.tDetailTitle{display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:space-between;min-width:0}
+.tDetailTitle>div{display:flex;align-items:center;gap:12px;min-width:0}
+.tDetailIcon{display:grid;place-items:center;width:46px;height:46px;border-radius:14px;background:var(--accent-soft);color:var(--accent);flex:none}
+.tDetailTitle small{font-size:11px;letter-spacing:.09em;color:var(--text-secondary)}
+.tDetailTitle h2{margin:2px 0 0;font-size:21px;color:var(--text);overflow-wrap:anywhere}
+.tDetailTitle p{margin:3px 0 0;font-size:12.5px;color:var(--text-secondary)}
+.tDetailStatus{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.tDetailStatus span{font-size:12.5px;color:var(--text-secondary)}
+.tDetailActions{display:flex;flex-wrap:wrap;gap:9px}
+.tDetailGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(340px,100%),1fr));gap:16px;align-items:start}
+.tPanel{display:grid;gap:13px;padding:16px;border:1px solid var(--border);border-radius:16px;background:var(--surface);min-width:0}
+.tPanelHead{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+.tPanelHead small{font-size:10.5px;letter-spacing:.1em;color:var(--text-secondary)}
+.tPanelHead h3{margin:3px 0 0;font-size:16px;color:var(--text)}
+.tPanelHead h3 span{font-size:12.5px;color:var(--text-secondary);font-weight:600}
+
+/* ---- Tournament branding (premium, admin) ---- */
+.tBrandBadge{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:999px;border:1px solid rgba(250,204,21,.45);background:rgba(250,204,21,.10);color:#e7c65a;font-size:11px;font-weight:800;letter-spacing:.06em}
+.tBrandBadge svg{width:13px;height:13px}
+.tBrandGrid{display:grid;grid-template-columns:minmax(260px,.9fr) minmax(0,1.1fr);gap:16px;align-items:start}
+.tBrandPreviewBlock{display:grid;gap:9px;min-width:0}
+.tBrandPreviewLabel{font-size:10px;letter-spacing:.12em;color:var(--text-secondary)}
+.tBrandPreview{display:flex;align-items:center;gap:10px;padding:14px 15px;border:1px solid var(--border);border-radius:14px;background:rgba(0,0,0,.30);min-width:0}
+.tBrandMark{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,var(--accent-hover),var(--accent));box-shadow:0 4px 14px rgba(232,137,44,.35);flex:none;object-fit:cover}
+.tBrandMark.broken{background:rgba(225,93,93,.16);box-shadow:none}
+.tBrandPreviewText{display:grid;gap:2px;min-width:0}
+.tBrandPreviewText b{font-size:14.5px;color:var(--text);letter-spacing:.05em;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.tBrandPreviewText small{font-size:9.5px;letter-spacing:.14em;color:var(--text-secondary)}
+.tBrandExpired,.tBrandLocked{display:flex;gap:7px;align-items:flex-start;font-size:11.5px;line-height:1.5;color:var(--text-secondary)}
+.tBrandLocked{color:#e7c65a}
+.tBrandLocked svg{width:14px;height:14px;flex:none;margin-top:2px}
+.tBrandForm{display:grid;gap:12px;min-width:0}
+.tBrandActions{display:flex;flex-wrap:wrap;gap:9px}
+
+/* ---- Shared TicketOptionSelect widget (every tournament dropdown) ----
+   These declarations are a verbatim copy of the Tickets configuration
+   dropdown (style.css `.ticketsPage .modAction*`), just re-scoped to the
+   tournament modal, settings and toolbar containers (announcement channel,
+   participant type, maximum participants, status filter). Same component,
+   same theme variables (--bg, --border, --accent resolve to the same BalticM
+   brown/black values inside .shell), so every control renders identically
+   to Tickets. */
+.tModal .modActionSelect,.tSettings .modActionSelect,.tFilter .modActionSelect{position:relative;min-width:0;font-size:calc(12px * var(--type-scale));font-weight:650;letter-spacing:.04em;color:var(--text-secondary)}
+.tModal .modActionSelect.open,.tSettings .modActionSelect.open,.tFilter .modActionSelect.open{z-index:5}
+.tModal .modActionTrigger,.tSettings .modActionTrigger,.tFilter .modActionTrigger{display:flex;align-items:center;justify-content:flex-start;gap:8px;width:100%;min-height:40px;padding:0 10px;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font:inherit;text-align:left;cursor:pointer}
+.tModal .modActionSelect.open .modActionTrigger,.tModal .modActionTrigger:focus-visible,.tSettings .modActionSelect.open .modActionTrigger,.tSettings .modActionTrigger:focus-visible,.tFilter .modActionSelect.open .modActionTrigger,.tFilter .modActionTrigger:focus-visible{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.tModal .modActionTrigger span,.tSettings .modActionTrigger span,.tFilter .modActionTrigger span{min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tModal .modActionTrigger svg,.tSettings .modActionTrigger svg,.tFilter .modActionTrigger svg{width:16px;height:16px;margin-left:auto;flex:0 0 auto;color:var(--text-secondary)}
+.tModal .modActionMenu,.tSettings .modActionMenu,.tFilter .modActionMenu{position:absolute;top:calc(100% + 6px);left:0;right:auto;width:100%;min-width:0;max-height:240px;overflow:auto;z-index:8;margin:0;padding:4px;list-style:none;border:1px solid rgba(232,176,120,.35);border-radius:12px;background:#0e0c0a;box-shadow:0 16px 36px rgba(0,0,0,.45)}
+.tModal .modActionSelect.dropUp .modActionMenu,.tSettings .modActionSelect.dropUp .modActionMenu,.tFilter .modActionSelect.dropUp .modActionMenu{top:auto;bottom:calc(100% + 6px)}
+.tModal .modActionMenu li,.tSettings .modActionMenu li,.tFilter .modActionMenu li{padding:8px 10px;border-radius:8px;color:var(--text);font-size:calc(13px * var(--type-scale));line-height:1.3;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;-webkit-tap-highlight-color:transparent}
+.tModal .modActionMenu li.active,.tSettings .modActionMenu li.active,.tFilter .modActionMenu li.active{background:rgba(232,137,44,.1)}
+.tModal .modActionMenu li.selected,.tSettings .modActionMenu li.selected,.tFilter .modActionMenu li.selected{background:rgba(232,137,44,.18)}
+.tModal .modActionMenu li.selected.active,.tSettings .modActionMenu li.selected.active,.tFilter .modActionMenu li.selected.active{background:rgba(232,137,44,.24)}
+/* Search box (Tickets does not use search) — styled with the same dropdown
+   tokens so it reads as part of the native Tickets control. */
+.tModal .modActionSearch,.tSettings .modActionSearch{position:sticky;top:0;z-index:1;padding:0 0 4px;background:#0e0c0a;cursor:default}
+.tModal .modActionSearch input,.tSettings .modActionSearch input{width:100%;min-height:40px;padding:0 10px;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font-family:inherit;font-size:calc(13px * var(--type-scale))}
+.tModal .modActionSearch input:focus,.tSettings .modActionSearch input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+@media(max-width:767px){
+ .tModal .modActionTrigger,.tSettings .modActionTrigger,.tFilter .modActionTrigger{min-height:44px}
+ .tModal .modActionSearch input,.tSettings .modActionSearch input{min-height:44px}
+}
+.tBrandActions button:not(.primary){display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:10px 15px;border-radius:11px;border:1px solid var(--border);background:rgba(255,255,255,.04);color:var(--text);font-size:13px;font-weight:600;cursor:pointer;transition:.15s}
+.tBrandActions button:disabled{opacity:.55;cursor:not-allowed}
+.tLogoPreview{display:inline-flex;align-items:center;gap:9px;padding:7px 10px;border:1px solid var(--border);border-radius:11px;background:rgba(0,0,0,.30);max-width:100%}
+.tLogoPreview img{width:34px;height:34px;object-fit:cover;border-radius:9px;flex:none}
+.tLogoPreview em{font-style:normal;font-size:11px;color:var(--text-secondary)}
+.tLogoHint{font-size:11.5px;color:#e7a04a;line-height:1.5}
+.tPartForm{display:grid;gap:11px;padding:14px;border:1px solid var(--border);border-radius:13px;background:rgba(0,0,0,.22)}
+.tPartFormActions{display:flex;justify-content:flex-end;gap:9px}
+.tPartFormActions button{min-height:44px;padding:10px 15px;border-radius:11px;border:1px solid var(--border);background:rgba(255,255,255,.04);color:var(--text);font-size:13px;cursor:pointer}
+.tPartList{list-style:none;display:grid;gap:8px;margin:0;padding:0}
+.tPartList li{display:flex;align-items:center;gap:11px;padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:rgba(255,255,255,.03);min-width:0}
+.tSeed{display:grid;place-items:center;min-width:34px;height:26px;padding:0 7px;border-radius:8px;background:var(--accent-soft);color:var(--accent);font-size:11.5px;font-weight:800;flex:none}
+.tPartName{display:grid;gap:2px;min-width:0;flex:1}
+.tPartName b{font-size:13.5px;color:var(--text);overflow-wrap:anywhere}
+.tPartName small{font-size:11.5px;color:var(--text-secondary);overflow-wrap:anywhere}
+.tSource{font-style:normal;font-size:10.5px;color:#7fe6c3;letter-spacing:.05em}
+.tMembersEdit{display:grid;gap:8px}
+.tMembersLabel{font-size:10.5px;letter-spacing:.08em;color:var(--text-secondary)}
+.tMemberRow{display:grid;grid-template-columns:1.2fr 1fr auto;gap:8px}
+.tMemberRow input{min-height:44px;padding:9px 12px;border:1px solid var(--border);border-radius:11px;background:rgba(0,0,0,.25);color:var(--text);font-size:13.5px;font-family:inherit;width:100%}
+.tMemberRow button{min-width:44px;min-height:44px;border-radius:11px;border:1px solid rgba(225,93,93,.5);background:rgba(225,93,93,.14);color:#ffd0d0;cursor:pointer;display:grid;place-items:center}
+.tMemberRow button svg{width:16px;height:16px}
+.tMemberAdd{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:44px;border-radius:11px;border:1px dashed var(--border);background:transparent;color:var(--text-secondary);font-size:13px;cursor:pointer}
+.tMemberAdd svg{width:15px;height:15px}
+.tPartLogo{width:22px;height:22px;object-fit:cover;border-radius:6px;border:1px solid var(--border);margin-right:7px;vertical-align:middle}
+.tPartActions{display:flex;gap:6px;flex:none;flex-wrap:wrap;justify-content:flex-end}
+.tPartActions button{min-height:36px;padding:6px 11px;border-radius:9px;font-size:12px}
+.tSettings{display:grid;gap:12px}
+
+.tBracketPanel{min-width:0}
+.tChampionBanner{display:flex;align-items:center;gap:12px;padding:13px 16px;border:1px solid rgba(250,204,21,.4);border-radius:13px;background:rgba(250,204,21,.08)}
+.tChampionBanner svg{width:22px;height:22px;color:#facc15}
+.tChampionBanner small{font-size:10.5px;letter-spacing:.1em;color:#e7c65a}
+.tChampionBanner b{display:block;font-size:15.5px;color:var(--text);overflow-wrap:anywhere}
+.tChampionBanner .tChampLogo{width:36px;height:36px;object-fit:cover;border-radius:10px;border:1px solid rgba(250,204,21,.5);flex:none}
+.tChampRoster{display:block;font-size:11.5px;color:#cfc7a8;overflow-wrap:anywhere;font-weight:500}
+
+/* Bracket — horizontal scrolling is confined to this frame, never the page. */
+.tBracketFrame{display:grid;gap:11px;min-width:0;max-width:100%}
+.tBracketNav{display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:0}
+.tBracketChips{display:flex;gap:7px;overflow-x:auto;padding-bottom:2px;min-width:0;scrollbar-width:thin}
+.tBracketChips button{flex:none;min-height:38px;padding:7px 13px;border-radius:999px;border:1px solid var(--border);background:rgba(255,255,255,.04);color:var(--text-secondary);font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap}
+.tBracketChips button.on{background:var(--accent-soft);border-color:rgba(232,137,44,.55);color:var(--text)}
+.tBracketSteps{display:flex;gap:6px;flex:none}
+.tBracketSteps button{display:grid;place-items:center;width:40px;height:40px;border-radius:11px;border:1px solid var(--border);background:rgba(255,255,255,.04);color:var(--text);cursor:pointer}
+.tBracketSteps button svg{width:18px;height:18px}
+.tBracketSteps button:disabled{opacity:.4;cursor:not-allowed}
+.tBracketScroll{overflow-x:auto;overflow-y:hidden;max-width:100%;padding-bottom:6px;scrollbar-width:thin;-webkit-overflow-scrolling:touch}
+.tBracketRounds{display:flex;gap:16px;min-width:min-content;padding-right:4px}
+.tBracketRound{display:flex;flex-direction:column;gap:9px;flex:0 0 232px;min-width:232px}
+.tBracketRound h4{margin:0;font-size:11px;letter-spacing:.1em;color:var(--text-secondary);text-align:center;text-transform:uppercase}
+.tBracketRoundBody{flex:1;display:flex;flex-direction:column;justify-content:space-around;gap:10px;min-height:var(--tRoundMin,260px)}
+.tBracketTbd{text-align:center;font-size:12px;color:var(--text-secondary);margin:auto 0}
+.tMatch{display:grid;gap:7px;padding:10px 11px;border:1px solid var(--border);border-radius:13px;background:rgba(255,255,255,.03);min-width:0}
+.tMatch.ready{border-color:rgba(96,165,250,.4)}
+.tMatch.completed{border-color:rgba(120,220,150,.35);background:rgba(16,38,25,.35)}
+.tMatch.bye{opacity:.75}
+.tMatch>header{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.tMatch>header span{font-size:10px;letter-spacing:.08em;color:var(--text-secondary)}
+.tMatchStatus{font-style:normal;font-size:9.5px;font-weight:800;letter-spacing:.07em;padding:2px 7px;border-radius:999px;border:1px solid var(--border);color:var(--text-secondary)}
+.tMatchStatus.ready{color:#60a5fa;border-color:rgba(96,165,250,.5)}
+.tMatchStatus.completed{color:#34d399;border-color:rgba(52,211,153,.5)}
+.tMatchStatus.bye{color:var(--text-secondary)}
+.tMatchRow{display:flex;align-items:center;gap:8px;min-width:0;padding:5px 6px;border-radius:9px;background:rgba(0,0,0,.22)}
+.tMatchRow.won{background:rgba(52,211,153,.14);outline:1px solid rgba(52,211,153,.4)}
+.tMatchRow.picked{outline:1px dashed var(--accent)}
+.tMatchRow.empty{opacity:.6}
+.tMatchPick{display:grid;place-items:center;width:22px;height:22px;flex:none;border-radius:50%;border:1.5px solid var(--border);background:transparent;cursor:pointer;padding:0}
+.tMatchPick span{width:10px;height:10px;border-radius:50%;background:transparent}
+.tMatchRow.picked .tMatchPick{border-color:var(--accent)}
+.tMatchRow.picked .tMatchPick span{background:var(--accent)}
+.tMatchName{flex:1;min-width:0;font-size:13px;color:var(--text);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tMatchRow.won .tMatchName{color:#8ef2c8}
+.tMatchScore{width:54px;min-width:54px;min-height:36px;text-align:center;border:1px solid var(--border);border-radius:9px;background:rgba(0,0,0,.35);color:var(--text);font-size:13px;font-weight:700}
+.tMatchScoreView{min-width:34px;text-align:center;font-size:13.5px;font-weight:800;color:var(--text)}
+.tMatch time{font-size:10.5px;color:var(--text-secondary)}
+.tMatchConfirm{min-height:38px;width:100%;border-radius:10px;border:1px solid var(--border);background:var(--accent-soft);color:var(--text);font-size:12.5px;font-weight:700;cursor:pointer}
+.tChampion{justify-items:center;text-align:center;gap:6px;border-color:rgba(250,204,21,.45);background:linear-gradient(180deg,rgba(250,204,21,.12),transparent)}
+.tChampion svg{width:26px;height:26px;color:#facc15}
+.tChampion b{font-size:14.5px;color:var(--text);overflow-wrap:anywhere}
+.tChampion .tChampLogo{width:36px;height:36px;object-fit:cover;border-radius:10px;border:1px solid rgba(250,204,21,.5)}
+.tChampion .tChampRoster{color:#cfc7a8}
+.tChampion span{font-size:11.5px;color:var(--text-secondary)}
+.tBracketEmpty{display:grid;gap:6px;justify-items:center;text-align:center;padding:26px;border:1px dashed var(--border);border-radius:13px;color:var(--text-secondary)}
+
+/* ============================ Public tournament page (esports design) ============================ */
+.tPub{display:grid;justify-items:center;gap:20px;min-width:0;min-height:100dvh;align-content:start;padding:22px 20px 56px;
+ background:radial-gradient(1000px 430px at 50% -170px,rgba(118,87,255,.20),transparent 65%),radial-gradient(760px 420px at 92% 2%,rgba(249,115,22,.05),transparent 60%),#0a0a10}
+.tPub>*{width:100%;max-width:1240px;min-width:0}
+.tPubBar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.tPubBrand{display:flex;align-items:center;gap:9px;text-decoration:none;color:var(--text);min-width:0;max-width:100%}
+.tPubBrand b{font-size:15px;letter-spacing:.06em;color:#fff;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:min(58vw,420px)}
+.tPubBrand small{font-size:10.5px;letter-spacing:.14em;color:#8d89a3;flex:none}
+.tPubLogo{width:28px;height:28px;border-radius:9px;background:linear-gradient(135deg,var(--accent),#5b3ee0);box-shadow:0 4px 14px rgba(118,87,255,.45);flex:none}
+.tPubBrandLogo{width:28px;height:28px;object-fit:cover;border-radius:9px;border:1px solid rgba(255,255,255,.14);box-shadow:0 4px 14px rgba(118,87,255,.35);flex:none;background:#15131f}
+.tPubHome{display:inline-flex;align-items:center;gap:7px;min-height:44px;padding:9px 15px;border-radius:11px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);color:#cfccdd;font-size:13px;text-decoration:none}
+.tPubHome svg{width:16px;height:16px}
+.tPubHero{position:relative;display:grid;grid-template-columns:minmax(0,1.55fr) minmax(230px,.75fr);gap:24px;align-items:center;padding:30px 30px;border:1px solid rgba(118,87,255,.30);border-radius:22px;overflow:hidden;background:linear-gradient(140deg,rgba(118,87,255,.18),rgba(14,13,22,.75) 46%),#12101c;box-shadow:0 18px 50px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.05)}
+.tPubHero::after{content:"";position:absolute;inset:0;background:radial-gradient(560px 240px at 88% -60px,rgba(118,87,255,.38),transparent 70%);pointer-events:none}
+.tPubHeroBg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.30}
+.tPubHero.hasBanner::before{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(7,7,12,.93),rgba(7,7,12,.60) 72%,rgba(7,7,12,.88));pointer-events:none}
+.tPubHeroMain{position:relative;z-index:1;display:grid;gap:10px;min-width:0}
+.tPubEyebrow{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.tPubEyebrow>span{font-size:10.5px;letter-spacing:.16em;font-weight:800;color:#a78bfa}
+.tPubStatus{font-style:normal;font-size:10.5px;font-weight:800;letter-spacing:.1em;padding:4px 11px;border-radius:999px;border:1px solid rgba(255,255,255,.16);color:#cfccdd}
+.tPubStatus.registration{color:#34d399;border-color:rgba(52,211,153,.55);background:rgba(52,211,153,.1)}
+.tPubStatus.upcoming{color:#60a5fa;border-color:rgba(96,165,250,.55);background:rgba(96,165,250,.1)}
+.tPubStatus.live{color:#f59e0b;border-color:rgba(245,158,11,.6);background:rgba(245,158,11,.12)}
+.tPubStatus.finished{color:#facc15;border-color:rgba(250,204,21,.55);background:rgba(250,204,21,.1)}
+.tPubStatus.draft{color:#8d89a3}
+.tPubHero h1{margin:0;font-size:clamp(28px,4.4vw,44px);line-height:1.06;letter-spacing:-.01em;color:#fff;overflow-wrap:anywhere}
+.tPubGame{margin:0;font-size:15px;font-weight:800;color:#f59e0b;letter-spacing:.02em}
+.tPubDesc{margin:0;font-size:14px;line-height:1.65;color:#b9b6c9;max-width:72ch;overflow-wrap:anywhere}
+.tPubChips{display:flex;flex-wrap:wrap;gap:9px;margin-top:4px}
+.tPubChips span{display:inline-flex;align-items:center;gap:7px;padding:7px 13px;border-radius:10px;border:1px solid rgba(255,255,255,.10);background:rgba(0,0,0,.38);font-size:12.5px;color:#cfccdd}
+.tPubChips svg{width:15px;height:15px;color:#a78bfa}
+.tPubChips .open{border-color:rgba(52,211,153,.5);color:#7fe6c3}
+.tPubChips .open i{width:8px;height:8px;border-radius:50%;background:#34d399;box-shadow:0 0 8px #34d399}
+.tPubHeroStats{position:relative;z-index:1;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tPubHeroStats>div{display:grid;gap:4px;padding:13px 14px;border-radius:14px;border:1px solid rgba(255,255,255,.09);background:rgba(6,6,12,.66)}
+.tPubHeroStats small{font-size:9.5px;letter-spacing:.14em;color:#8d89a3;font-weight:700}
+.tPubHeroStats b{font-size:16px;color:#fff;overflow-wrap:anywhere}
+.tPubHeroStats b i{font-style:normal;font-size:12px;color:#8d89a3}
+.tPubChamp{position:relative;display:flex;align-items:center;gap:16px;padding:20px 24px;border:1px solid rgba(250,204,21,.5);border-radius:18px;background:linear-gradient(120deg,rgba(250,204,21,.15),rgba(250,204,21,.04) 45%,transparent),#151208;box-shadow:0 0 36px rgba(250,204,21,.12)}
+.tPubChampIcon{display:grid;place-items:center;width:52px;height:52px;border-radius:15px;border:1px solid rgba(250,204,21,.5);background:rgba(250,204,21,.12);flex:none}
+.tPubChampIcon svg{width:26px;height:26px;color:#facc15}
+.tPubChampLogo{width:56px;height:56px;object-fit:cover;border-radius:14px;border:1px solid rgba(250,204,21,.55);flex:none}
+.tPubChampCopy{display:grid;gap:3px;min-width:0}
+.tPubChampCopy small{font-size:10.5px;letter-spacing:.2em;color:#e7c65a;font-weight:800}
+.tPubChampCopy b{font-size:clamp(20px,3vw,28px);color:#fff;overflow-wrap:anywhere}
+.tPubChampRoster{font-size:12.5px;color:#cfc7a8;overflow-wrap:anywhere}
+.tPubChampTrophy{margin-left:auto;font-size:30px;flex:none;opacity:.9}
+.tPubGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(340px,100%),1fr));gap:18px;align-items:start}
+.tPubGrid.oneCol{grid-template-columns:1fr}
+/* Desktop balance: event/registration column + inline upcoming/results on the
+   left, the wider teams/participants grid on the right — no dead space. */
+.tPubMain{grid-template-columns:minmax(300px,.72fr) minmax(0,1.5fr);align-items:start}
+.tPubCol{display:grid;gap:18px;align-content:start;min-width:0}
+.tPubCard{display:grid;gap:14px;padding:20px;border:1px solid rgba(255,255,255,.08);border-radius:18px;background:linear-gradient(180deg,rgba(118,87,255,.07),transparent 42%),#101019;min-width:0;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+.tPubBracket{padding:22px}
+.tPubCardHead{display:flex;align-items:center;gap:12px;min-width:0}
+.tPubCardHead>span{display:grid;place-items:center;width:40px;height:40px;border-radius:12px;background:rgba(118,87,255,.18);color:#a78bfa;flex:none}
+.tPubCardHead svg{width:19px;height:19px}
+.tPubCardHead small{font-size:10px;letter-spacing:.14em;color:#8d89a3}
+.tPubCardHead h2{margin:2px 0 0;font-size:17px;color:#fff}
+.tPubFacts{list-style:none;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(150px,100%),1fr));gap:10px;margin:0}
+.tPubFacts li{display:grid;gap:3px;padding:11px 13px;border:1px solid rgba(255,255,255,.07);border-radius:12px;background:rgba(0,0,0,.32);min-width:0}
+.tPubFacts small{font-size:9.5px;letter-spacing:.13em;color:#8d89a3}
+.tPubFacts b{font-size:13px;color:var(--text);overflow-wrap:anywhere}
+.tPubRegCta{display:grid;gap:12px}
+.tPubRegCta p{margin:0;font-size:13.5px;line-height:1.6;color:#b9b6c9}
+.tPubBtn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;padding:11px 18px;border-radius:12px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.05);color:var(--text);font-size:14px;font-weight:700;cursor:pointer}
+.tPubBtn svg{width:17px;height:17px}
+.tPubBtn.primary{background:linear-gradient(135deg,var(--accent),#5b3ee0);border-color:transparent;color:#fff;box-shadow:0 8px 22px rgba(118,87,255,.35)}
+.tPubBtn:disabled{opacity:.55;cursor:not-allowed}
+.tPubRegDone{display:flex;align-items:center;gap:10px;padding:13px 15px;border:1px solid rgba(52,211,153,.45);border-radius:13px;background:rgba(16,38,25,.55);color:#d7ffe4;font-size:13.5px;overflow-wrap:anywhere}
+.tPubRegDone svg{width:19px;height:19px;color:#34d399;flex:none}
+.tPubRegClosed{margin:0;font-size:12.5px;color:#8d89a3;padding:9px 12px;border:1px dashed rgba(255,255,255,.12);border-radius:11px;background:rgba(0,0,0,.24)}
+.tPubRegForm{display:grid;gap:12px;padding:15px;border:1px solid rgba(118,87,255,.32);border-radius:14px;background:rgba(6,6,12,.55)}
+.tPubRegForm label{display:grid;gap:6px}
+.tPubRegForm label>span,.tPubMembersEdit>span{font-size:10px;letter-spacing:.1em;color:#8d89a3}
+.tPubRegForm input{min-height:46px;padding:11px 13px;border:1px solid rgba(255,255,255,.12);border-radius:11px;background:rgba(0,0,0,.42);color:var(--text);font-size:14px;font-family:inherit;width:100%}
+.tPubMembersEdit{display:grid;gap:8px}
+.tPubMemberRow{display:grid;grid-template-columns:1.2fr 1fr auto;gap:8px}
+.tPubMemberRow button{min-width:44px;min-height:44px;border-radius:11px;border:1px solid rgba(225,93,93,.45);background:rgba(225,93,93,.14);color:#ffd0d0;cursor:pointer;display:grid;place-items:center}
+.tPubMemberRow button svg{width:16px;height:16px}
+.tPubMemberAdd{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:44px;border-radius:11px;border:1px dashed rgba(255,255,255,.2);background:transparent;color:#b9b6c9;font-size:13px;cursor:pointer}
+.tPubMemberAdd svg{width:15px;height:15px}
+.tPubIdentity{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0;font-size:13px;color:#b9b6c9}
+.tPubIdentity svg{width:17px;height:17px;color:#34d399;flex:none}
+.tPubIdentity b{color:#fff;overflow-wrap:anywhere}
+.tPubRegActions{display:flex;flex-wrap:wrap;gap:9px}
+.tPubRegActions .tPubBtn{flex:1 1 180px}
+.tPubNotice{padding:11px 13px;border-radius:11px;font-size:13px;border:1px solid var(--border);overflow-wrap:anywhere}
+.tPubNotice.ok{border-color:rgba(120,220,150,.45);background:rgba(16,38,25,.5);color:#d7ffe4}
+.tPubNotice.error{border-color:rgba(225,93,93,.5);background:rgba(48,18,18,.5);color:#ffd0d0}
+.tPubPeople{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(170px,100%),1fr));gap:9px}
+.tPubPeople span{display:flex;align-items:center;gap:9px;padding:10px 12px;border:1px solid rgba(255,255,255,.07);border-radius:11px;background:rgba(0,0,0,.32);min-width:0}
+.tPubPeople i{font-style:normal;font-size:11px;font-weight:800;color:#a78bfa;background:rgba(118,87,255,.16);border-radius:7px;padding:3px 7px;flex:none}
+.tPubPeople b{font-size:13.5px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tPubTeams{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(260px,100%),1fr));gap:12px}
+.tPubTeam{display:grid;gap:8px;padding:14px;border:1px solid rgba(255,255,255,.08);border-radius:14px;background:rgba(0,0,0,.34);min-width:0}
+.tPubTeam header{display:flex;align-items:center;gap:10px;min-width:0}
+.tPubTeam header b{font-size:15.5px;color:#fff;overflow-wrap:anywhere}
+.tPubTeamLogo{width:34px;height:34px;object-fit:cover;border-radius:9px;border:1px solid rgba(118,87,255,.45);flex:none}
+.tPubTeamSeed{display:grid;place-items:center;min-width:34px;height:32px;border-radius:9px;background:rgba(118,87,255,.16);color:#a78bfa;font-size:12px;font-weight:800;flex:none}
+.tPubTeamCaptain{font-size:12px;color:#f59e0b;overflow-wrap:anywhere}
+.tPubTeam ul{list-style:none;display:grid;gap:4px;margin:0;padding:0}
+.tPubTeam ul li{font-size:12.5px;color:#b9b6c9;padding-left:15px;position:relative;overflow-wrap:anywhere}
+.tPubTeam ul li::before{content:"";position:absolute;left:0;top:7px;width:6px;height:6px;border-radius:50%;background:rgba(118,87,255,.75)}
+.tPubMatches{list-style:none;display:grid;gap:8px;margin:0;padding:0}
+.tPubMatches li{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:11px 13px;border:1px solid rgba(96,165,250,.32);border-radius:12px;background:rgba(96,165,250,.06)}
+.tPubMatches b{font-size:13.5px;color:var(--text);overflow-wrap:anywhere}
+.tPubMatches em{font-style:normal;font-size:11px;letter-spacing:.08em;color:#8d89a3}
+.tPubRound{font-size:10px;letter-spacing:.1em;font-weight:800;color:#8d89a3;text-transform:uppercase;min-width:88px;overflow-wrap:anywhere}
+.tPubResults{list-style:none;display:grid;gap:8px;margin:0;padding:0}
+.tPubResults li{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:11px 13px;border:1px solid rgba(255,255,255,.07);border-radius:12px;background:rgba(0,0,0,.32)}
+.tPubResults b{font-size:13.5px;overflow-wrap:anywhere}
+.tPubResults b.won{color:#8ef2c8}
+.tPubResults b.lost{color:#9a96ad}
+.tPubScore{margin-left:auto;display:inline-flex;align-items:center;gap:7px;font-size:15px;font-weight:800;color:#fff;font-variant-numeric:tabular-nums;flex:none}
+.tPubScore i{font-style:normal;color:#8d89a3}
+.tPubCompact{margin:0;padding:13px 16px;border:1px dashed rgba(255,255,255,.12);border-radius:13px;font-size:13px;color:#8d89a3;background:rgba(0,0,0,.24)}
+.tPubEmpty{font-size:13px;color:#8d89a3;margin:0}
+.tPubState{display:grid;justify-items:center;gap:9px;text-align:center;padding:80px 18px;color:#8d89a3}
+.tPubState b{color:#fff;font-size:16px}
+.tPubState span{font-size:13px;max-width:52ch}
+.tPubState svg{width:26px;height:26px;color:#a78bfa}
+.tPubState .spin{animation:tSpin .9s linear infinite}
+.tPubState a{display:inline-flex;align-items:center;gap:8px;margin-top:6px;min-height:44px;padding:10px 16px;border-radius:11px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.05);color:var(--text);text-decoration:none}
+.tPubFooter{text-align:center;font-size:12.5px;color:#8d89a3;letter-spacing:.05em;padding:16px 0 2px;border-top:1px solid rgba(255,255,255,.07);overflow-wrap:anywhere}
+.tPubFooter a{color:#a78bfa;text-decoration:none;border-bottom:1px solid rgba(167,139,250,.4)}
+.tPubFooter a:hover{color:#c4b5fd}
+.tPubLogoHelp{font-size:11.5px;line-height:1.5;color:#8d89a3}
+.tPubLogoPreview{display:inline-flex;align-items:center;gap:9px;padding:7px 10px;border:1px solid rgba(255,255,255,.10);border-radius:11px;background:rgba(0,0,0,.32);max-width:100%}
+.tPubLogoPreview img{width:30px;height:30px;object-fit:cover;border-radius:8px;flex:none}
+.tPubLogoHint{font-size:11.5px;color:#f0b35e;line-height:1.5}
+
+@media(max-width:768px){
+ .tCardActions{flex-direction:column}
+ .tDetailActions{width:100%}
+ .tDetailActions>*{flex:1 1 160px}
+ .tPartList li{flex-wrap:wrap}
+ .tPartActions{width:100%;justify-content:flex-start}
+ .tPartActions button{flex:1 1 auto;min-height:44px}
+ .tMatchScore{width:50px;min-width:50px}
+ .tBracketRound{flex:0 0 216px;min-width:216px}
+ .tPubHero{grid-template-columns:1fr;padding:24px}
+ .tPubHeroStats{grid-template-columns:repeat(4,1fr)}
+ .tPubMain{grid-template-columns:1fr}
+ .tBrandGrid{grid-template-columns:1fr}
+ .tMemberRow{grid-template-columns:1fr}
+}
+/* ---- Touch-target guarantee (V1.2.1) -------------------------------------
+   style.css ships a generic `.contentWell button{min-height:40px}` AFTER this
+   file at the same specificity, so every single-class 44px rule above silently
+   resolved to 40px on the Control Center pages. Doubling the class raises
+   specificity (not source order) and works in both subtrees — the list view
+   (div.tournamentsPage) and the detail view (section.workspace > div.tDetail). */
+.tToolbar.tToolbar button:not(.modActionTrigger),.tDetailActions.tDetailActions button,.tDetailActions.tDetailActions a,.tPartActions.tPartActions button,.tModal.tModal footer button,.tBack.tBack,.tToggle.tToggle,.tBtn.tBtn,.tClose.tClose,.tBrandActions.tBrandActions button,.tSettings.tSettings button:not(.modActionTrigger),.tPanelHead.tPanelHead button,.tPartFormActions.tPartFormActions button,.tMemberRow.tMemberRow button,.tMemberAdd.tMemberAdd,.tBracketChips.tBracketChips button,.tBracketSteps.tBracketSteps button,.tMatchConfirm.tMatchConfirm{min-height:44px}
+.tBracketSteps.tBracketSteps button{min-width:44px}
+
+@media(max-width:480px){
+ .tPub{padding:14px 12px 44px;gap:14px}
+ .tPubBar{flex-wrap:wrap;gap:8px}
+ .tPubBrand{min-width:0;flex:1 1 auto}
+ .tPubBrand small{display:none}
+ .tPubHome{flex:none}
+ .tPubHero{padding:18px 15px;gap:16px;border-radius:16px}
+ .tPubHeroStats{grid-template-columns:1fr 1fr}
+ .tPubChips span{width:100%;justify-content:flex-start}
+ .tPubChamp{flex-wrap:wrap;padding:16px}
+ .tPubChampTrophy{display:none}
+ .tPubMemberRow{grid-template-columns:1fr}
+ .tPubMemberRow button{width:100%}
+ .tPubRound{min-width:0;width:100%}
+ .tPubScore{margin-left:0}
+ .tPubCard{padding:16px}
+ .tToolbar>*{width:100%}
+ .tToolbar button{width:100%}
+ .tFilter select{width:100%}
+ .tModalBackdrop{padding:10px}
+ .tModal{max-height:94vh}
+ .tDetailTitle{flex-direction:column;align-items:flex-start}
+ .tDetailStatus{align-items:flex-start}
+ .tDetailActions>*{flex:1 1 100%}
+ .tMatchPick{width:26px;height:26px}
+ .tMatchScore{min-height:44px}
+ .tMatchConfirm{min-height:44px}
+ .tBracketChips button{min-height:44px}
+ .tBracketSteps button{width:44px;height:44px}
+ .tBrandGrid{grid-template-columns:1fr}
+ .tBrandPreview{flex-wrap:wrap}
+ .tBrandActions{width:100%}
+ .tBrandActions button{flex:1 1 100%}
+ .tPubBrandLogo{width:26px;height:26px}
+ .tPlanLock{flex-wrap:wrap}
+ .tPlanLock .tBtn{margin-left:0;width:100%}
+}
+
+/* V1.2.3 free vs premium plan limits (Create modal): locked options stay
+   visible (gold, like the branding Premium hints) and the upgrade CTA reuses
+   the existing .tBrandLocked hint + .tBtn button styling. */
+.tModal .modActionMenu li.locked{color:#e7c65a}
+.tModal .modActionMenu li.locked.active,.tModal .modActionMenu li.locked.selected{background:rgba(232,137,44,.1)}
+.tBrandLocked.tPlanLock{align-items:center;gap:10px}
+.tPlanLock svg{margin-top:0}
+.tPlanLock .tBtn{margin-left:auto;flex:none}
+.tPlanLock .tBtn:hover{background:rgba(255,255,255,.08);border-color:rgba(232,176,120,.5)}

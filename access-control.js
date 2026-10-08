@@ -12,6 +12,9 @@ export const ACCESS_KEYS = [
   "voice_create",
   "music_bot",
   "streamers",
+  "tournaments",
+  "leveling",
+  "coins",
   "bot_status",
   "logs",
   "settings"
@@ -217,6 +220,9 @@ export function routeAccessKey(path) {
   if (p.startsWith("/api/streaming-accounts")) return null;
   if (p.startsWith("/api/streamers/self")) return null;
   if (p.startsWith("/api/streamers")) return "streamers";
+  if (p.startsWith("/api/tournaments")) return "tournaments";
+  if (p.startsWith("/api/coins")) return "coins";
+  if (p.startsWith("/api/leveling")) return "leveling";
   if (p.startsWith("/api/music")) return "music_bot";
   if (p.startsWith("/api/voice-create")) return "voice_create";
   if (p.startsWith("/api/tickets")) return "tickets";
@@ -253,6 +259,32 @@ export function requiredLevelForRequest(path, method = "GET") {
   }
 
   if (p === "/api/music/config" && m === "POST") return ACCESS_CONFIGURE;
+
+  // Tournaments: reading and running a bracket is the module's core use, so
+  // every management route (create, participants, seeds, results, status)
+  // requires OPERATE on the "tournaments" key — never nothing.
+  // Saving guild branding is a configuration change → CONFIGURE.
+  if (p === "/api/tournaments/branding" && m !== "GET") return ACCESS_CONFIGURE;
+  if (p.startsWith("/api/tournaments")) return ACCESS_OPERATE;
+
+  // Leveling: reading stats/leaderboards is the module's core use (OPERATE);
+  // saving configuration and every manual XP change (add/remove/set/reset)
+  // are privileged actions (CONFIGURE).
+  if (p === "/api/leveling" && m !== "GET") return ACCESS_CONFIGURE;
+  if (p === "/api/leveling/xp" && m === "POST") return ACCESS_CONFIGURE;
+  if (p === "/api/leveling/rewards" && m === "POST") return ACCESS_CONFIGURE;
+  if (/^\/api\/leveling\/rewards\/[^/]+$/.test(p) && m !== "GET") return ACCESS_CONFIGURE;
+  if (p === "/api/leveling/announce/test" && m === "POST") return ACCESS_CONFIGURE;
+  if (p.startsWith("/api/leveling")) return ACCESS_OPERATE;
+
+  // Baltic Coins: reading the economy is OPERATE; saving settings, changing
+  // wallet balances, shop management and refunds are CONFIGURE.
+  if (p === "/api/coins" && m !== "GET") return ACCESS_CONFIGURE;
+  if (/^\/api\/coins\/wallets\/\d+\/adjust$/.test(p) && m === "POST") return ACCESS_CONFIGURE;
+  if (p === "/api/coins/shop" && m !== "GET") return ACCESS_CONFIGURE;
+  if (/^\/api\/coins\/shop\/[^/]+$/.test(p) && m !== "GET") return ACCESS_CONFIGURE;
+  if (/^\/api\/coins\/purchases\/[^/]+\/(fulfill|refund)$/.test(p) && m === "POST") return ACCESS_CONFIGURE;
+  if (p.startsWith("/api/coins")) return ACCESS_OPERATE;
 
   if (p === "/api/voice-create" && m === "POST") return ACCESS_CONFIGURE;
 

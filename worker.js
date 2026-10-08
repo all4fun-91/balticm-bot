@@ -56,6 +56,64 @@ import {
 } from "./admin-logs.js";
 import { adminNameGaps, applyAdminLogNames, applyAdminPaymentNames, buildAdminNameMaps } from "./admin-names.js";
 import {
+  bracketCreate,
+  participantCreate,
+  participantEdit,
+  participantRemove,
+  resultRecord,
+  seedsReplace,
+  tournamentBrandingSave,
+  tournamentBrandingState,
+  tournamentCreate,
+  tournamentDelete,
+  tournamentDetail,
+  tournamentPublic,
+  tournamentPublicRegister,
+  tournamentsList,
+  tournamentStatusChange,
+  tournamentUpdate
+} from "./tournaments-api.js";
+import {
+  LEVELING_COMMAND_DEFINITIONS,
+  planLevelingCommandSync
+} from "./leveling.js";
+import {
+  levelingAnnounceTest,
+  levelingBoard,
+  levelingLeaderboardInteraction,
+  levelingOverview,
+  levelingRankInteraction,
+  levelingRewardAdd,
+  levelingRewardDelete,
+  levelingRewardUpdate,
+  levelingServiceMessage,
+  levelingServiceState,
+  levelingServiceVoice,
+  levelingXpAction,
+  saveLevelingSettings
+} from "./leveling-api.js";
+import {
+  coinsBalanceInteraction,
+  coinsCommandsRouter,
+  coinsDailyInteraction,
+  coinsOverview,
+  coinsPayInteraction,
+  coinsPurchasesPage,
+  coinsPurchaseFulfill,
+  coinsPurchaseRefund,
+  coinsShopCreate,
+  coinsShopDelete,
+  coinsShopList,
+  coinsShopUpdate,
+  coinsTransactionsPage,
+  coinsWalletAdjust,
+  coinsWalletDetail,
+  coinsWalletsPage,
+  coinsLeaderboardPage,
+  saveCoinsSettings
+} from "./coins-api.js";
+import { COINS_COMMAND_DEFINITIONS } from "./coins.js";
+import {
   ACCESS_CONFIGURE,
   ACCESS_KEYS,
   ACCESS_NONE,
@@ -4024,6 +4082,103 @@ async function ensureHelpCommandRegistered(env){
   console.log(JSON.stringify({component:"help-command",event:"created",commands:[...new Set([...names,HELP_COMMAND_DEFINITION.name])]}));
  }catch(e){fail("exception",0,String(e&&e.message||e))}
 }
+// Leveling V1: merge-based registration for ONLY the leveling commands.
+// Same contract as the /help sync — deterministic, idempotent, never a bulk
+// overwrite; commands owned by other modules (music, /help, …) are never in
+// the plan, so they cannot be created, patched or deleted from here.
+let levelingCommandsRegisteredAt=0;
+export const LEVELING_COMMANDS_SYNC_INTERVAL_MS=60000;
+export async function ensureLevelingCommandsRegistered(env){
+ if(!env.DISCORD_BOT_TOKEN)return;
+ if(levelingCommandsRegisteredAt&&Date.now()-levelingCommandsRegisteredAt<LEVELING_COMMANDS_SYNC_INTERVAL_MS)return;
+ const fail=(stage,status,detail)=>console.log(JSON.stringify({component:"leveling-commands",event:"sync-failed",stage,status:Number(status)||0,detail:String(detail||"").slice(0,200)}));
+ try{
+  const appRes=await discordGet("https://discord.com/api/v10/oauth2/applications/@me",botHeaders(env),"leveling-application","","leveling-commands");
+  if(!appRes||!appRes.ok)return fail("application",appRes?appRes.status:0,"application lookup");
+  const app=await appRes.json().catch(()=>null),appId=String(app?.id||"");
+  if(!/^\d{16,22}$/.test(appId))return fail("application",0,"invalid application id");
+  const base=`https://discord.com/api/v10/applications/${appId}/commands`;
+  const listRes=await discordGet(base,botHeaders(env),"leveling-list",appId,"leveling-commands");
+  if(!listRes||!listRes.ok)return fail("list",listRes?listRes.status:0,"global command list");
+  const list=await listRes.json().catch(()=>[]);
+  const plans=planLevelingCommandSync(Array.isArray(list)?list:[]);
+  let touched=false;
+  for(const plan of plans){
+   const def=LEVELING_COMMAND_DEFINITIONS.find(d=>d.name===plan.name);
+   if(plan.action==="none")continue;
+   if(plan.action==="dedupe"){
+    touched=true;
+    for(const id of plan.removeIds){
+     const dr=await fetch(`${base}/${id}`,{method:"DELETE",headers:botHeaders(env)});
+     console.log(JSON.stringify({component:"leveling-commands",event:dr.ok?"duplicate-removed":"sync-failed",stage:"dedupe",status:dr.status,name:plan.name}));
+    }
+    continue; // the kept copy is re-evaluated next tick
+   }
+   if(plan.action==="update"){
+    const pr=await fetch(`${base}/${plan.id}`,{method:"PATCH",headers:botHeaders(env,true),body:JSON.stringify(def)});
+    if(!pr.ok){fail("update",pr.status,await pr.text().catch(()=>""));continue}
+    touched=true;
+    console.log(JSON.stringify({component:"leveling-commands",event:"updated",name:plan.name}));
+    continue;
+   }
+   const cr=await fetch(base,{method:"POST",headers:botHeaders(env,true),body:JSON.stringify(def)});
+   if(!cr.ok){fail("create",cr.status,await cr.text().catch(()=>""));continue}
+   touched=true;
+   console.log(JSON.stringify({component:"leveling-commands",event:"created",name:plan.name}));
+  }
+  levelingCommandsRegisteredAt=Date.now();
+  if(!touched)console.log(JSON.stringify({component:"leveling-commands",event:"present",commands:LEVELING_COMMAND_DEFINITIONS.map(d=>d.name)}));
+ }catch(e){fail("exception",0,String(e&&e.message||e))}
+}
+// Baltic Coins V1 command sync — SAME contract as the leveling sync:
+// deterministic, idempotent, merge-based, and it only ever plans changes for
+// ITS OWN command names (balance, daily, pay, coins). Every other command —
+// /help, music, rank, leaderboard — is outside the plan and can never be
+// created, patched or deleted from here.
+let coinsCommandsRegisteredAt=0;
+export const COINS_COMMANDS_SYNC_INTERVAL_MS=60000;
+export async function ensureCoinsCommandsRegistered(env){
+ if(!env.DISCORD_BOT_TOKEN)return;
+ if(coinsCommandsRegisteredAt&&Date.now()-coinsCommandsRegisteredAt<COINS_COMMANDS_SYNC_INTERVAL_MS)return;
+ const fail=(stage,status,detail)=>console.log(JSON.stringify({component:"coins-commands",event:"sync-failed",stage,status:Number(status)||0,detail:String(detail||"").slice(0,200)}));
+ try{
+  const appRes=await discordGet("https://discord.com/api/v10/oauth2/applications/@me",botHeaders(env),"coins-application","","coins-commands");
+  if(!appRes||!appRes.ok)return fail("application",appRes?appRes.status:0,"application lookup");
+  const app=await appRes.json().catch(()=>null),appId=String(app?.id||"");
+  if(!/^\d{16,22}$/.test(appId))return fail("application",0,"invalid application id");
+  const base=`https://discord.com/api/v10/applications/${appId}/commands`;
+  const listRes=await discordGet(base,botHeaders(env),"coins-list",appId,"coins-commands");
+  if(!listRes||!listRes.ok)return fail("list",listRes?listRes.status:0,"global command list");
+  const list=await listRes.json().catch(()=>[]);
+  const plans=planLevelingCommandSync(Array.isArray(list)?list:[],COINS_COMMAND_DEFINITIONS);
+  let touched=false;
+  for(const plan of plans){
+   const def=COINS_COMMAND_DEFINITIONS.find(d=>d.name===plan.name);
+   if(plan.action==="none")continue;
+   if(plan.action==="dedupe"){
+    touched=true;
+    for(const id of plan.removeIds){
+     const dr=await fetch(`${base}/${id}`,{method:"DELETE",headers:botHeaders(env)});
+     console.log(JSON.stringify({component:"coins-commands",event:dr.ok?"duplicate-removed":"sync-failed",stage:"dedupe",status:dr.status,name:plan.name}));
+    }
+    continue; // the kept copy is re-evaluated next tick
+   }
+   if(plan.action==="create"){
+    const cr=await fetch(base,{method:"POST",headers:{...botHeaders(env),"Content-Type":"application/json"},body:JSON.stringify(def)});
+    touched=true;
+    console.log(JSON.stringify({component:"coins-commands",event:cr.ok?"created":"sync-failed",stage:"create",status:cr.status,name:plan.name}));
+    continue;
+   }
+   if(plan.action==="update"){
+    const ur=await fetch(`${base}/${plan.id}`,{method:"PATCH",headers:{...botHeaders(env),"Content-Type":"application/json"},body:JSON.stringify(def)});
+    touched=true;
+    console.log(JSON.stringify({component:"coins-commands",event:ur.ok?"updated":"sync-failed",stage:"update",status:ur.status,name:plan.name}));
+   }
+  }
+  if(!touched)console.log(JSON.stringify({component:"coins-commands",event:"present",commands:COINS_COMMAND_DEFINITIONS.map(d=>d.name)}));
+  coinsCommandsRegisteredAt=Date.now();
+ }catch(e){fail("exception",0,String(e&&e.message||e))}
+}
 async function discordInteractionGateway(req,env,ctx){
  if(req.method!=="POST")return json({ok:true,service:"BalticM Discord Interaction Gateway",version:"1.0.0"});
  const raw=new Uint8Array(await req.arrayBuffer());
@@ -4032,6 +4187,12 @@ async function discordInteractionGateway(req,env,ctx){
  let interaction;try{interaction=JSON.parse(dec.decode(raw))}catch{return json({error:"Invalid JSON"},400)}
  if(interaction?.type===1)return json({type:1});
  if(interaction?.type===2&&String(interaction?.data?.name||"")==="help")return helpCommandResponse();
+ if(interaction?.type===2&&String(interaction?.data?.name||"")==="rank")return levelingRankInteraction(env,interaction);
+ if(interaction?.type===2&&String(interaction?.data?.name||"")==="leaderboard")return levelingLeaderboardInteraction(env,interaction);
+ // Baltic Coins V1: /balance /daily /pay /coins — handled by the worker's
+ // economy engine in the interaction's OWN guild context; everything else
+ // keeps flowing to the existing bot service untouched.
+ if(interaction?.type===2){const cn=String(interaction?.data?.name||"");if(cn==="balance")return coinsBalanceInteraction(env,interaction);if(cn==="daily")return coinsDailyInteraction(env,interaction);if(cn==="pay")return coinsPayInteraction(env,interaction);if(cn==="coins")return coinsCommandsRouter(env,interaction);}
  const customId=String(interaction?.data?.custom_id||"");
  if(interaction?.type===3&&customId.startsWith("ticket_create:")){
  const parts=customId.slice("ticket_create:".length).split(":"),guildId=parts[0],typeKey=parts[1]||"support";
@@ -4064,12 +4225,15 @@ if(interaction?.type===3&&customId.startsWith("giveaway_enter:")){try{return awa
  return json({type:4,data:{content:"BalticM.eu interaction server is online.",flags:64}});
 }
 
-export default{async scheduled(event,env,ctx){await Promise.all([finishDueGiveaways(env),enforceFreeBrandingForManagedGuilds(env),pollAllStreamers(env),ensureHelpCommandRegistered(env)])},async fetch(req,env,ctx){
+export default{async scheduled(event,env,ctx){await Promise.all([finishDueGiveaways(env),enforceFreeBrandingForManagedGuilds(env),pollAllStreamers(env),ensureHelpCommandRegistered(env),ensureLevelingCommandsRegistered(env),ensureCoinsCommandsRegistered(env)])},async fetch(req,env,ctx){
  const u=new URL(req.url),p=u.pathname;
  if(p==="/api/health")return health(req,env);
  if(p==="/api/status-public")return json({ok:true,service:"BalticM Bot Center",version:"status-public-v2",checkedAt:new Date().toISOString()});
  if(p==="/api/tebex/webhook")return tebexWebhook(req,env);
  if(p==="/api/reaction-roles/service/event"&&req.method==="POST")return reactionRoleServiceEvent(req,env);
+ if(p==="/api/leveling/service/message"&&req.method==="POST"){const secret=req.headers.get("X-BalticM-Service-Secret")||"";if(!env.BALTICM_REACTION_SERVICE_SECRET||secret!==env.BALTICM_REACTION_SERVICE_SECRET)return json({error:"Unauthorized"},401);return levelingServiceMessage(req,env);}
+ if(p==="/api/leveling/service/voice"&&req.method==="POST"){const secret=req.headers.get("X-BalticM-Service-Secret")||"";if(!env.BALTICM_VOICE_SERVICE_SECRET||secret!==env.BALTICM_VOICE_SERVICE_SECRET)return json({error:"Unauthorized"},401);return levelingServiceVoice(req,env);}
+ if(p==="/api/leveling/service/state"){const guildId=u.searchParams.get("guildId"),secret=req.headers.get("X-BalticM-Service-Secret")||"";if(!env.BALTICM_VOICE_SERVICE_SECRET||secret!==env.BALTICM_VOICE_SERVICE_SECRET)return json({error:"Unauthorized"},401);return levelingServiceState(env,guildId||"");}
  if(p==="/api/discord-interactions")return discordInteractionGateway(req,env,ctx);
  if(p==="/api/desktop/latest")return desktopLatest();
  const um=p.match(/^\/api\/desktop\/update\/([^/]+)\/([^/]+)\/([^/]+)$/);if(um)return desktopUpdate(decodeURIComponent(um[1]),decodeURIComponent(um[2]),decodeURIComponent(um[3]));
@@ -4080,6 +4244,17 @@ export default{async scheduled(event,env,ctx){await Promise.all([finishDueGiveaw
  if(p==="/api/auth/callback")return callback(req,env);
  if(p==="/api/auth/logout")return new Response(null,{status:302,headers:{Location:publicAppOrigin(env,req)+"/","Set-Cookie":`${COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`}});
  if(p==="/api/auth/me")return handleAuthMe(req,env,{refreshGuilds:user=>refreshAccessibleGuilds(env,user)});
+ /* Public tournament routes — no Control Center session for reads; registration
+    requires a Discord session but never admin permission. Registered before the
+    authenticated /api/* gate below. */
+ if(p.startsWith("/api/tournament-public/")){
+  const rest=p.slice("/api/tournament-public/".length),register=rest.endsWith("/register");
+  const slug=decodeURIComponent((register?rest.slice(0,-"/register".length):rest).replace(/\/$/,""));
+  if(!slug)return json({error:"Not found"},404);
+  if(req.method==="GET"&&!register){const visitor=await session(req,env).catch(()=>null);return tournamentPublic(req,env,slug,visitor);}
+  if(req.method==="POST"&&register){const user=await session(req,env);if(!user)return json({error:"Unauthorized"},401);return tournamentPublicRegister(req,env,user,slug);}
+  return json({error:"Not found"},404);
+ }
  const stCb=p.match(/^\/api\/profile\/streaming\/(twitch|tiktok|kick)\/callback$/);
  if(stCb)return streamingOAuthCallback(req,env,stCb[1]);
  if(p.startsWith("/api/")){try{const user=await session(req,env);if(!user)return json({error:"Unauthorized"},401);if(p==="/api/control-access"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);const permissions={};for(const k of ACCESS_KEYS)permissions[k]=await controlAccessLevel(env,user,guildId,k);const mod=await moduleSettingsState(env,guildId);const modules={};for(const k of MODULE_KEYS)modules[k]=mod.modules?.[k]!==false;return json({permissions,modules});}
@@ -4165,6 +4340,35 @@ const st=p.match(/^\/api\/streamers\/([^/]+)(?:\/(check))?$/);if(st){const guild
 const an=p.match(new RegExp("^/api/announcements/([^/]+)(?:/(publish))?$"));if(an){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);const id=decodeURIComponent(an[1]);if(an[2]==="publish"&&req.method==="POST")return publishAnnouncement(env,guildId,id);if(!an[2]&&req.method==="PUT")return saveAnnouncement(req,env,guildId,id);if(!an[2]&&req.method==="DELETE")return deleteAnnouncement(env,guildId,id);}
 if(p==="/api/direct-messages/opt-outs"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);if(req.method==="GET")return dmOptOutState(env,guildId);if(req.method==="DELETE"){let body;try{body=await req.json()}catch{return json({error:"Invalid JSON"},400)}const userId=String(body.userId||"").trim();if(!/^\d{16,22}$/.test(userId))return json({error:"Invalid user"},400);return setDmOptOut(env,guildId,userId,false)}return json({error:"Method not allowed"},405);}
 if(p==="/api/direct-messages"&&req.method==="POST"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return sendDirectMessages(req,env,guildId);}
+if(p==="/api/tournaments"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);if(req.method==="GET")return tournamentsList(req,env,user);if(req.method==="POST")return tournamentCreate(req,env,user);return json({error:"Method not allowed"},405);}
+const trnBranding=p.match(/^\/api\/tournaments\/branding$/);if(trnBranding){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);if(req.method==="GET")return tournamentBrandingState(req,env,user);if(req.method==="POST")return tournamentBrandingSave(req,env,user);return json({error:"Method not allowed"},405);}
+const trnOne=p.match(/^\/api\/tournaments\/([^/]+)$/);if(trnOne){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);const id=decodeURIComponent(trnOne[1]);if(req.method==="GET")return tournamentDetail(req,env,user,id);if(req.method==="PATCH")return tournamentUpdate(req,env,user,id);if(req.method==="DELETE")return tournamentDelete(env,user,guildId,id);return json({error:"Method not allowed"},405);}
+if(p==="/api/leveling"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);if(req.method==="GET")return levelingOverview(req,env,user,guildId);if(req.method==="POST")return saveLevelingSettings(req,env,user,guildId);return json({error:"Method not allowed"},405);}
+if(p==="/api/leveling/leaderboard"&&req.method==="GET"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return levelingBoard(req,env,user,guildId);}
+if(p==="/api/leveling/xp"&&req.method==="POST"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return levelingXpAction(req,env,user,guildId,{onAudit:entry=>addActivityLog(env,guildId,entry)});}
+if(p==="/api/leveling/rewards"&&req.method==="POST"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return levelingRewardAdd(req,env,user,guildId);}
+const lvRew=p.match(/^\/api\/leveling\/rewards\/([^/]+)$/);if(lvRew&&(req.method==="DELETE"||req.method==="PUT")){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);const lvId=decodeURIComponent(lvRew[1]);return req.method==="PUT"?levelingRewardUpdate(req,env,user,guildId,lvId):levelingRewardDelete(req,env,user,guildId,lvId);}
+if(p==="/api/leveling/announce/test"&&req.method==="POST"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return levelingAnnounceTest(req,env,user,guildId);}
+/* Baltic Coins V1: guild-scoped economy routes. Reading requires OPERATE on
+   the "coins" key; saving settings, wallet adjustments, shop management and
+   refunds require CONFIGURE — same RBAC shape as Leveling. */
+if(p==="/api/coins"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);if(req.method==="GET")return coinsOverview(req,env,user,guildId);if(req.method==="POST")return saveCoinsSettings(req,env,user,guildId);return json({error:"Method not allowed"},405);}
+if(p==="/api/coins/leaderboard"&&req.method==="GET"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return coinsLeaderboardPage(req,env,user,guildId);}
+if(p==="/api/coins/wallets"&&req.method==="GET"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return coinsWalletsPage(req,env,user,guildId);}
+const coinW=p.match(/^\/api\/coins\/wallets\/(\d{16,22})$/);if(coinW&&req.method==="GET"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return coinsWalletDetail(req,env,user,guildId,coinW[1]);}
+const coinWa=p.match(/^\/api\/coins\/wallets\/(\d{16,22})\/adjust$/);if(coinWa&&req.method==="POST"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return coinsWalletAdjust(req,env,user,guildId,coinWa[1]);}
+if(p==="/api/coins/transactions"&&req.method==="GET"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return coinsTransactionsPage(req,env,user,guildId);}
+if(p==="/api/coins/shop"&&req.method==="GET"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return coinsShopList(req,env,user,guildId);}
+if(p==="/api/coins/shop"&&req.method==="POST"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return coinsShopCreate(req,env,user,guildId);}
+const coinShop=p.match(/^\/api\/coins\/shop\/([^/]+)$/);if(coinShop&&(req.method==="PUT"||req.method==="DELETE")){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return req.method==="PUT"?coinsShopUpdate(req,env,user,guildId,coinShop[1]):coinsShopDelete(req,env,user,guildId,coinShop[1]);}
+if(p==="/api/coins/purchases"&&req.method==="GET"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return coinsPurchasesPage(req,env,user,guildId);}
+const coinPur=p.match(/^\/api\/coins\/purchases\/([^/]+)\/(fulfill|refund)$/);if(coinPur&&req.method==="POST"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return coinPur[2]==="fulfill"?coinsPurchaseFulfill(req,env,user,guildId,coinPur[1]):coinsPurchaseRefund(req,env,user,guildId,coinPur[1]);}
+const trnPart=p.match(/^\/api\/tournaments\/([^/]+)\/participants$/);if(trnPart){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);if(req.method==="POST")return participantCreate(req,env,user,guildId,decodeURIComponent(trnPart[1]));return json({error:"Method not allowed"},405);}
+const trnPartOne=p.match(/^\/api\/tournaments\/([^/]+)\/participants\/([^/]+)$/);if(trnPartOne){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);const tid=decodeURIComponent(trnPartOne[1]),pid=decodeURIComponent(trnPartOne[2]);if(req.method==="PATCH")return participantEdit(req,env,user,guildId,tid,pid);if(req.method==="DELETE")return participantRemove(env,user,guildId,tid,pid);return json({error:"Method not allowed"},405);}
+const trnSeeds=p.match(/^\/api\/tournaments\/([^/]+)\/seeds$/);if(trnSeeds&&req.method==="POST"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return seedsReplace(req,env,user,guildId,decodeURIComponent(trnSeeds[1]));}
+const trnBracket=p.match(/^\/api\/tournaments\/([^/]+)\/bracket$/);if(trnBracket&&req.method==="POST"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return bracketCreate(env,user,guildId,decodeURIComponent(trnBracket[1]));}
+const trnMatch=p.match(/^\/api\/tournaments\/([^/]+)\/matches\/([^/]+)$/);if(trnMatch&&req.method==="POST"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return resultRecord(req,env,user,guildId,decodeURIComponent(trnMatch[1]),decodeURIComponent(trnMatch[2]));}
+const trnStatus=p.match(/^\/api\/tournaments\/([^/]+)\/status$/);if(trnStatus&&req.method==="POST"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return tournamentStatusChange(req,env,user,guildId,decodeURIComponent(trnStatus[1]));}
 if(p==="/api/logs"&&req.method==="GET"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return activityLogState(env,guildId,u);}
 if(p==="/api/discord/members"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return discordMembers(env,guildId);}
 if(p==="/api/discord/roles"&&req.method==="POST"){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return createDiscordRole(req,env,user,guildId);}const er=p.match(/^\/api\/discord\/roles\/([^/]+)$/);if(er&&(req.method==="PATCH"||req.method==="DELETE")){const guildId=u.searchParams.get("guildId");if(!guildId)return json({error:"guildId is required"},400);if(!canManageGuild(user,guildId))return json({error:"Forbidden"},403);return req.method==="DELETE"?deleteDiscordRole(env,user,guildId,decodeURIComponent(er[1])):editDiscordRole(req,env,user,guildId,decodeURIComponent(er[1]));}

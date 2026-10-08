@@ -89,5 +89,50 @@ const server=http.createServer((req,res)=>{
  }
  res.statusCode=404;res.end(JSON.stringify({error:"Not found"}));
 });
+/* ---- Leveling V1: ONE shared voice-XP snapshot loop (never a timer per user).
+   Only guilds whose leveling config has Voice XP enabled (Premium) are
+   posted; the worker re-validates eligibility (bot / alone / AFK) and
+   enforces the interval with persisted timestamps, so reconnects and
+   restarts cannot farm duplicate rewards. */
+const levelingCache=new Map();const LEVELING_CACHE_MS=60000;
+async function levelingState(guildId){
+ const hit=levelingCache.get(guildId);if(hit&&Date.now()-hit.at<LEVELING_CACHE_MS)return hit.value;
+ try{
+  const r=await fetch(`${CONTROL_URL}/api/leveling/service/state?guildId=${encodeURIComponent(guildId)}`,{headers:{"X-BalticM-Service-Secret":SERVICE_SECRET}});
+  const value=r.ok?await r.json():null;levelingCache.set(guildId,{at:Date.now(),value});return value;
+ }catch{levelingCache.set(guildId,{at:Date.now(),value:null});return null}
+}
+async function postVoiceSnapshot(){
+ if(!client.isReady())return;
+ for(const guild of client.guilds.cache.values()){
+  try{
+   const state=await levelingState(guild.id);
+   /* Baltic Coins: a guild with Coin voice rewards enabled always gets a
+      snapshot — the worker processes Coins BEFORE the Leveling/Premium
+      gates, so Free guilds and Leveling-off guilds still earn voice Coins.
+      Otherwise the original Leveling voice gate applies unchanged. */
+   if(state?.coins?.voice===true){}
+   else if(!state?.premium||state?.config?.enabled!==true||state?.config?.voiceXp!==true)continue;
+   const byChannel=new Map();
+   for(const vs of guild.voiceStates.cache.values()){
+    if(!vs.channelId||!vs.member?.user)continue;
+    if(!byChannel.has(vs.channelId))byChannel.set(vs.channelId,[]);
+    byChannel.get(vs.channelId).push(vs);
+   }
+   const members=[];
+   for(const list of byChannel.values()){
+    for(const v of list){
+     const u=v.member.user;
+     const humans=list.filter(x=>x.channelId===v.channelId&&!x.member?.user?.bot).length-(u.bot?0:1);
+     members.push({userId:String(u.id),username:String(u.username||""),displayName:String(v.member.displayName||u.global_name||u.username||""),avatar:String(u.avatar||""),bot:!!u.bot,afk:String(v.channelId)===String(guild.afkChannelId||""),alone:!u.bot&&humans<1});
+    }
+   }
+   if(!members.length)continue;
+   const r=await fetch(`${CONTROL_URL}/api/leveling/service/voice`,{method:"POST",headers:{"Content-Type":"application/json","X-BalticM-Service-Secret":SERVICE_SECRET},body:JSON.stringify({guildId:String(guild.id),members})});
+   if(!r.ok)console.log("Leveling voice API",guild.id,r.status,(await r.text()).slice(0,200));
+  }catch(e){console.error("voice snapshot",guild?.id,e)}
+ }
+}
+setInterval(()=>void postVoiceSnapshot(),60000);
 server.listen(PORT,()=>console.log("Health server listening on",PORT));
 client.login(TOKEN).catch(e=>console.error("discord login",e));

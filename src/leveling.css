@@ -1,0 +1,342 @@
+/* ============================ Leveling (Control Center) ============================ */
+.lvPage{display:grid;gap:14px;min-width:0}
+.lvHead{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
+.lvHeadActions{display:flex;align-items:center;gap:10px}
+.lvPlanBadge{font-size:10.5px;letter-spacing:.1em;font-weight:700;padding:6px 10px;border-radius:999px;border:1px solid var(--border);color:var(--text-secondary);background:rgba(255,255,255,.04)}
+.lvPlanBadge.premium{border-color:rgba(232,176,120,.5);color:#e7c65a;background:rgba(232,137,44,.12)}
+.lvHead button,.lvPanelHead button:not(.lvToggle){display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:10px 15px;border-radius:11px;border:1px solid var(--border);background:rgba(255,255,255,.04);color:var(--text);font-size:13px;font-weight:600;cursor:pointer;transition:.15s}
+.lvHead button svg{width:16px;height:16px}
+.lvHead button:disabled,.lvAdminButtons button:disabled,.lvAddReward:disabled{opacity:.5;cursor:not-allowed}
+.lvNotice{display:flex;gap:8px;padding:11px 14px;border-radius:11px;font-size:13px;border:1px solid var(--border);background:rgba(255,255,255,.03)}
+.lvNotice.ok{border-color:rgba(120,220,150,.45);background:rgba(16,38,25,.5);color:#d7ffe4}
+.lvNotice.error{border-color:rgba(225,93,93,.5);background:rgba(48,18,18,.5);color:#ffd0d0}
+.lvUpgrade{display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:11px;font-size:13px;border:1px solid rgba(232,176,120,.45);background:rgba(232,137,44,.1);color:#e7c65a}
+.lvUpgrade svg{width:16px;height:16px;flex:none}
+.lvUpgrade button{margin-left:auto;flex:none;min-height:40px;padding:8px 14px;border-radius:10px;border:1px solid rgba(232,176,120,.5);background:rgba(232,137,44,.16);color:#ffd9a3;font-size:12.5px;font-weight:700;cursor:pointer}
+.lvUpgrade button:hover{background:rgba(232,137,44,.28)}
+
+.lvState{display:grid;justify-items:center;gap:8px;text-align:center;padding:46px 18px;border:1px dashed var(--border);border-radius:16px;background:rgba(255,255,255,.02);color:var(--text-secondary)}
+.lvState b{color:var(--text);font-size:15px}
+.lvState span{font-size:13px;max-width:52ch}
+.lvState svg{width:26px;height:26px;color:var(--accent)}
+.lvSpin{animation:lvSpin .9s linear infinite}
+@keyframes lvSpin{to{transform:rotate(360deg)}}
+
+.lvPanel{display:grid;gap:12px;padding:16px;border:1px solid var(--border);border-radius:16px;background:rgba(255,255,255,.025);min-width:0}
+.lvPanelHead{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px}
+.lvPanelHead h3{margin:2px 0 0;font-size:16px;color:var(--text)}
+.lvPanelHead .eyebrow{font-size:10.5px;letter-spacing:.1em;color:var(--text-secondary);display:inline-flex;gap:6px;align-items:center}
+.lvPanelHead .eyebrow em{font-style:normal;color:#e7c65a}
+.lvCount{font-size:12px;font-weight:700;color:var(--text-secondary);padding:5px 10px;border-radius:999px;border:1px solid var(--border);background:rgba(255,255,255,.04)}
+.lvHint{font-size:12.5px;color:var(--text-secondary);margin:0}
+.lvEmpty{font-size:13px;color:var(--text-secondary);padding:16px;text-align:center;border:1px dashed var(--border);border-radius:12px}
+
+.lvStats{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}
+.lvStat{display:grid;gap:4px;padding:14px;border-radius:13px;border:1px solid var(--border);background:rgba(0,0,0,.22);min-width:0}
+.lvStat span{font-size:10px;letter-spacing:.09em;color:var(--text-secondary)}
+.lvStat b{font-size:19px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lvStat small{font-size:11.5px;color:var(--text-secondary)}
+.lvStat.on b{color:#8ef0b3}
+.lvStat.on{border-color:rgba(120,220,150,.3)}
+
+.lvGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
+/* V3: ignored channel/role dropdowns stay compact (~340px) and aligned
+   instead of stretching across the whole panel — full width on mobile. */
+.lvIgnored{grid-template-columns:repeat(2,minmax(0,340px))}
+.lvField{display:grid;gap:6px;min-width:0}
+.lvField>span{font-size:10.5px;letter-spacing:.08em;color:var(--text-secondary);display:inline-flex;gap:6px;align-items:center}
+.lvField>span em{font-style:normal;color:#e7c65a}
+.lvField small{font-size:11.5px;color:var(--text-secondary)}
+.lvField input{min-height:44px;padding:9px 12px;border:1px solid var(--border);border-radius:11px;background:rgba(0,0,0,.42);color:var(--text);font-size:13.5px;font-family:inherit;width:100%;color-scheme:dark}
+.lvField input:focus{outline:none;border-color:rgba(232,176,120,.55)}
+.lvField input:read-only{cursor:pointer;background:rgba(0,0,0,.28);color:var(--text-secondary)}
+.lvLockedField input{border-style:dashed}
+.lvChips{display:flex;flex-wrap:wrap;gap:6px;min-height:6px}
+.lvChip{display:inline-flex;align-items:center;gap:6px;padding:4px 4px 4px 10px;border-radius:9px;font-size:12px;font-weight:600;border:1px solid rgba(232,176,120,.3);background:rgba(232,137,44,.1);color:#ffd9a3;max-width:100%;min-height:30px}
+.lvChipName{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lvChip button{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;flex:none;border-radius:6px;border:0;background:transparent;color:#e7c65a;cursor:pointer;opacity:.75;transition:.15s;-webkit-tap-highlight-color:transparent}
+.lvChip button:hover{background:rgba(225,93,93,.3);color:#ffd0d0;opacity:1}
+.lvChip button:focus-visible{outline:2px solid var(--accent);outline-offset:1px;opacity:1}
+.lvChip button svg{width:13px;height:13px}
+.lvChipDot{width:9px;height:9px;border-radius:50%;flex:none;box-shadow:0 0 0 1px rgba(255,255,255,.25)}
+
+/* ---- Shared TicketOptionSelect widget, re-scoped for Leveling — same
+   declarations as `.ticketsPage .modAction*` (style.css): solid background,
+   floating overlay that never grows the card, sticky search, amber states. ---- */
+.lvPage .modActionSelect{position:relative;min-width:0}
+.lvPage .modActionSelect.open{z-index:6}
+.lvPage .modActionTrigger{display:flex;align-items:center;justify-content:flex-start;gap:8px;width:100%;min-height:44px;padding:0 12px;border:1px solid var(--border);border-radius:11px;background:var(--bg);color:var(--text);font:inherit;font-size:13.5px;text-align:left;cursor:pointer}
+.lvPage .modActionSelect.open .modActionTrigger,.lvPage .modActionTrigger:focus-visible{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.lvPage .modActionTrigger span{min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lvPage .modActionTrigger svg{width:16px;height:16px;margin-left:auto;flex:0 0 auto;color:var(--text-secondary)}
+.lvPage .modActionMenu{position:absolute;top:calc(100% + 6px);left:0;right:auto;width:100%;min-width:0;max-height:min(320px,calc(100dvh - 16px));overflow:auto;z-index:8;margin:0;padding:4px;list-style:none;border:1px solid rgba(232,176,120,.35);border-radius:12px;background:#0e0c0a;box-shadow:0 16px 36px rgba(0,0,0,.45)}
+.lvPage .modActionSelect.dropUp .modActionMenu{top:auto;bottom:calc(100% + 6px)}
+.lvPage .modActionMenu li{padding:10px 12px;border-radius:8px;color:var(--text);font-size:13px;line-height:1.3;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;-webkit-tap-highlight-color:transparent}
+.lvPage .modActionMenu li.active{background:rgba(232,137,44,.1)}
+.lvPage .modActionMenu li.selected{background:rgba(232,137,44,.18)}
+.lvPage .modActionMenu li.selected.active{background:rgba(232,137,44,.24)}
+.lvPage .modActionSearch{position:sticky;top:0;z-index:1;padding:0 0 4px;background:#0e0c0a;cursor:default}
+.lvPage .modActionSearch input{width:100%;min-height:44px;padding:0 12px;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font-family:inherit;font-size:13px;color-scheme:dark}
+.lvPage .modActionSearch input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+/* Role colour dot rendered by the shared widget when an option carries one. */
+.modActionDot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:7px;vertical-align:-1px;box-shadow:0 0 0 1px rgba(255,255,255,.25)}
+
+.lvToggle{display:inline-flex;align-items:center;gap:9px;min-height:44px;padding:9px 14px;border-radius:11px;border:1px solid var(--border);background:rgba(255,255,255,.04);color:var(--text-secondary);font-size:13px;font-weight:600;cursor:pointer;transition:.15s;text-align:left}
+.lvToggle i{width:34px;height:19px;border-radius:999px;background:rgba(255,255,255,.14);position:relative;flex:none;transition:.15s}
+.lvToggle i::after{content:"";position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:50%;background:#c8cdd6;transition:.15s}
+.lvToggle.on{color:var(--text);border-color:rgba(232,176,120,.45);background:rgba(232,137,44,.1)}
+.lvToggle.on i{background:var(--accent)}
+.lvToggle.on i::after{left:17px;background:#fff}
+.lvToggle:disabled{opacity:.55;cursor:not-allowed}
+
+.lvPremiumBox{display:grid;gap:12px;padding:14px;border-radius:13px;border:1px solid rgba(232,176,120,.3);background:rgba(232,137,44,.05)}
+.lvPremiumBox.locked{border-style:dashed;background:rgba(255,255,255,.02)}
+.lvPremiumHead{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px}
+.lvPremiumHead .eyebrow em{font-style:normal;color:#e7c65a}
+/* V3: one compact announce row — mode + channel + inline test action. */
+.lvAnnRow{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start}
+.lvAnnRow .lvField{flex:1 1 250px;max-width:340px}
+.lvAnnRow .lvField>span{min-height:16px}
+.lvAnnRow .lvTestField{flex:0 0 auto;max-width:none}
+.lvFormActions{display:flex;flex-wrap:wrap;align-items:center;gap:12px}
+.lvPrimary{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:10px 18px;border-radius:11px;border:1px solid transparent;background:var(--accent);color:#fff;font-size:13.5px;font-weight:700;cursor:pointer;transition:.15s}
+.lvPrimary:hover{background:var(--accent-hover)}
+.lvPrimary:disabled{opacity:.5;cursor:not-allowed}
+.lvPrimary svg{width:16px;height:16px}
+button.lvDanger{border-color:rgba(225,93,93,.5);color:#ffd0d0;background:rgba(225,93,93,.14);min-height:40px;padding:8px 13px;border-radius:10px;font-size:12.5px;font-weight:600;cursor:pointer}
+button.lvDanger:hover{background:rgba(225,93,93,.26)}
+
+.lvRewards{display:grid;gap:8px}
+.lvRewardRow{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:10px 12px;border-radius:11px;border:1px solid var(--border);background:rgba(0,0,0,.2)}
+.lvRewardLevel{font-size:11px;letter-spacing:.08em;font-weight:700;color:#e7c65a;padding:5px 9px;border-radius:8px;background:rgba(232,137,44,.14);border:1px solid rgba(232,176,120,.35)}
+.lvRewardRole{font-size:13.5px;color:var(--text);font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lvRewardRow button{margin-left:auto}
+.lvRewardAdd{display:grid;grid-template-columns:120px 1fr auto;gap:10px;align-items:end;padding-top:6px;border-top:1px dashed var(--border)}
+.lvAddReward{white-space:nowrap}
+
+.lvSearch{display:flex;align-items:center;gap:8px;min-width:210px;padding:0 12px;min-height:44px;border:1px solid var(--border);border-radius:11px;background:rgba(0,0,0,.25);transition:border-color .15s,box-shadow .15s}
+.lvSearch:focus-within{border-color:rgba(232,176,120,.55);box-shadow:0 0 0 3px rgba(232,176,120,.14)}
+.lvSearch svg{width:16px;height:16px;color:var(--text-secondary);flex:none}
+.lvSearch input{flex:1;min-width:0;border:0;background:transparent;color:var(--text);font-size:13.5px;min-height:42px;outline:none}
+.lvSearch input:focus,.lvSearch input:focus-visible{outline:none;border:0;box-shadow:none}
+.lvSearchClear{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;flex:none;border:0;border-radius:7px;background:transparent;color:var(--text-secondary);cursor:pointer;transition:.15s}
+.lvSearchClear:hover{background:rgba(255,255,255,.08);color:var(--text)}
+.lvSearchClear svg{width:13px;height:13px;color:inherit}
+.lvBoard{display:grid;gap:6px;min-width:0;overflow:hidden}
+.lvBoardRow{display:grid;grid-template-columns:52px minmax(160px,1.6fr) repeat(4,minmax(76px,1fr));gap:10px;align-items:center;padding:9px 12px;border-radius:11px;border:1px solid transparent;font-size:13px;color:var(--text-secondary);min-width:0}
+.lvBoardRow:not(.lvBoardHead):nth-child(even){background:rgba(255,255,255,.03);border-color:rgba(255,255,255,.05)}
+.lvBoardHead{font-size:10.5px;letter-spacing:.08em;color:var(--text-secondary);font-weight:600}
+/* V4 alignment: header cells use the SAME alignment as the values beneath
+   them — rank centered, MEMBER left, the four numeric columns right — so
+   every value sits directly under its column header. Tabular figures keep
+   digits on a fixed grid; nowrap keeps single-line headers on one line. */
+.lvBoardHead>span{white-space:nowrap;overflow:hidden;min-width:0}
+.lvBoardHead>span:nth-child(1){text-align:center}
+.lvBoardHead>span:nth-child(n+3){text-align:right}
+.lvBoardRow{font-variant-numeric:tabular-nums}
+.lvPos{text-align:center;font-weight:700;color:var(--text)}
+.lvMember{display:flex;align-items:center;gap:9px;min-width:0}
+.lvMember i{width:30px;height:30px;border-radius:50%;flex:none;overflow:hidden;background:rgba(232,137,44,.25);display:inline-flex;align-items:center;justify-content:center;font-style:normal;font-size:13px;font-weight:700;color:#ffd9a3}
+.lvMember i img{width:100%;height:100%;object-fit:cover;display:block}
+.lvMember b{color:var(--text);font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.lvBoardRow>span[data-label]{text-align:right}
+.lvBoardFoot{font-size:11.5px;color:var(--text-secondary);padding:4px 12px}
+
+.lvAdmin{display:grid;grid-template-columns:minmax(240px,340px) auto;gap:12px;align-items:start}
+.lvMemberResults{display:grid;gap:6px;margin-top:6px;padding:6px;border-radius:12px;border:1px solid var(--border);background:#0e0c0a;max-height:230px;overflow:auto}
+.lvMemberResults button{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:9px;border:0;background:transparent;color:var(--text-secondary);cursor:pointer;text-align:left;min-height:44px}
+.lvMemberResults button:hover,.lvMemberResults button.selected{background:rgba(232,137,44,.18);color:var(--text)}
+.lvMemberResults button>span{width:26px;height:26px;border-radius:50%;flex:none;background:rgba(232,137,44,.25);display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#ffd9a3}
+.lvMemberResults b{font-size:13px;color:inherit}
+.lvMemberResults small{font-size:11.5px;opacity:.75;margin-left:auto}
+.lvPicked{display:grid;gap:2px;padding:10px 14px;border-radius:11px;border:1px solid rgba(232,176,120,.4);background:rgba(232,137,44,.08)}
+.lvPicked b{color:var(--text);font-size:14px}
+.lvPicked small{color:var(--text-secondary);font-size:12px}
+.lvAdminActions{display:grid;grid-template-columns:150px 1fr auto;gap:12px;align-items:end;padding-top:12px;border-top:1px dashed var(--border)}
+.lvAdminButtons{display:flex;flex-wrap:wrap;gap:8px}
+.lvAdminButtons button{min-height:44px;padding:10px 14px;border-radius:11px;border:1px solid var(--border);background:rgba(255,255,255,.05);color:var(--text);font-size:13px;font-weight:600;cursor:pointer}
+.lvAdminButtons button:hover{background:rgba(255,255,255,.09)}
+
+/* ------------------------------------------------------ V3 layout ------ */
+/* ONE compact row holds all seven XP controls: Message XP (toggle, min,
+   max, cooldown) + Voice XP (toggle, amount, interval). Proportional tracks
+   give the dropdowns more room than the number fields; minmax(0,…) keeps
+   the row from ever overflowing its panel. Wraps to 4+3 under 1000px and
+   stacks on mobile. The oversized nested Voice XP container is gone. */
+.lvXpRow{display:grid;gap:12px;align-items:start;grid-template-columns:minmax(0,1.15fr) minmax(0,.75fr) minmax(0,.75fr) minmax(0,1.2fr) minmax(0,1.15fr) minmax(0,.75fr) minmax(0,1.2fr)}
+.lvXpRow .lvField>span{min-height:28px}
+.lvXpRow .lvToggle{width:100%}
+/* Seconds-backed "Custom…" interval field shown under its dropdown. */
+.lvField input.lvXpCustom{min-height:40px;border-style:dashed}
+.lvSubHead{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-top:6px;border-top:1px dashed var(--border)}
+.lvSubHead .eyebrow{font-size:10.5px;letter-spacing:.1em;font-weight:600;color:var(--text-secondary)}
+/* Multiline card description editor (same field chrome as the inputs). */
+.lvField textarea{min-height:110px;padding:9px 12px;border:1px solid var(--border);border-radius:11px;background:rgba(0,0,0,.42);color:var(--text);font-size:13.5px;font-family:inherit;line-height:1.5;width:100%;resize:vertical;color-scheme:dark}
+.lvField textarea:focus{outline:none;border-color:rgba(232,176,120,.55)}
+.lvField textarea:read-only{cursor:pointer;background:rgba(0,0,0,.28);color:var(--text-secondary)}
+.lvFieldError{font-size:11.5px;color:#ffb3b3}
+.lvPhRow{display:flex;flex-wrap:wrap;gap:6px}
+.lvPhChip{min-height:28px;padding:4px 9px;border-radius:7px;border:1px dashed rgba(232,176,120,.4);background:transparent;color:#e7c65a;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.5px;cursor:pointer;transition:.15s}
+.lvPhChip:hover{background:rgba(232,137,44,.16);border-style:solid}
+.lvPhChip:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+/* Announcement preview + safe test action side by side. */
+.lvPreview{display:grid;gap:9px;padding:12px;border-radius:12px;border:1px solid var(--border);background:rgba(0,0,0,.32);min-width:0}
+.lvPreview.lvPreviewBig{padding:14px;gap:10px;background:rgba(0,0,0,.42);border-radius:14px}
+.lvPreviewHead{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px}
+.lvPreviewHead span{font-size:10px;letter-spacing:.09em;font-weight:700;color:var(--text-secondary)}
+.lvPreviewHead small{font-size:11.5px;color:var(--text-secondary)}
+.lvPreviewMsg{display:flex;gap:10px;align-items:flex-start;min-width:0}
+.lvPreviewMsg>i{width:36px;height:36px;border-radius:50%;flex:none;background:rgba(232,137,44,.3);display:inline-flex;align-items:center;justify-content:center;font-style:normal;font-size:15px;font-weight:700;color:#ffd9a3}
+.lvPreviewBody{min-width:0;flex:1}
+.lvPreviewBody>b{display:flex;align-items:center;gap:6px;font-size:13.5px;color:var(--text)}
+.lvPreviewBody>b em{font-style:normal;font-size:9px;letter-spacing:.06em;font-weight:700;padding:2px 5px;border-radius:5px;background:rgba(232,137,44,.25);color:#ffd9a3}
+/* V3: the big live Discord embed — author, title, description, thumbnail,
+   image and footer, styled like a real Discord message. */
+.lvDiscordEmbed{display:grid;gap:7px;margin-top:8px;padding:12px 14px;border-radius:6px;background:#111013;border:1px solid rgba(255,255,255,.06);border-left:4px solid var(--accent);min-width:0}
+.lvEmbAuthor{font-size:12px;font-weight:700;color:#f2f3f5}
+.lvEmbTop{display:flex;gap:12px;align-items:flex-start;min-width:0}
+.lvEmbMain{display:grid;gap:6px;min-width:0;flex:1}
+.lvEmbTitle{font-size:15.5px;font-weight:700;color:#f2f3f5;overflow-wrap:anywhere}
+.lvEmbDesc{margin:0;font-size:13.5px;line-height:1.5;color:#dbdee1;white-space:pre-wrap;overflow-wrap:anywhere}
+.lvEmbDesc b{color:#f2f3f5}
+.lvEmbThumb{width:72px;height:72px;border-radius:8px;object-fit:cover;flex:none;background:rgba(232,137,44,.2)}
+.lvEmbImage{max-width:100%;border-radius:6px;display:block}
+.lvEmbFoot{display:flex;align-items:center;gap:6px;font-size:11.5px;color:#949ba4;overflow-wrap:anywhere}
+.lvEmbFoot img{width:18px;height:18px;border-radius:50%;flex:none}
+/* Two-mode card builder (Ready-made / Custom). */
+.lvCardModes{display:flex;flex-wrap:wrap;gap:10px}
+.lvModeBtn{display:grid;gap:1px;align-content:center;flex:1 1 200px;max-width:none;padding:7px 12px;border-radius:11px;border:1px solid var(--border);background:rgba(255,255,255,.04);color:var(--text-secondary);cursor:pointer;text-align:left;transition:.15s}
+.lvModeBtn b{font-size:13.5px;color:var(--text)}
+.lvModeBtn small{font-size:11px;line-height:1.35;opacity:.85}
+.lvModeBtn.on{border-color:rgba(232,176,120,.55);background:rgba(232,137,44,.14)}
+.lvModeBtn.on b{color:#ffd9a3}
+.lvModeBtn:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.lvCardGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;align-items:start}
+.lvCardGrid .lvCardWide{grid-column:1/-1}
+.lvColorRow{display:flex;gap:8px;align-items:center}
+.lvColorRow input[type=color]{width:56px;min-height:44px;padding:5px;border:1px solid var(--border);border-radius:11px;background:rgba(0,0,0,.42);cursor:pointer}
+.lvColorRow input[type=color]::-webkit-color-swatch-wrapper{padding:2px}
+.lvColorRow input[type=color]::-webkit-color-swatch{border:none;border-radius:7px}
+.lvColorRow input:not([type=color]){flex:1;min-width:0;font-family:ui-monospace,Menlo,Consolas,monospace}
+.lvCardToggles{display:flex;flex-wrap:wrap;gap:10px}
+.lvCardActions{display:flex;flex-wrap:wrap;gap:10px}
+/* ---- V3.1 two-column card builder -------------------------------------- */
+/* Editor LEFT (~50%) and live Discord preview RIGHT (~50%). minmax(0,…) on
+   both tracks guarantees zero horizontal overflow at any width. The preview
+   sticks below the fixed Control Center header (var(--header) = 64px) so it
+   stays beside the editor while the left column scrolls, then stacks
+   (static) below 1200px where two comfortable columns no longer fit. */
+.lvCardBuilder{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start}
+.lvCardEdit{display:grid;gap:10px;min-width:0}
+.lvCardPreviewCol{display:grid;gap:8px;min-width:0;align-self:start;position:sticky;top:calc(var(--header) + 8px)}
+/* Realistic Discord embed width — Discord caps embeds at 512px, so the
+   preview never stretches across the whole column. */
+.lvCardPreviewCol .lvDiscordEmbed{max-width:512px}
+/* Compact labelled groups (design / placeholders / elements / image):
+   dashed separators, not nested cards. */
+.lvCardGroups{display:grid;gap:10px}
+.lvCardGroup{display:grid;gap:8px;min-width:0}
+.lvCardGroup+.lvCardGroup{padding-top:10px;border-top:1px dashed var(--border)}
+.lvGroupTitle{font-size:10.5px;letter-spacing:.09em;font-weight:700;color:var(--text-secondary)}
+.lvReadyBox{display:grid;gap:8px;padding:14px;border-radius:12px;border:1px dashed rgba(232,176,120,.4);background:rgba(232,137,44,.06);font-size:13px;color:var(--text-secondary)}
+.lvReadyBox b{font-size:15px;color:#ffd9a3}
+.lvReadyBox span{line-height:1.5}
+.lvTestBtn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:10px 16px;border-radius:11px;border:1px dashed rgba(232,176,120,.5);background:rgba(232,137,44,.1);color:#ffd9a3;font-size:13px;font-weight:700;cursor:pointer;transition:.15s}
+.lvTestBtn:hover{background:rgba(232,137,44,.22)}
+.lvTestBtn:disabled{opacity:.5;cursor:not-allowed}
+.lvTestBtn svg{width:16px;height:16px}
+/* Rewards: compact rows with in-place edit + remove, consistent buttons. */
+.lvRewardBtns{display:inline-flex;gap:6px;margin-left:auto}
+.lvRewardRow button{min-height:36px;padding:7px 12px;font-size:12.5px}
+.lvGhost{min-height:40px;padding:8px 13px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.05);color:var(--text);font-size:12.5px;font-weight:600;cursor:pointer;transition:.15s}
+.lvGhost:hover{background:rgba(255,255,255,.1)}
+.lvRewardAddBtns{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+/* Admin member results: real avatars, readable empty state. */
+.lvMemberResults button>span{overflow:hidden}
+.lvResultAvatar img{width:100%;height:100%;object-fit:cover;display:block}
+.lvMemberNo{font-size:12.5px;color:var(--text-secondary);padding:8px 2px}
+@media(max-width:1000px){
+ /* Seven controls wrap into two tidy rows (4 + 3) before stacking. */
+ .lvXpRow{grid-template-columns:repeat(4,minmax(0,1fr))}
+}
+
+/* ---- Touch-target + chrome guarantee (V2) ---------------------------------
+   style.css ships a generic `.contentWell button{min-height:40px;padding:0
+   14px;background:var(--surface-2)}` AFTER this file, so every single-class
+   Leveling rule above silently resolved to neutral 40px buttons (the same
+   issue tournaments.css documented in V1.2.1). Raising specificity inside
+   .lvPage restores the intended 44px BalticM controls, amber/red chrome and
+   compact row actions — by specificity, not source order. */
+.lvPage .lvHead button{min-height:44px;padding:10px 15px;border:1px solid var(--border);border-radius:11px;background:rgba(255,255,255,.04);color:var(--text);font-size:13px;font-weight:600}
+.lvPage .lvToggle{min-height:44px;padding:9px 14px;border:1px solid var(--border);border-radius:11px;background:rgba(255,255,255,.04);color:var(--text-secondary);font-size:13px;font-weight:600;text-align:left}
+.lvPage .lvToggle.on{border-color:rgba(232,176,120,.45);background:rgba(232,137,44,.1);color:var(--text)}
+.lvPage .lvToggle:disabled{opacity:.55;cursor:not-allowed}
+.lvPage .lvPrimary{min-height:44px;padding:10px 18px;border:1px solid transparent;border-radius:11px;background:var(--accent);color:#fff;font-size:13.5px;font-weight:700}
+.lvPage .lvFormActions .lvPrimary{min-height:44px;padding:10px 18px;border:1px solid transparent;background:var(--accent);color:#fff}
+.lvPage .lvPrimary:disabled{opacity:.5;cursor:not-allowed}
+.lvPage .lvTestBtn{min-height:44px;padding:10px 16px;border:1px dashed rgba(232,176,120,.5);border-radius:11px;background:rgba(232,137,44,.1);color:#ffd9a3;font-size:13px;font-weight:700}
+.lvPage .lvTestBtn:disabled{opacity:.5;cursor:not-allowed}
+.lvPage .lvPhChip{min-height:28px;padding:4px 9px;border:1px dashed rgba(232,176,120,.4);border-radius:7px;background:transparent;color:#e7c65a;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.5px}
+.lvPage .lvAdminButtons button{min-height:44px;padding:10px 14px;border:1px solid var(--border);border-radius:11px;background:rgba(255,255,255,.05);color:var(--text);font-size:13px;font-weight:600}
+.lvPage .lvDanger{border:1px solid rgba(225,93,93,.5);background:rgba(225,93,93,.14);color:#ffd0d0;border-radius:10px;font-size:12.5px;font-weight:600}
+.lvPage .lvAdminButtons button.lvDanger{min-height:44px;padding:10px 14px;border:1px solid rgba(225,93,93,.5);border-radius:11px;background:rgba(225,93,93,.14);color:#ffd0d0;font-size:13px;font-weight:600}
+.lvPage .lvRewardRow button{min-height:36px;padding:7px 12px;border-radius:10px;font-size:12.5px}
+.lvPage .lvGhost{border:1px solid var(--border);border-radius:10px;background:rgba(255,255,255,.05);color:var(--text);font-size:12.5px;font-weight:600}
+.lvPage .lvUpgrade button{min-height:40px;padding:8px 14px;border:1px solid rgba(232,176,120,.5);border-radius:10px;background:rgba(232,137,44,.16);color:#ffd9a3;font-size:12.5px;font-weight:700}
+.lvPage .lvChip button{width:22px;height:22px;min-height:22px;padding:0;border:0;border-radius:6px;background:transparent;color:#e7c65a}
+.lvPage .lvSearchClear{width:26px;height:26px;min-height:26px;padding:0;border:0;border-radius:7px;background:transparent;color:var(--text-secondary)}
+.lvPage .lvSearchClear svg{width:13px;height:13px}
+.lvPage .lvMemberResults button{min-height:44px;padding:8px 10px;border:0;border-radius:9px;background:transparent;color:var(--text-secondary)}
+.lvPage .lvMemberResults button:hover,.lvPage .lvMemberResults button.selected{background:rgba(232,137,44,.18);color:var(--text)}
+.lvPage .lvModeBtn{display:flex;flex-direction:column;justify-content:center;align-items:stretch;gap:2px;min-height:44px;padding:7px 12px;border:1px solid var(--border);border-radius:11px;background:rgba(255,255,255,.04);color:var(--text-secondary);text-align:left}
+.lvPage .lvModeBtn.on{border-color:rgba(232,176,120,.55);background:rgba(232,137,44,.14)}
+.lvPage .lvModeBtn:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.lvPage .lvColorRow input[type=color]{border:1px solid var(--border);background:rgba(0,0,0,.42)}
+
+/* ---------------------------------------------------------------- mobile */
+@media(max-width:1199px){
+ /* Two comfortable columns no longer fit — stack (editor first, preview
+    below) and drop sticky so the preview can never trap scrolling. */
+ .lvCardBuilder{grid-template-columns:1fr}
+ .lvCardPreviewCol{position:static}
+}
+@media(max-height:560px){
+ /* Too little vertical room for a sticky preview — keep it in flow. */
+ .lvCardPreviewCol{position:static}
+}
+@media(max-width:767px){
+ .lvPanel{padding:14px}
+ /* Clean stacked mobile layout — no horizontal overflow anywhere. */
+ .lvXpRow{grid-template-columns:1fr}
+ .lvIgnored{grid-template-columns:1fr}
+ .lvAnnRow .lvField,.lvAnnRow .lvTestField{max-width:none;flex:1 1 100%}
+ .lvAnnRow .lvTestField .lvTestBtn{width:100%}
+ .lvModeBtn{max-width:none;flex:1 1 100%}
+ .lvCardGrid{grid-template-columns:1fr}
+ .lvRewardAddBtns{flex-wrap:wrap}
+ .lvStats{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+ .lvRewardAdd{grid-template-columns:1fr}
+ .lvAdmin,.lvAdminActions{grid-template-columns:1fr}
+ .lvHead button,.lvSearch{min-height:44px}
+ /* Leaderboard rows collapse into labelled cards — no horizontal overflow. */
+ .lvBoardHead{display:none}
+ .lvBoardRow{grid-template-columns:44px 1fr 1fr;grid-template-areas:"pos member member" ". level total" ". mvoice vvoice";row-gap:6px;padding:12px;border-color:rgba(255,255,255,.06);background:rgba(255,255,255,.03)}
+ .lvPos{grid-area:pos}
+ .lvMember{grid-area:member}
+ .lvBoardRow>span[data-label]{text-align:left}
+ .lvBoardRow>span[data-label]::before{content:attr(data-label) " · ";font-size:10px;letter-spacing:.06em;color:var(--text-secondary)}
+ .lvBoardRow>span:nth-child(3){grid-area:level}
+ .lvBoardRow>span:nth-child(4){grid-area:total}
+ .lvBoardRow>span:nth-child(5){grid-area:mvoice}
+ .lvBoardRow>span:nth-child(6){grid-area:vvoice}
+}
+@media(max-width:430px){
+ .lvHead{align-items:flex-start}
+ .lvStats{grid-template-columns:1fr 1fr}
+ .lvUpgrade{flex-wrap:wrap}
+ .lvUpgrade button{margin-left:0;width:100%}
+}
+@media(max-width:345px){
+ .lvStats{grid-template-columns:1fr}
+ .lvGrid{grid-template-columns:1fr}
+}
