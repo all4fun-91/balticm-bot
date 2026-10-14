@@ -1878,7 +1878,22 @@ footer{padding-bottom:env(safe-area-inset-bottom,0px)}
 .contentWell .supportChatWidget{padding-top:env(safe-area-inset-top,0px)}
 
 /* Streamer Info Panel */
-.streamersPage .streamerPanelCard{display:flex;flex-direction:column;gap:14px}
+.streamersPage .streamerPanelCard{display:flex;flex-direction:column;gap:0}
+.streamersPage .streamerPanelToggle{display:flex;align-items:center;gap:12px;width:100%;min-height:44px;height:auto;padding:4px 0;border:0;background:transparent;color:var(--text);text-align:left;white-space:normal;cursor:pointer}
+.streamerPanelToggle>b{flex:1;min-width:0;font-size:14px}
+.streamerPanelToggle .streamersLinkBadge{flex-shrink:0}
+.streamerPanelToggle:focus-visible{outline:2px solid var(--accent);outline-offset:5px;border-radius:6px}
+.streamerPanelToggle .streamerPanelChevron{flex-shrink:0;width:20px;height:20px;transition:transform 240ms ease}
+.isExpanded .streamerPanelChevron{transform:rotate(180deg)}
+.streamerPanelDisclosure{display:grid;grid-template-rows:0fr;opacity:0;visibility:hidden;transition:grid-template-rows 240ms ease,opacity 240ms ease,visibility 240ms}
+.isExpanded .streamerPanelDisclosure{grid-template-rows:1fr;opacity:1;visibility:visible}
+.streamerPanelDisclosureInner{min-height:0;overflow:hidden}
+.isExpanded .streamerPanelDisclosureInner{overflow:visible;animation:streamerPanelReveal 240ms}
+@keyframes streamerPanelReveal{from,to{overflow:hidden}}
+.streamerPanelBody{display:flex;flex-direction:column;gap:14px;padding-top:14px;min-width:0}
+.streamerPanelBody>.voiceConfigHead>small{color:var(--text-secondary)}
+@media(max-width:767px){.streamersPage .streamerPanelToggle{gap:8px}.streamerPanelToggle>b{font-size:13px}.streamerPanelToggle .streamersLinkBadge{font-size:10px}.streamersPage .panelControls>label{flex-basis:auto}}
+@media(prefers-reduced-motion:reduce){.streamerPanelDisclosure,.streamerPanelToggle .streamerPanelChevron{transition:none}.isExpanded .streamerPanelDisclosureInner{animation:none}}
 .streamersPage .streamerPanelCard .voiceConfigHead{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .panelEmbed{display:flex;flex-direction:column;gap:10px;max-width:560px;min-width:0;padding:16px 18px;border:1px solid var(--border);border-left:4px solid var(--accent);border-radius:12px;background:rgba(0,0,0,.25)}
 .panelEmbedTitle{font-size:15px;font-weight:700;color:var(--text)}

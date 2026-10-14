@@ -69,6 +69,14 @@ export default function Streamers({user,guild,selectedGuild,canConfigure=true,Ti
  const[guildAnnounceId,setGuildAnnounceId]=useState("");
 const[panel,setPanel]=useState(null),[panelChannel,setPanelChannel]=useState(""),[panelBusy,setPanelBusy]=useState(""),[panelNotice,setPanelNotice]=useState(""),[panelDraft,setPanelDraft]=useState(null),[panelEditing,setPanelEditing]=useState(false),[panelDirty,setPanelDirty]=useState(false);
  const[deleteTarget,setDeleteTarget]=useState(null),[deleteError,setDeleteError]=useState(""),[toast,setToast]=useState("");
+ const[panelExpanded,setPanelExpanded]=useState(()=>{
+  try{return window.localStorage.getItem("balticm.streamerInfoPanel.expanded")==="true"}catch{return false}
+ });
+ const togglePanelExpanded=()=>{
+  const next=!panelExpanded;
+  setPanelExpanded(next);
+  try{window.localStorage.setItem("balticm.streamerInfoPanel.expanded",String(next))}catch{/* Storage may be disabled. */}
+ };
  const canMutate=!!data.canMutate;
  const load=async()=>{if(!selectedGuild)return;setLoading(true);try{const r=await fetch("/api/streamers?guildId="+encodeURIComponent(selectedGuild),{cache:"no-store"}),x=await readApiJson(r,"Could not load streamers");if(!r.ok)throw new Error(streamerPanelErrorText(r,x,"Could not load streamers","You do not have permission to manage Streamers for this server."));setData({streamers:x.streamers||[],stats:x.stats||{managed:0,live:0,offline:0,announcements:0},members:x.members||[],channels:x.channels||[],providers:x.providers||[],settings:x.settings||{announcementChannelId:""},profileAccounts:x.profileAccounts||{},canMutate:!!x.canMutate,premium:!!x.premium,isOwner:!!x.isOwner});setGuildAnnounceId(x.settings?.announcementChannelId||"")}catch(e){setNotice(e.message)}finally{setLoading(false)}};
  useEffect(()=>{setNotice("");setFormOpen(false);setEditingId("");setPanel(null);setData(prev=>({...prev,streamers:[],stats:{managed:0,live:0,offline:0,announcements:0}}));load()},[selectedGuild]);
@@ -119,8 +127,39 @@ const[panel,setPanel]=useState(null),[panelChannel,setPanelChannel]=useState("")
   </div>
   <div className="featureToolbar"><div><span className="eyebrow">LIVE TRACKING</span><h3>Managed Streamers</h3><small>Premium servers automatically include members with Profile streaming accounts. UNKNOWN never pretends to be offline.{!data.premium?" Non-Premium: only the Discord Server Owner can add streamers.":""}</small></div><div className="featureActions"><button type="button" onClick={()=>refresh()} disabled={!!busy||loading}><Activity/>{busy==="refresh"?"Checking…":"Refresh status"}</button>{canMutate&&<button type="button" className="primary" onClick={openCreate} disabled={!!busy}><Plus/>Add streamer</button>}</div></div>
   {canMutate&&<div className="streamersForm streamersGuildChannel"><label><span>GUILD LIVE ANNOUNCEMENT CHANNEL</span><TicketOptionSelect id="st-guild-channel" label="Guild LIVE announcement channel" search value={guildAnnounceId} onChange={setGuildAnnounceId} options={channelOptions}/></label><button type="button" onClick={saveGuildChannel} disabled={!!busy}>{busy==="settings"?"Saving…":"Save channel"}</button></div>}
-  {canMutate&&panel&&<div className="streamersForm streamerPanelCard">
-   <div className="voiceConfigHead"><div className="sectionLead"><span className="sectionIcon"><Radio/></span><span><b>Streamer Info Panel</b><small>Publish an informational panel that explains automatic stream announcements.</small></span></div><div className="panelHeadActions"><StreamingStatusBadge on={!!panel.panel?.published}>{panel.panel?.published?"Published":"Not Published"}</StreamingStatusBadge><button type="button" onClick={togglePanelEdit} disabled={!!panelBusy}>{panelEditing?"Close Editor":"Edit Panel"}</button></div></div>
+  {notice&&<div className="memberNotice">{notice}</div>}
+  {canMutate&&formOpen&&<form className="streamersForm" onSubmit={save}>
+   <div className="voiceConfigHead"><div className="sectionLead"><span className="sectionIcon"><Radio/></span><span><b>{editingId?"Edit streamer":"Add streamer"}</b><small>Normalize channel URLs server-side. Credentials never leave the Worker.</small></span></div><button type="button" className="roleEditClose" onClick={()=>{setFormOpen(false);resetForm()}} aria-label="Close"><X/></button></div>
+   <div className="voiceConfigGrid">
+    <div className="streamersField"><span>DISCORD MEMBER</span>{editingSource==="auto"?<div className="modMemberTrigger hasMember"><span className="modMemberTriggerText"><b>{(data.members||[]).find(m=>m.id===memberId)?.globalName||"Premium member"}</b><small>Linked from Profile</small></span></div>:<StreamerMemberSelect members={data.members||[]} value={memberId} onChange={id=>{setMemberId(id);const linked=((data.profileAccounts||{})[id]||[]).find(a=>a.provider===provider);if(linked)setChannelInput(linked.profileUrl||linked.providerLogin||"")}}/>}</div>
+    <div className="streamersField"><span>PLATFORM</span><TicketOptionSelect id="st-platform" label="Platform" value={provider} onChange={id=>{setProvider(id);if(editingSource==="auto")return;const linked=((data.profileAccounts||{})[memberId]||[]).find(a=>a.provider===id);if(linked)setChannelInput(linked.profileUrl||linked.providerLogin||"")}} options={platformOptions.length?platformOptions:[{value:"twitch",label:"Twitch"}]}/></div>
+    <div className="streamersField wide"><span>STREAMER CHANNEL / PROFILE</span><input value={channelInput} onChange={e=>setChannelInput(e.target.value)} placeholder="URL or username" required={editingSource!=="auto"} readOnly={editingSource==="auto"}/></div>
+    <div className="streamersField wide"><span>ANNOUNCEMENT CHANNEL</span><TicketOptionSelect id="st-channel" label="Announcement channel" search flip value={announceId} onChange={setAnnounceId} options={channelOptions}/></div>
+   </div>
+   <div className="streamersToggles">
+    <label className={"roleToggle"+(autoAnnounce?" on":"")}><input type="checkbox" checked={autoAnnounce} onChange={e=>setAutoAnnounce(e.target.checked)}/><i/><span>Automatic LIVE announcements</span></label>
+    <label className={"roleToggle"+(enabled?" on":"")}><input type="checkbox" checked={enabled} onChange={e=>setEnabled(e.target.checked)}/><i/><span>Streamer enabled</span></label>
+   </div>
+   {!detection.liveDetectionAvailable&&<small className="streamersHint">{detection.liveDetectionReason||"Automatic LIVE detection unavailable"}{detection.liveDetectionDetail?" — "+detection.liveDetectionDetail:""}</small>}
+   <label className="streamersMessage"><span>OPTIONAL ANNOUNCEMENT MESSAGE</span><textarea value={customMessage} maxLength={1000} onChange={e=>setCustomMessage(e.target.value)} placeholder="Optional extra text. @everyone and @here are never sent."/></label>
+   <div className="voiceConfigActions"><button type="button" onClick={()=>{setFormOpen(false);resetForm()}}>Cancel</button><button type="submit" className="primary" disabled={busy==="save"}><CheckCircle2/>{busy==="save"?"Saving…":"Save Streamer"}</button></div>
+  </form>}
+  {loading&&!data.streamers.length?<div className="featureEmpty"><Radio/><b>Loading streamers…</b></div>:data.streamers.length?<div className="streamersList">{data.streamers.map(s=>{const st=s.liveStatus||"unknown";return <article className={"streamersCard"+(st==="live"?" isLive":st==="unknown"?" isUnknown":"")} key={s.id}>
+   <div className="streamersIdentity">{s.member?.avatar?<img src={`https://cdn.discordapp.com/avatars/${s.member.id}/${s.member.avatar}.png?size=64`} alt=""/>:<span>{(s.member?.globalName||"?").slice(0,1).toUpperCase()}</span>}<div><b>{s.member?.globalName||"Member left"}</b><small>{s.member?"@"+s.member.username:(s.memberMissing?"Discord member left this server":"Unknown member")}</small><em className={"streamersSource "+(s.source==="auto"?"auto":"owner")}>{s.source==="auto"?"AUTO — PREMIUM":"OWNER ADDED"}</em></div></div>
+   <div className="streamersMeta"><span className="streamersPlatform">{PLATFORM_LABEL[s.provider]||s.provider}</span><b className="streamersChannel">{s.displayName||s.providerLogin}</b><span className={"streamersStatus "+st}><i/>{statusLabel(st)}</span></div>
+   <div className="streamersDetails">{st==="live"&&s.streamTitle?<small>{s.streamTitle}</small>:null}{st==="live"&&s.streamCategory?<small>{s.streamCategory}</small>:null}{st==="live"&&s.viewerCount!=null?<small>{s.viewerCount} viewers</small>:null}{!s.liveDetectionAvailable?<small className="streamersUnknownNote">Automatic LIVE detection unavailable</small>:null}{s.lastError?<small className="streamersUnknownNote">{s.lastError}</small>:null}<small>#{s.announcementChannelName||s.announcementChannelId}</small><small>{s.enabled?"Enabled":"Disabled"} · {s.lastCheckedAt?new Date(s.lastCheckedAt).toLocaleString():"Never checked"}</small></div>
+   <div className="featureActions">{s.watchUrl&&<a className="streamersWatch" href={s.watchUrl} target="_blank" rel="noreferrer"><ExternalLink/>Watch Stream</a>}<button type="button" onClick={()=>refresh(s.id)} disabled={!!busy}><Search/>{busy==="chk-"+s.id?"Checking\u2026":"Check"}</button>{canMutate&&<button type="button" onClick={()=>openEdit(s)} disabled={!!busy}><Pencil/>Edit</button>}{canMutate&&<button type="button" className="danger" onClick={()=>{setDeleteError("");setDeleteTarget(s)}} disabled={!!busy}><Trash2/>Delete</button>}</div>
+  </article>})}</div>:<div className="featureEmpty"><div><Radio/></div><b>No streamers yet</b><span>{canMutate?"Add a Twitch, YouTube, Kick or TikTok profile for this Discord server.":"No streamer profiles are configured for this server."}</span></div>}
+  {canMutate&&panel&&<div className={"streamersForm streamerPanelCard"+(panelExpanded?" isExpanded":"")}>
+   <button type="button" className="streamerPanelToggle" aria-expanded={panelExpanded} aria-controls="streamer-info-panel-content" onClick={togglePanelExpanded}>
+    <b>Streamer Info Panel</b>
+    <StreamingStatusBadge on={!!panel.panel?.published}>{panel.panel?.published?"Published":"Not Published"}</StreamingStatusBadge>
+    <ChevronDown className="streamerPanelChevron" aria-hidden="true"/>
+   </button>
+   <div id="streamer-info-panel-content" className="streamerPanelDisclosure" aria-hidden={!panelExpanded} inert={!panelExpanded}>
+    <div className="streamerPanelDisclosureInner">
+     <div className="streamerPanelBody">
+      <div className="voiceConfigHead"><small>Publish an informational panel that explains automatic stream announcements.</small><button type="button" onClick={togglePanelEdit} disabled={!!panelBusy}>{panelEditing?"Close Editor":"Edit Panel"}</button></div>
    {panelNotice&&<div className="memberNotice">{panelNotice}</div>}
    {panel.error?<small className="streamersHint">{panel.error}</small>:<>
     {panelEditing&&panelDraft&&<div className="panelEditor">
@@ -156,30 +195,10 @@ const[panel,setPanel]=useState(null),[panelChannel,setPanelChannel]=useState("")
     </div>}
     {!panel.panel?.published&&(panel.channels||[]).length===0&&<small className="streamersHint">{panel.channels===null?STREAMER_PANEL_ACCESS_UNKNOWN_ERROR:STREAMER_PANEL_BOT_PERMISSION_ERROR}</small>}
    </>}
+     </div>
+    </div>
+   </div>
   </div>}
-  {notice&&<div className="memberNotice">{notice}</div>}
-  {canMutate&&formOpen&&<form className="streamersForm" onSubmit={save}>
-   <div className="voiceConfigHead"><div className="sectionLead"><span className="sectionIcon"><Radio/></span><span><b>{editingId?"Edit streamer":"Add streamer"}</b><small>Normalize channel URLs server-side. Credentials never leave the Worker.</small></span></div><button type="button" className="roleEditClose" onClick={()=>{setFormOpen(false);resetForm()}} aria-label="Close"><X/></button></div>
-   <div className="voiceConfigGrid">
-    <div className="streamersField"><span>DISCORD MEMBER</span>{editingSource==="auto"?<div className="modMemberTrigger hasMember"><span className="modMemberTriggerText"><b>{(data.members||[]).find(m=>m.id===memberId)?.globalName||"Premium member"}</b><small>Linked from Profile</small></span></div>:<StreamerMemberSelect members={data.members||[]} value={memberId} onChange={id=>{setMemberId(id);const linked=((data.profileAccounts||{})[id]||[]).find(a=>a.provider===provider);if(linked)setChannelInput(linked.profileUrl||linked.providerLogin||"")}}/>}</div>
-    <div className="streamersField"><span>PLATFORM</span><TicketOptionSelect id="st-platform" label="Platform" value={provider} onChange={id=>{setProvider(id);if(editingSource==="auto")return;const linked=((data.profileAccounts||{})[memberId]||[]).find(a=>a.provider===id);if(linked)setChannelInput(linked.profileUrl||linked.providerLogin||"")}} options={platformOptions.length?platformOptions:[{value:"twitch",label:"Twitch"}]}/></div>
-    <div className="streamersField wide"><span>STREAMER CHANNEL / PROFILE</span><input value={channelInput} onChange={e=>setChannelInput(e.target.value)} placeholder="URL or username" required={editingSource!=="auto"} readOnly={editingSource==="auto"}/></div>
-    <div className="streamersField wide"><span>ANNOUNCEMENT CHANNEL</span><TicketOptionSelect id="st-channel" label="Announcement channel" search flip value={announceId} onChange={setAnnounceId} options={channelOptions}/></div>
-   </div>
-   <div className="streamersToggles">
-    <label className={"roleToggle"+(autoAnnounce?" on":"")}><input type="checkbox" checked={autoAnnounce} onChange={e=>setAutoAnnounce(e.target.checked)}/><i/><span>Automatic LIVE announcements</span></label>
-    <label className={"roleToggle"+(enabled?" on":"")}><input type="checkbox" checked={enabled} onChange={e=>setEnabled(e.target.checked)}/><i/><span>Streamer enabled</span></label>
-   </div>
-   {!detection.liveDetectionAvailable&&<small className="streamersHint">{detection.liveDetectionReason||"Automatic LIVE detection unavailable"}{detection.liveDetectionDetail?" — "+detection.liveDetectionDetail:""}</small>}
-   <label className="streamersMessage"><span>OPTIONAL ANNOUNCEMENT MESSAGE</span><textarea value={customMessage} maxLength={1000} onChange={e=>setCustomMessage(e.target.value)} placeholder="Optional extra text. @everyone and @here are never sent."/></label>
-   <div className="voiceConfigActions"><button type="button" onClick={()=>{setFormOpen(false);resetForm()}}>Cancel</button><button type="submit" className="primary" disabled={busy==="save"}><CheckCircle2/>{busy==="save"?"Saving…":"Save Streamer"}</button></div>
-  </form>}
-  {loading&&!data.streamers.length?<div className="featureEmpty"><Radio/><b>Loading streamers…</b></div>:data.streamers.length?<div className="streamersList">{data.streamers.map(s=>{const st=s.liveStatus||"unknown";return <article className={"streamersCard"+(st==="live"?" isLive":st==="unknown"?" isUnknown":"")} key={s.id}>
-   <div className="streamersIdentity">{s.member?.avatar?<img src={`https://cdn.discordapp.com/avatars/${s.member.id}/${s.member.avatar}.png?size=64`} alt=""/>:<span>{(s.member?.globalName||"?").slice(0,1).toUpperCase()}</span>}<div><b>{s.member?.globalName||"Member left"}</b><small>{s.member?"@"+s.member.username:(s.memberMissing?"Discord member left this server":"Unknown member")}</small><em className={"streamersSource "+(s.source==="auto"?"auto":"owner")}>{s.source==="auto"?"AUTO — PREMIUM":"OWNER ADDED"}</em></div></div>
-   <div className="streamersMeta"><span className="streamersPlatform">{PLATFORM_LABEL[s.provider]||s.provider}</span><b className="streamersChannel">{s.displayName||s.providerLogin}</b><span className={"streamersStatus "+st}><i/>{statusLabel(st)}</span></div>
-   <div className="streamersDetails">{st==="live"&&s.streamTitle?<small>{s.streamTitle}</small>:null}{st==="live"&&s.streamCategory?<small>{s.streamCategory}</small>:null}{st==="live"&&s.viewerCount!=null?<small>{s.viewerCount} viewers</small>:null}{!s.liveDetectionAvailable?<small className="streamersUnknownNote">Automatic LIVE detection unavailable</small>:null}{s.lastError?<small className="streamersUnknownNote">{s.lastError}</small>:null}<small>#{s.announcementChannelName||s.announcementChannelId}</small><small>{s.enabled?"Enabled":"Disabled"} · {s.lastCheckedAt?new Date(s.lastCheckedAt).toLocaleString():"Never checked"}</small></div>
-   <div className="featureActions">{s.watchUrl&&<a className="streamersWatch" href={s.watchUrl} target="_blank" rel="noreferrer"><ExternalLink/>Watch Stream</a>}<button type="button" onClick={()=>refresh(s.id)} disabled={!!busy}><Search/>{busy==="chk-"+s.id?"Checking\u2026":"Check"}</button>{canMutate&&<button type="button" onClick={()=>openEdit(s)} disabled={!!busy}><Pencil/>Edit</button>}{canMutate&&<button type="button" className="danger" onClick={()=>{setDeleteError("");setDeleteTarget(s)}} disabled={!!busy}><Trash2/>Delete</button>}</div>
-  </article>})}</div>:<div className="featureEmpty"><div><Radio/></div><b>No streamers yet</b><span>{canMutate?"Add a Twitch, YouTube, Kick or TikTok profile for this Discord server.":"No streamer profiles are configured for this server."}</span></div>}
   {deleteTarget&&<div className="streamerDeleteBackdrop" onMouseDown={e=>{if(e.target===e.currentTarget)cancelDelete()}}>
    <div className="streamerDeleteModal" role="dialog" aria-modal="true" aria-labelledby="streamerDeleteTitle">
     <div className="streamerDeleteHead"><b id="streamerDeleteTitle">Remove streamer?</b></div>
